@@ -1,0 +1,4 @@
+# YCGrid project settings
+[python]
+version = "3.12"
+auto_install = "ask"   # ask: ask first; always: install automatically; never: don't install

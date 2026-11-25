@@ -1,0 +1,22 @@
+# Seeds of scripts\chaos.py that found a problem once: scripts\check_all.cmd replays each (run on dist_debug, whose
+# asserts catch more). One per line: seed  language  actions  # what it found
+101  en     800  # docking a docked figure again crashed (0xC0000005)
+202  zh-TW  400  # the File tab's Backstage in another language: Close / Restart Now ended the hidden window; typing a quote into a formula being pointed read past its end
+606  zh-TW  600  # the Error Log in a floating group over the sheets: taking its tab out
+3129  en     500  # a floating dock group over the docked Error Log's tab: the window list missed it (DockIsActive false)
+5001  zh-TW  210  # a floating window just below the docked Error Log's tab: a press on the tab's free strip resized it (tool)
+5094  en     200  # a click on a character of Insert Symbol: the Unicode code box recursed into itself (stack overflow)
+5093  zh-TW  990  # the same crash, reached by another path
+5099  zh-TW  60   # a drag of cells or a reference box larger than the sheet's rows: std::clamp got a negative upper bound
+5117  zh-TW  520  # page breaks shown on a small paper size: every frame drew every dash and laid out the pages again
+5324  en     12   # AutoSum with the whole sheet selected wrote a million totals
+5338  en     380  # the Error Log's tab wider than its narrow node: its uncut middle lay on the splitter (tool)
+5341  zh-TW  676  # the same AutoSum over the whole sheet, with an entry started first (fixed with 5324)
+5501  zh-TW  696  # a click on a floating container, then typing with Ctrl+Enter, filled ten million selected cells
+5643  zh-TW  881  # AutoSum over whole columns with an empty last column wrote a row total in every row of the sheet
+5806  en     745  # the mouse over a PivotTable's filter area read past its report (PivotReport::at, a debug assertion)
+6089  zh-TW  698  # AutoSum over B10:J1048576 wrote a row total in every row, twice; the status bar then gathered its millions of values every second
+6125  zh-TW  122  # F7 walked every cell of a used range reaching the sheet's end and the UI stood still
+6156  en     711  # the backtest example run again after a person's AutoFilter on its sheet: its table was refused ("This will change a filtered range")
+6803  zh-TW  116  # the Page Layout tab's Scale box laid the sheet out at every frame with Fit To set: the window stopped answering
+6821  zh-TW  108  # Flash Fill's live preview made text of every cell of a large region at each keystroke: typing waited a minute

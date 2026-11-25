@@ -1,0 +1,259 @@
+{
+  "containers": 1,
+  "layout": "{\"schema\":\"ycgrid.layout\"}",
+  "names": [
+    [
+      "單價",
+      "報價!$A$2",
+      -1
+    ]
+  ],
+  "panels": 1,
+  "props": 1,
+  "sheets": [
+    {
+      "cells": {
+        "A1": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "標題",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "標題",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "A2": {
+          "bold": true,
+          "border_bottom": 1,
+          "display": "123.5",
+          "fill": 4294967040,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "123.5",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "A3": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "#DIV/0!",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "=1/0",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "A4": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "#DIV/0!",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "=SUM(A2:A3)",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "B1": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "B2": {
+          "bold": true,
+          "border_bottom": 1,
+          "display": "TRUE",
+          "fill": 4294967040,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "TRUE",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "B3": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "0012",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "'0012",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "B4": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "42",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "=分析!A1+1",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "C1": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "C2": {
+          "bold": true,
+          "border_bottom": 1,
+          "display": "2024-10-23 04:40:00.123456789",
+          "fill": 4294967040,
+          "font": "Consolas",
+          "halign": 2,
+          "input": "1729658400.123456789",
+          "numfmt": "[epoch][utc]yyyy-mm-dd hh:mm:ss.000000000",
+          "size": 14.0
+        },
+        "C3": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "50%",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "50%",
+          "numfmt": "0%",
+          "size": 11.0
+        },
+        "C4": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "123456789",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "=TS_PART(C2,\"ns\")",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "D1": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "D2": {
+          "bold": true,
+          "border_bottom": 1,
+          "display": "247",
+          "fill": 4294967040,
+          "font": "Calibri",
+          "halign": 2,
+          "input": "=A2*2",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "D3": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "2026/10/23",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "2026/10/23",
+          "numfmt": "yyyy/m/d",
+          "size": 11.0
+        },
+        "D4": {
+          "bold": false,
+          "border_bottom": 1,
+          "display": "",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "",
+          "numfmt": "General",
+          "size": 11.0
+        }
+      },
+      "charts": 1,
+      "colB_width": 120,
+      "controls": 1,
+      "merges": [
+        "A1:D1"
+      ],
+      "name": "報價",
+      "notes": 1,
+      "row2_height": 30,
+      "row5_hidden": true,
+      "row_limit": 1048576,
+      "tab_color": 4278235216,
+      "visible": true
+    },
+    {
+      "cells": {
+        "A1": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "41",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "41",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "A2": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "370.5",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "=單價*3",
+          "numfmt": "General",
+          "size": 11.0
+        },
+        "F6": {
+          "bold": false,
+          "border_bottom": 0,
+          "display": "這是一段很長的中文字串，用來測試字串堆積儲存（超過 14 bytes）",
+          "fill": 0,
+          "font": "Calibri",
+          "halign": 0,
+          "input": "這是一段很長的中文字串，用來測試字串堆積儲存（超過 14 bytes）",
+          "numfmt": "General",
+          "size": 11.0
+        }
+      },
+      "charts": 0,
+      "colB_width": 64,
+      "controls": 0,
+      "merges": [],
+      "name": "分析",
+      "notes": 0,
+      "row2_height": 20,
+      "row5_hidden": false,
+      "row_limit": 1048576,
+      "tab_color": 0,
+      "visible": true
+    }
+  ],
+  "store_keys": [
+    "ui.version"
+  ]
+}

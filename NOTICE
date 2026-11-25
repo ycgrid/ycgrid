@@ -1,0 +1,15 @@
+YCGrid
+Copyright 2026 YCT
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes third-party software under their own licenses; see THIRD-PARTY-NOTICES.md
+(in a release: licenses\THIRD-PARTY-NOTICES.md and the license files next to it).
+
+Portions of this software are copyright (c) 2026 The FreeType Project (www.freetype.org).
+All rights reserved.
+
+Microsoft, Excel and Office are trademarks of the Microsoft group of companies. YCGrid is an
+independent project; it is not affiliated with, endorsed by or sponsored by Microsoft.
+Python is a trademark of the Python Software Foundation. Other names and marks are the property
+of their owners.

@@ -1,0 +1,8 @@
+* text=auto
+# cmd batch files must be CRLF, otherwise labels and goto may break.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ttf binary
+*.ycg binary
+# doc_fuzz streams (tests/fuzz/corpus): bytes, not text
+*.bin binary

@@ -1,0 +1,12 @@
+# YCGrid project settings
+[python]
+version = "3.12"
+auto_install = "ask"
+# the code the examples share (ex_trading's ladder and chain, ex_util's blotter), imported as if it were in lib
+paths = ["../lib"]
+
+# the simulated market: a separate process that streams the option chain and the futures price
+[[python.feeds]]
+name = "market"
+script = "feeds/market.py"
+restart = "always"

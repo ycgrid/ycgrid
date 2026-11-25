@@ -1,0 +1,6 @@
+# YCGrid project settings
+[python]
+version = "3.12"
+auto_install = "ask"   # ask: ask first; always: install automatically; never: don't install
+# the code the examples share (ex_util, ex_math, ex_backtest, ex_trading), imported as if it were in this folder's lib
+paths = ["../lib"]

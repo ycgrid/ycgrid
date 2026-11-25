@@ -1,0 +1,17 @@
+/build/
+/dist/
+/out/
+/.vs/
+*.user
+__pycache__/
+*.pyc
+/.ycgrid/
+imgui.ini
+/layout.json
+/dist_debug/
+/dist_release/
+# made by scripts\make_sln.cmd: its projects live in build\vs2026
+/ycgrid.slnx
+# Visual Studio output next to the root solution
+/x64/
+LastCoverageResults.log

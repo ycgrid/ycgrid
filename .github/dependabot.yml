@@ -1,0 +1,15 @@
+# Dependabot keeps the GitHub Actions of the workflows up to date. ImGui, ImPlot and the vcpkg libraries are pinned
+# on purpose in third_party/deps.lock and checked at configure time: they move by hand, with an ADR
+# (third_party/README.md), so they are not listed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI:"

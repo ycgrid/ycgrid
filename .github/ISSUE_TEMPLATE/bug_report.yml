@@ -1,0 +1,52 @@
+name: Bug report
+description: Something doesn't work, crashes, or behaves differently from Excel
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security problems go to the Security tab (Report a vulnerability), not here.
+        A difference from Excel is a bug unless docs/excel-parity-backlog.md lists it under "Kept on purpose" or "Not planned".
+  - type: input
+    id: version
+    attributes:
+      label: YCGrid version
+      description: File > Info > About, or the release you downloaded
+      placeholder: "0.3.1"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and screen scale
+      placeholder: "Windows 11 24H2, 150%"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The keys, clicks or Python code, starting from a new workbook if you can
+      placeholder: |
+        1. Type 5 in A1 and press Enter
+        2. Press Alt, H, O, I
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected (what Excel does, if it applies)
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Error messages, a screenshot, or entries from Developer > Error Log
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files or logs
+      description: Attach a small .ycg or a script that shows the problem, and the crash dump YCGrid named if it crashed. Remove anything private first.

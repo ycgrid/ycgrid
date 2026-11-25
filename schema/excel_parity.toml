@@ -1,0 +1,412 @@
+# SPDX-License-Identifier: Apache-2.0
+# Excel's object model against YCGrid's Python members.
+#
+# Every member Excel's type library lists for the objects below (tests/data/excel_object_model.json, measured by
+# scripts/measure_excel_object_model.py from EXCEL.EXE) is one of three things:
+#   - a member of the YCGrid classes named for its object (found by scripts/check_excel_parity.py in python/yc);
+#   - in [[not_planned]], under a reason (the decisions of docs/excel-parity-backlog.md, "Not planned");
+#   - in [[gap]], open, with a priority:
+#       high    Python lacks what YCGrid's own UI does, or a ported macro sets it in its first lines and stops there
+#               (Application raises on a member it doesn't know);
+#       medium  a File > Options item, or a member macros commonly read or set;
+#       low     the rest.
+# scripts/check_excel_parity.py fails on a member in none of them, and on one listed here that YCGrid now has: the
+# gaps only shrink. `--write` regenerates docs/excel-object-model.md from this file. "*.Name" means every object.
+# Settings in File > Options are members of Application, Workbook, Worksheet and Window, so they are counted here too.
+
+[objects]
+Application = { tlb = "_Application", yc = ["excel._Application"] }
+Workbook = { tlb = "_Workbook", yc = ["excel.Workbook"] }
+Workbooks = { tlb = "Workbooks", yc = ["excel._Workbooks"] }
+Worksheet = { tlb = "_Worksheet", yc = ["excel.Worksheet"] }
+Sheets = { tlb = "Sheets", yc = ["excel._Worksheets"] }
+Window = { tlb = "Window", yc = ["excel.Window"] }
+Windows = { tlb = "Windows", yc = ["excel._Windows"] }
+Pane = { tlb = "Pane", yc = ["excel.Pane"] }
+Panes = { tlb = "Panes", yc = ["excel.Panes"] }
+Range = { tlb = "Range", yc = ["excel.Range"] }
+Areas = { tlb = "Areas", yc = ["excel._Areas"] }
+Font = { tlb = "Font", yc = ["excel.Font"] }
+Interior = { tlb = "Interior", yc = ["excel.Interior"] }
+Border = { tlb = "Border", yc = ["excel.Border"] }
+Borders = { tlb = "Borders", yc = ["excel.Borders"] }
+Characters = { tlb = "Characters", yc = ["excel.Characters"] }
+Style = { tlb = "Style", yc = ["excel.Style"] }
+CellFormat = { tlb = "CellFormat", yc = ["excel.CellFormat"] }
+Name = { tlb = "Name", yc = ["excel.Name"] }
+Names = { tlb = "Names", yc = ["excel._Names"] }
+Comment = { tlb = "Comment", yc = ["excel._Note"] }
+Hyperlink = { tlb = "Hyperlink", yc = ["excel.Hyperlink"] }
+Validation = { tlb = "Validation", yc = ["rules.Validation"] }
+FormatCondition = { tlb = "FormatCondition", yc = ["rules.FormatCondition"] }
+FormatConditions = { tlb = "FormatConditions", yc = ["rules.FormatConditions"] }
+AutoFilter = { tlb = "AutoFilter", yc = ["rules.AutoFilter"] }
+Filter = { tlb = "Filter", yc = ["rules.Filter"] }
+Sort = { tlb = "Sort", yc = ["excel.SortObj", "excel._TableSort"] }
+SortFields = { tlb = "SortFields", yc = ["excel.SortFields"] }
+Outline = { tlb = "Outline", yc = ["excel._Outline"] }
+PageSetup = { tlb = "PageSetup", yc = ["excel._PageSetup"] }
+HPageBreak = { tlb = "HPageBreak", yc = ["excel._PageBreak"] }
+Error = { tlb = "Error", yc = ["excel._CellError"] }
+Errors = { tlb = "Errors", yc = ["excel._CellErrors"] }
+AutoCorrect = { tlb = "AutoCorrect", yc = ["excel._AutoCorrect"] }
+ListObjects = { tlb = "ListObjects", yc = ["excel._ListObjects"] }
+ListObject = { tlb = "ListObject", yc = ["excel.ListObject"] }
+ListColumn = { tlb = "ListColumn", yc = ["excel.ListColumn"] }
+ListRow = { tlb = "ListRow", yc = ["excel.ListRow"] }
+Chart = { tlb = "_Chart", yc = ["ui.Chart", "excel.ChartSheet"] }
+ChartObject = { tlb = "ChartObject", yc = ["ui.ChartObject"] }
+Series = { tlb = "Series", yc = ["ui.Series"] }
+Axis = { tlb = "Axis", yc = ["ui._Axis"] }
+Shapes = { tlb = "Shapes", yc = ["ui.Shapes"] }
+Shape = { tlb = "Shape", yc = ["ui.Shape"] }
+PivotCache = { tlb = "PivotCache", yc = ["excel._PivotCacheObj"] }
+PivotTable = { tlb = "PivotTable", yc = ["excel.PivotTable"] }
+PivotField = { tlb = "PivotField", yc = ["excel.PivotField"] }
+PivotItem = { tlb = "PivotItem", yc = ["excel.PivotItem"] }
+Slicer = { tlb = "Slicer", yc = ["excel.Slicer"] }
+SlicerCache = { tlb = "SlicerCache", yc = ["excel.SlicerCache"] }
+SparklineGroup = { tlb = "SparklineGroup", yc = ["excel.SparklineGroup"] }
+Scenario = { tlb = "Scenario", yc = ["excel.Scenario"] }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Not planned: each group's reason is why; don't list these as missing again.
+
+[[not_planned]]
+reason = "Microsoft's cloud and Office services (SharePoint, OneDrive, AutoSave, sensitivity labels, rights management, Power BI, workflows): YCGrid works with local files only"
+members = [
+  "Application.ActiveEncryptionSession", "Application.SensitivityLabelPolicy", "Application.SharePointVersion",
+  "Application.DisplayDocumentActionTaskPane", "Application.DisplayDocumentInformationPanel",
+  "Application.LanguageSettings", "Application.Assistance", "Application.FeatureInstall", "Workbook.AutoSaveOn",
+  "Workbook.CanCheckIn", "Workbook.CheckIn", "Workbook.CheckInWithVersion", "Workbook.ContentTypeProperties",
+  "Workbook.CustomXMLParts", "Workbook.DocumentLibraryVersions", "Workbook.FullNameURLEncoded",
+  "Workbook.GetWorkflowTasks", "Workbook.GetWorkflowTemplates", "Workbook.LockServerFile", "Workbook.Permission",
+  "Workbook.PublishToPBI", "Workbook.SensitivityLabel", "Workbook.ServerPolicy", "Workbook.ServerViewableItems",
+  "Workbook.SharedWorkspace", "Workbook.Signatures", "Workbook.SmartDocument", "Workbook.Sync",
+  "Workbook.WorkIdentity", "Workbook.Research", "Workbook.EncryptionProvider", "Workbooks.CanCheckOut",
+  "Workbooks.CheckOut", "Range.ServerActions", "ListObject.Publish", "ListObject.SharePointURL",
+]
+
+[[not_planned]]
+reason = "Mail, fax and review routing: share a workbook by saving it and sending the file"
+members = [
+  "Application.MailLogoff", "Application.MailLogon", "Application.MailSession", "Application.MailSystem",
+  "Application.NextLetter", "Workbook.EnvelopeVisible", "Workbook.ForwardMailer", "Workbook.Mailer", "Workbook.Post",
+  "Workbook.Reply", "Workbook.ReplyAll", "Workbook.ReplyWithChanges", "Workbook.SendFaxOverInternet",
+  "Workbook.SendForReview", "Workbook.SendMail", "Workbook.SendMailer", "Workbook.EndReview", "Worksheet.MailEnvelope",
+  "Chart.MailEnvelope",
+]
+
+[[not_planned]]
+reason = "Excel 4 macro sheets, DDE, XLL and COM add-ins, macro recording and Excel's code editor: YCGrid's code is Python in the project folder, and its add-ins are Python packages"
+members = [
+  "Application.DDEAppReturnCode", "Application.DDEExecute", "Application.DDEInitiate", "Application.DDEPoke",
+  "Application.DDERequest", "Application.DDETerminate", "Application.IgnoreRemoteRequests",
+  "Application.Excel4IntlMacroSheets", "Application.Excel4MacroSheets", "Application.ExecuteExcel4Macro",
+  "Application.DisplayExcel4Menus", "Application.RegisterXLL", "Application.RegisteredFunctions", "Application.AddIns",
+  "Application.AddIns2", "Application.COMAddIns", "Application.LibraryPath", "Application.UserLibraryPath",
+  "Application.AltStartupPath", "Application.StartupPath", "Application.RecordMacro", "Application.RecordRelative",
+  "Application.EnableMacroAnimations", "Application.OnWindow", "Workbook.Excel4IntlMacroSheets",
+  "Workbook.Excel4MacroSheets", "Workbook.IsAddin", "Workbook.RunAutoMacros", "Workbook.SetLinkOnData",
+  "Workbook.UpdateRemoteReferences", "Window.OnWindow", "Range.Run", "Range.DialogBox", "Name.Category",
+  "Name.CategoryLocal", "Name.ShortcutKey", "Workbook.HasVBProject", "Range.TogglePythonMarshalMode",
+]
+
+[[not_planned]]
+reason = "External data and OLAP: connections, ODBC / OLE DB, Power Query, the Data Model, cube functions, write-back and XML maps; data comes in through Python (pandas, feeds, bind)"
+members = [
+  "Application.ODBCErrors", "Application.ODBCTimeout", "Application.OLEDBErrors",
+  "Application.CalculateUntilAsyncQueriesDone", "Application.DeferAsyncQueries",
+  "Application.ArbitraryXMLSupportAvailable", "Application.DisplayXMLSourcePane", "Workbook.Connections",
+  "Workbook.ConnectionsDisabled", "Workbook.EnableConnections", "Workbook.Model", "Workbook.Queries",
+  "Workbook.SaveAsXMLData", "Workbook.XmlImport", "Workbook.XmlImportXml", "Workbook.XmlMaps",
+  "Workbook.XmlNamespaces", "Workbook.TemplateRemoveExtData", "Workbooks.OpenDatabase", "Workbooks.OpenXML",
+  "Worksheet.XmlDataQuery", "Worksheet.XmlMapQuery", "Range.AllocateChanges", "Range.CopyFromRecordset",
+  "Range.DiscardChanges", "Range.MDX", "Range.QueryTable", "Range.XPath", "Range.SubscribeTo", "Range.EditionOptions",
+  "ListObject.QueryTable", "ListObject.Refresh", "ListObject.TableObject", "ListObject.Unlink", "ListObject.XmlMap",
+  "ListObject.ExportToVisio", "ListColumn.XPath", "PivotCache.ADOConnection", "PivotCache.BackgroundQuery",
+  "PivotCache.CommandText", "PivotCache.CommandType", "PivotCache.Connection", "PivotCache.IsConnected",
+  "PivotCache.LocalConnection", "PivotCache.MaintainConnection", "PivotCache.MakeConnection", "PivotCache.OLAP",
+  "PivotCache.OptimizeCache", "PivotCache.QueryType", "PivotCache.Recordset", "PivotCache.RefreshPeriod",
+  "PivotCache.ResetTimer", "PivotCache.RobustConnect", "PivotCache.SaveAsODC", "PivotCache.SavePassword",
+  "PivotCache.SourceConnectionFile", "PivotCache.SourceDataFile", "PivotCache.UpgradeOnRefresh",
+  "PivotCache.UseLocalConnection", "PivotCache.WorkbookConnection", "PivotTable.AllocateChanges",
+  "PivotTable.Allocation", "PivotTable.AllocationMethod", "PivotTable.AllocationValue",
+  "PivotTable.AllocationWeightExpression", "PivotTable.CalculatedMembers", "PivotTable.CalculatedMembersInFilters",
+  "PivotTable.ChangeConnection", "PivotTable.ChangeList", "PivotTable.CommitChanges", "PivotTable.CreateCubeFile",
+  "PivotTable.CubeFields", "PivotTable.DiscardChanges", "PivotTable.DisplayMemberPropertyTooltips",
+  "PivotTable.EnableDataValueEditing", "PivotTable.EnableWriteback", "PivotTable.MDX",
+  "PivotTable.RefreshDataSourceValues", "PivotTable.TotalsAnnotation", "PivotTable.ViewCalculatedMembers",
+  "PivotTable.VisualTotals", "PivotTable.VisualTotalsForSets", "PivotTable.DisplayImmediateItems",
+  "PivotField.CubeField", "PivotField.IsMemberProperty", "PivotField.MemberPropertyCaption",
+  "PivotField.PropertyOrder", "PivotField.PropertyParentField", "PivotField.ServerBased",
+  "PivotField.UseMemberPropertyAsCaption", "PivotField.DisplayAsCaption", "PivotField.DisplayAsTooltip",
+  "PivotField.DisplayInReport", "PivotField.HiddenItemsList", "PivotField.VisibleItemsList",
+  "PivotField.AllItemsVisible", "PivotField.CurrentPageList", "PivotField.MemoryUsed", "SlicerCache.OLAP",
+  "SlicerCache.SlicerCacheLevels", "SlicerCache.WorkbookConnection", "Slicer.SlicerCacheLevel",
+]
+
+[[not_planned]]
+reason = "COM RTD servers and their throttle: live values come from Python (=STREAM and =QUOTE in cells, Range.BindTopics), and Application.PublishInterval sets how often the screen shows them"
+members = ["Application.RTD"]
+
+[[not_planned]]
+reason = "OLAP drill down and drill up, Solve Order and List Formulas (docs/excel-parity-backlog.md, Not planned)"
+members = [
+  "PivotTable.DrillDown", "PivotTable.DrillTo", "PivotTable.DrillUp", "PivotTable.ListFormulas", "PivotField.DrillTo",
+  "PivotItem.DrillTo", "PivotItem.DrilledDown",
+]
+
+[[not_planned]]
+reason = "Data Types (Stocks, Geography), Excel 2024's cell checkboxes and pictures placed in cells, Python in Excel (docs/excel-parity-backlog.md, Not planned)"
+members = [
+  "Application.ShowConvertToDataType", "Window.DisplayDataTypeIcons", "Range.CellControl",
+  "Range.ConvertToLinkedDataType", "Range.DataTypeToText", "Range.HasRichDataType", "Range.LinkedDataTypeState",
+  "Range.RefreshLinkedDataType", "Range.SetCellDataTypeFromCell", "Range.ShowCard", "Range.InsertPictureInCell",
+  "Range.PastePictureInCell", "Range.PlacePictureOverCells", "Range.UpdatePictureInCellAlternativeText",
+  "Shape.PlacePictureInCell",
+]
+
+[[not_planned]]
+reason = "Shared workbooks and the legacy Track Changes, merged workbooks and personal views: superseded in Excel itself by co-authoring, which is a cloud service"
+members = [
+  "Workbook.AcceptAllChanges", "Workbook.RejectAllChanges", "Workbook.AutoUpdateFrequency",
+  "Workbook.AutoUpdateSaveChanges", "Workbook.ChangeHistoryDuration", "Workbook.ConflictResolution",
+  "Workbook.HighlightChangesOnScreen", "Workbook.HighlightChangesOptions", "Workbook.KeepChangeHistory",
+  "Workbook.ListChangesOnNewSheet", "Workbook.MergeWorkbook", "Workbook.PersonalViewListSettings",
+  "Workbook.PersonalViewPrintSettings", "Workbook.ProtectSharing", "Workbook.PurgeChangeHistoryNow",
+  "Workbook.RemoveUser", "Workbook.RevisionNumber", "Workbook.ShowConflictHistory", "Workbook.UnprotectSharing",
+]
+
+[[not_planned]]
+reason = "Other file formats, converters and compatibility checks: YCGrid saves .ycg and reads and writes .xlsx and .csv (no wider xlsx / xls compatibility, decided)"
+members = [
+  "Application.FileConverters", "Application.FileExportConverters", "Application.FileValidation",
+  "Application.FileValidationPivot", "Application.DefaultSaveFormat", "Application.MaxSupportedCompatibilityVersion",
+  "Application.EnableCheckFileExtensions", "Application.CalculationVersion", "Application.MapPaperSize",
+  "Workbook.CalculationVersion", "Workbook.AccuracyVersion", "Workbook.CheckCompatibility",
+  "Workbook.CompatibilityVersion", "Workbook.ConvertComments", "Workbook.DoNotPromptForConvert",
+  "Workbook.Excel8CompatibilityMode", "Workbook.ReloadAs", "Workbook.PublishObjects", "Workbook.WebOptions",
+  "Workbook.WebPagePreview", "Application.DefaultWebOptions", "Workbook.AddToFavorites", "Hyperlink.AddToFavorites",
+  "Range.ID",
+]
+
+[[not_planned]]
+reason = "Encryption choices, Inspect Document and document information: YCGrid encrypts with one algorithm, and Inspect Document is not planned (docs/excel-parity-backlog.md)"
+members = [
+  "Workbook.PasswordEncryptionAlgorithm", "Workbook.PasswordEncryptionFileProperties",
+  "Workbook.PasswordEncryptionKeyLength", "Workbook.PasswordEncryptionProvider",
+  "Workbook.SetPasswordEncryptionOptions", "Workbook.DocumentInspectors", "Workbook.RemoveDocumentInformation",
+  "Workbook.RemovePersonalInformation", "Application.PromptForSummaryInfo",
+]
+
+[[not_planned]]
+reason = "Hardware, sound, speech, pens, clusters and Excel's own process (help, installer, renderer, Lotus 1-2-3 keys, objects of other Office programs)"
+members = [
+  "Application.MathCoprocessorAvailable", "Application.MouseAvailable", "Application.WindowsForPens",
+  "Application.ConstrainNumeric", "Application.CanPlaySounds", "Application.CanRecordSounds",
+  "Application.EnableSound", "Application.Speech", "Application.CommandUnderlines", "Application.FindFile",
+  "Application.Help", "Application.ClusterConnector", "Application.UseClusterConnector",
+  "Application.HighQualityModeForGraphics", "Application.AlwaysUseClearType", "Application.MergeInstances",
+  "Application.UsedObjects", "Application.Hinstance", "Application.HinstancePtr", "Application.TransitionMenuKey",
+  "Application.TransitionMenuKeyAction", "Application.TransitionNavigKeys", "Application.NewWorkbook",
+  "Application.ActivateMicrosoftApp", "Application.IsSandboxed", "Worksheet.TransitionExpEval",
+  "Worksheet.TransitionFormEntry", "Range.SoundNote", "Range.Speak",
+]
+
+[[not_planned]]
+reason = "Right-to-left sheets and phonetic guides (furigana): the languages YCGrid's users type are written left to right without phonetic guides"
+members = [
+  "Application.ControlCharacters", "Application.CursorMovement", "Application.DefaultSheetDirection",
+  "Application.GetPhonetic", "Worksheet.DisplayRightToLeft", "Window.DisplayRightToLeft",
+  "ListObject.DisplayRightToLeft", "Range.Phonetic", "Range.Phonetics", "Range.SetPhonetic",
+  "Characters.PhoneticCharacters", "Style.ReadingOrder",
+]
+
+[[not_planned]]
+reason = "Decided in docs/excel-parity-backlog.md (Not planned): automatic decimal point, system separators, percent entry always on, Live Preview, the Mini Toolbar, templates, Sheet View, Data Form"
+members = [
+  "Application.FixedDecimal", "Application.FixedDecimalPlaces", "Application.DecimalSeparator",
+  "Application.ThousandsSeparator", "Application.UseSystemSeparators", "Application.AutoPercentEntry",
+  "Application.EnableLivePreview", "Application.ShowMenuFloaties", "Application.ShowSelectionFloaties",
+  "Application.TemplatesPath", "Application.NetworkTemplatesPath", "Application.ShowStartupDialog",
+  "Window.SheetViews", "Window.ActiveSheetView", "Worksheet.NamedSheetViews", "Worksheet.ShowDataForm",
+  "Range.ResetContents", "Chart.ApplyChartTemplate", "Chart.SaveChartTemplate", "Chart.SetDefaultChart",
+]
+
+[[not_planned]]
+reason = "SmartArt, 3D models, OLE objects, ink, WordArt, callouts and Edit Points (docs/excel-parity-backlog.md, Not planned)"
+members = [
+  "Application.SmartArtColors", "Application.SmartArtLayouts", "Application.SmartArtQuickStyles",
+  "Workbook.DisplayInkComments", "Workbook.Container", "Workbook.IsInplace", "Shape.HasSmartArt", "Shape.SmartArt",
+  "Shape.Model3D", "Shape.LinkFormat", "Shape.OLEFormat", "Shape.TextEffect", "Shape.Nodes", "Shape.Vertices",
+  "Shape.Callout", "Shape.BlackWhiteMode", "Shapes.Add3DModel", "Shapes.AddOLEObject", "Shapes.AddSmartArt",
+  "Shapes.AddCallout", "Shapes.BuildFreeform", "Chart.OLEObjects", "Range.RemoveControls",
+]
+
+[[not_planned]]
+reason = "Alt text and summaries for accessibility: the Alt Text button is not planned (docs/excel-parity-backlog.md); Shape.AlternativeText covers the common case"
+members = [
+  "ListObject.AlternativeText", "ListObject.Summary", "PivotTable.AlternativeText", "PivotTable.Summary",
+  "Range.Summary", "Shape.Decorative", "Shape.Title",
+]
+
+[[not_planned]]
+reason = "Legacy wizards and 3D or picture-filled chart formats Excel keeps for old files"
+members = [
+  "Chart.ChartWizard", "Worksheet.PivotTableWizard", "PivotTable.PivotTableWizard", "PivotTable.EnableWizard",
+  "PivotTable.SmallGrid", "PivotTable.Version", "Chart.BarShape", "Chart.GapDepth", "Chart.HeightPercent",
+  "Chart.AutoScaling", "Series.BarShape", "Series.Has3DEffect", "Series.ApplyPictToEnd", "Series.ApplyPictToFront",
+  "Series.ApplyPictToSides", "Series.PictureType", "Series.PictureUnit2", "Series.SeriesColorMaxGradientStop",
+  "Series.SeriesColorMidGradientStop", "Series.SeriesColorMinGradientStop", "Chart.DataTable", "Chart.HasDataTable",
+]
+
+[[not_planned]]
+reason = "Slicer button sizes, slicer styles (docs/excel-parity-backlog.md, Not planned)"
+members = [
+  "Slicer.ColumnWidth", "Slicer.RowHeight", "Slicer.Style",
+]
+
+[[not_planned]]
+reason = "Creator is the Macintosh creator code of Excel's objects; it means nothing outside Excel for the Mac"
+members = [
+  "*.Creator",
+]
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Gaps: open. Whoever adds one adds its test and removes it here (the check fails until then).
+
+[[gap]]
+priority = "high"
+what = "File > Options items YCGrid's UI has without their Python member"
+members = [
+  "Application.DisplayPasteOptions", "Application.DisplayInsertOptions", "Application.QuickAnalysis",
+  "Application.SpellingOptions", "Application.FlashFillMode",
+]
+
+[[gap]]
+priority = "high"
+what = "Set in the first lines of ported macros (Application raises on a member it doesn't know, so the macro stops there)"
+members = [
+  "Application.PrintCommunication", "Application.EnableAnimations", "Application.AskToUpdateLinks",
+  "Application.DisplayCommentIndicator", "Application.Visible",
+]
+
+[[gap]]
+priority = "high"
+what = "Common in macros: the global cells and windows through Application, workbook and sheet commands YCGrid has in its UI"
+members = [
+  "Application.Range", "Application.Cells", "Application.Rows", "Application.Columns", "Application.Windows",
+  "Application.PathSeparator", "Workbooks.Close", "Workbook.NewWindow", "Workbook.CreateForecastSheet", "Sheets.Copy",
+  "Sheets.Delete", "Sheets.Move", "Sheets.Visible", "Sheets.PrintOut",
+]
+
+[[gap]]
+priority = "medium"
+what = "File > Options items (Formulas, Advanced, Save, Data)"
+members = [
+  "Application.GenerateTableRefs", "Application.ExtendList", "Application.DefaultFilePath",
+  "Application.DisplayRecentFiles", "Application.RecentFiles", "Application.DisplayNoteIndicator",
+  "Application.DisplayScrollBars", "Application.CopyObjectsWithCells", "Application.ShowToolTips",
+  "Application.ChartDataPointTrack", "Application.MeasurementUnit", "Application.RollZoom",
+  "Application.DefaultPivotTableLayoutOptions", "Application.DataEntryMode", "Application.WarnOnFunctionNameConflict",
+  "Application.AutoFormatAsYouTypeReplaceHyperlinks", "Application.DisplayClipboardWindow", "Application.ShowDevTools",
+  "Workbook.EnableAutoRecover", "Workbook.ChartDataPointTrack", "Workbook.SaveLinkValues", "Workbook.UpdateLinks",
+  "Workbook.CreateBackup", "Workbook.ReadOnlyRecommended", "Workbook.WritePassword", "Workbook.WriteReserved",
+  "Workbook.WriteReservedBy", "Window.AutoFilterDateGrouping", "Window.GridlineColorIndex",
+  "AutoCorrect.AutoExpandListRange", "AutoCorrect.AutoFillFormulasInLists",
+]
+
+[[gap]]
+priority = "medium"
+what = "Commonly read or set by macros"
+members = [
+  "Application.ConvertFormula", "Application.OnUndo", "Application.OnRepeat", "Application.Build",
+  "Application.OperatingSystem", "Application.OrganizationName", "Application.ProductCode", "Application.Value",
+  "Application.SendKeys", "Application.Hwnd", "Workbook.ActiveChart", "Workbook.ChangeFileAccess",
+  "Workbook.FileFormat", "Workbook.OpenLinks", "Workbook.Windows", "Workbook.DeleteNumberFormat",
+  "Workbook.ShowPivotTableFieldList", "Workbook.DefaultPivotTableStyle", "Worksheet.CheckSpelling",
+  "Worksheet.PasteSpecial", "Worksheet.StandardHeight", "Worksheet.Type", "Window.TabRatio", "Window.ActiveChart",
+  "Window.PrintOut", "Window.PrintPreview", "Window.Index", "Window.Type", "Pane.PointsToScreenPixelsX",
+  "Pane.PointsToScreenPixelsY", "Sheets.PrintPreview", "Sheets.HPageBreaks", "Sheets.VPageBreaks", "Range.PageBreak",
+  "Range.PrintPreview", "Range.UseStandardHeight", "Range.UseStandardWidth", "Range.NavigateArrow",
+  "Range.SortSpecial", "Font.ThemeFont", "Borders.ColorIndex", "Borders.ThemeColor", "Borders.TintAndShade",
+  "Borders.Value", "Style.ShrinkToFit", "Style.Orientation", "Style.AddIndent", "Style.MergeCells",
+  "Style.NumberFormatLocal", "Style.Value", "CellFormat.HorizontalAlignment", "CellFormat.VerticalAlignment",
+  "CellFormat.MergeCells", "CellFormat.Orientation", "CellFormat.AddIndent", "CellFormat.NumberFormatLocal",
+  "Chart.FullSeriesCollection", "Chart.PrintOut", "Chart.PrintPreview", "Chart.PageSetup", "Series.PlotOrder",
+  "Series.FormulaR1C1", "Series.FormulaLocal", "Series.FormulaR1C1Local", "Series.Type", "ChartObject.Visible",
+  "Shape.Chart", "Shape.GroupItems", "Shape.ParentGroup", "Shape.Child", "Shape.ControlFormat",
+  "Shape.FormControlType",
+]
+
+[[gap]]
+priority = "low"
+what = "Parent and Application on every object (the object each one belongs to, and the Application)"
+members = [
+  "*.Parent", "*.Application",
+]
+
+[[gap]]
+priority = "low"
+what = "Rarely used members of objects YCGrid has"
+members = [
+  "Application.ClipboardFormats", "Application.DoubleClick", "Application.PreviousSelections",
+  "Application.UserControl", "Application.PivotTableSelection", "Application.ActiveProtectedViewWindow",
+  "Workbook.ActiveSlicer", "Workbook.CaseSensitive", "Workbook.Colors", "Workbook.ResetColors", "Workbook.CommandBars",
+  "Workbook.DefaultSlicerStyle", "Workbook.DefaultTimelineStyle", "Workbook.ExternalCodeServiceTimeout",
+  "Workbook.Final", "Workbook.InactiveListBorderVisible", "Workbook.PivotTables",
+  "Workbook.ShowPivotChartActiveFields", "Workbook.ToggleFormsDesign", "Workbook.UpdateFromFile",
+  "Workbook.UseWholeCellCriteria", "Workbook.UseWildcards", "Worksheet.CustomProperties",
+  "Worksheet.PrintedCommentPages", "Window.DisplayWhitespace", "Window.EnableResize", "Window.Hwnd",
+  "Window.PointsToScreenPixelsX", "Window.PointsToScreenPixelsY", "Window.RangeFromPoint", "Window.ScrollWorkbookTabs",
+  "Window.SplitHorizontal", "Window.SplitVertical", "Window.WindowNumber", "Range.AddIndent",
+  "Range.ApplyOutlineStyles", "Range.AutoComplete", "Range.CalculateRowMajorOrder", "Range.Formula2Local",
+  "Range.Formula2R1C1Local", "Range.FunctionWizard", "Range.ListHeaderRows", "Range.LocationInTable", "Range.Parse",
+  "Range.SavedAsArray", "Range.AllowEdit", "PageSetup.PrintNotes", "PageSetup.PrintQuality", "Font.Background",
+  "Interior.InvertIfNegative", "Interior.PatternThemeColor", "Interior.PatternTintAndShade",
+  "Name.ValidWorkbookParameter", "Validation.IMEMode", "FormatCondition.Modify", "FormatCondition.PTCondition",
+  "FormatCondition.ScopeType", "Hyperlink.CreateNewDocument", "Hyperlink.EmailSubject", "Hyperlink.Name",
+  "Hyperlink.Shape", "Hyperlink.Type", "ListObject.Active", "ListObject.Comment", "ListObject.InsertRowRange",
+  "ListObject.SourceType", "HPageBreak.DragOff", "AutoCorrect.CapitalizeNamesOfDays", "AutoCorrect.CorrectCapsLock",
+  "AutoCorrect.CorrectSentenceCap", "AutoCorrect.TwoInitialCapitals", "AutoCorrect.DisplayAutoCorrectOptions",
+  "Chart.SaveAs", "Chart.CategoryLabelLevel", "Chart.SeriesNameLevel", "Chart.ChartObjects", "Chart.CheckSpelling",
+  "Chart.ClearToMatchColorStyle", "Chart.Next", "Chart.Previous", "Chart.Evaluate", "Chart.GetChartElement",
+  "Chart.GetProperty", "Chart.SetProperty", "Chart.Hyperlinks", "Chart.Paste", "Chart.PrintedCommentPages",
+  "Chart.Protect", "Chart.ProtectContents", "Chart.ProtectData", "Chart.ProtectDrawingObjects",
+  "Chart.ProtectFormatting", "Chart.ProtectSelection", "Chart.ProtectionMode", "Chart.Unprotect",
+  "Chart.SetBackgroundPicture", "Chart.ShowAxisFieldButtons", "Chart.ShowExpandCollapseEntireFieldButtons",
+  "Chart.ShowLegendFieldButtons", "Chart.ShowReportFilterFieldButtons", "Chart.ShowValueFieldButtons",
+  "Chart.ShowDataLabelsOverMaximum", "Series.ClearFormats", "Series.Copy", "Series.Paste", "Series.GetProperty",
+  "Series.SetProperty", "Series.InvertColorIndex", "Series.MarkerBackgroundColorIndex",
+  "Series.MarkerForegroundColorIndex", "Series.LeaderLines", "Series.PlotColorIndex", "Series.Shadow",
+  "Series.ValueSortOrder", "Axis.Border", "Axis.CategorySortOrder", "Axis.Height", "Axis.Left", "Axis.Top",
+  "Axis.Width", "Axis.MinorUnitScale", "Axis.Type", "Axis.GetProperty", "Axis.SetProperty", "ChartObject.Index",
+  "ChartObject.ProtectChartObject", "ChartObject.RoundedCorners", "ChartObject.Shadow", "ChartObject.ShapeRange",
+  "ChartObject.ZOrder", "Shape.Apply", "Shape.PickUp", "Shape.BackgroundStyle", "Shape.GraphicStyle",
+  "Shape.ConnectionSiteCount", "Shape.RerouteConnections", "Shape.Hyperlink", "Shape.SetShapesDefaultProperties",
+  "Shapes.AddLabel", "PivotTable.ActiveFilters", "PivotTable.AllowMultipleFilters", "PivotTable.ApplyLayout",
+  "PivotTable.AutoRefresh", "PivotTable.CacheIndex", "PivotTable.CompactLayoutColumnHeader",
+  "PivotTable.CompactLayoutRowHeader", "PivotTable.ConvertToFormulas", "PivotTable.DisplayContextTooltips",
+  "PivotTable.DisplayEmptyColumn", "PivotTable.DisplayEmptyRow", "PivotTable.EnableFieldDialog",
+  "PivotTable.EnableFieldList", "PivotTable.Hidden", "PivotTable.InGridDropZones", "PivotTable.InnerDetail",
+  "PivotTable.LayoutRowDefault", "PivotTable.PageFieldOrder", "PivotTable.PageFieldStyle",
+  "PivotTable.PageFieldWrapCount", "PivotTable.PivotChart", "PivotTable.PivotColumnAxis", "PivotTable.PivotRowAxis",
+  "PivotTable.PivotFormulas", "PivotTable.PivotSelection", "PivotTable.PivotSelectionStandard",
+  "PivotTable.PivotValueCell", "PivotTable.PrintDrillIndicators", "PivotTable.PrintTitles",
+  "PivotTable.RepeatItemsOnEachPrintedPage", "PivotTable.SaveData", "PivotTable.SelectionMode",
+  "PivotTable.ShowPageMultipleItemLabel", "PivotTable.ShowTableStyleLastColumn", "PivotTable.ShowValuesRow",
+  "PivotTable.SubtotalHiddenPageItems", "PivotTable.Tag", "PivotTable.Update", "PivotTable.VacatedStyle",
+  "PivotTable.Value", "PivotField.AutoSortCustomSubtotal", "PivotField.AutoSortPivotLine", "PivotField.ChildField",
+  "PivotField.ChildItems", "PivotField.ParentField", "PivotField.ParentItems", "PivotField.GroupLevel",
+  "PivotField.TotalLevels", "PivotField.DatabaseSort", "PivotField.DragToColumn", "PivotField.DragToData",
+  "PivotField.DragToHide", "PivotField.DragToPage", "PivotField.DragToRow", "PivotField.EnableItemSelection",
+  "PivotField.Hidden", "PivotField.ShowingInAxis", "PivotField.SourceCaption", "PivotField.StandardFormula",
+  "PivotField.SubtotalName", "PivotItem.ChildItems", "PivotItem.ParentItem", "PivotItem.ParentShowDetail",
+  "PivotItem.RecordCount", "PivotItem.SourceNameStandard", "PivotItem.StandardFormula", "PivotCache.EnableRefresh",
+  "PivotCache.Index", "PivotCache.MemoryUsed", "PivotCache.RecordCount", "PivotCache.RefreshDate",
+  "PivotCache.RefreshName", "PivotCache.SourceType", "PivotCache.Version", "Slicer.ActiveItem",
+  "Slicer.DisableMoveResizeUI", "Slicer.Locked", "Slicer.Shape", "Slicer.SlicerCacheType", "SlicerCache.FilterCleared",
+  "SlicerCache.Index", "SlicerCache.List", "SlicerCache.RequireManualUpdate", "SlicerCache.SortUsingCustomLists",
+  "SlicerCache.SourceType", "SparklineGroup.Item", "SparklineGroup.PlotBy", "Scenario.Index",
+]

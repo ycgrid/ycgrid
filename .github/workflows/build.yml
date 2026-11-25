@@ -1,0 +1,92 @@
+name: build
+
+# A clean clone builds, tests and packages on a hosted Windows runner: started by hand from the Actions tab (Run
+# workflow) and by pushing a version tag (v*). Its artifact "release" holds the zip, the wheel and their SHA-256 files
+# for the release page (docs/releasing.md). The tests that drive a hidden YCGrid (test_live, ui_sweep, feature_check,
+# trader_session) need steady timing and stay with scripts\check_all.cmd on a developer machine, the check before every
+# commit. The fast checks that need no build run on every push and pull request (checks.yml).
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  # vcpkg keeps the libraries it built in this folder and the cache step below restores it, so FreeType, zstd and the
+  # rest are built from source only when vcpkg.json or deps.lock change
+  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg-cache,readwrite
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: vcpkg binary cache
+        uses: actions/cache@v6
+        with:
+          path: vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'third_party/deps.lock') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Portable Python runtime (versions in deps.lock, packages from requirements-runtime.txt)
+        shell: cmd
+        run: |
+          if not exist vcpkg-cache mkdir vcpkg-cache
+          call scripts\setup_runtime.cmd /silent || exit /b 1
+
+      - name: Build and the C++ unit tests
+        shell: cmd
+        run: call scripts\build.cmd release /silent || exit /b 1
+
+      - name: Translations, UI command coverage, boundary, version, Python tests that need no running YCGrid
+        shell: cmd
+        run: |
+          set "PY=dist_release\runtime\python\python.exe"
+          %PY% -E -s scripts\i18n_build.py check || exit /b 1
+          %PY% -E -s scripts\check_commands.py || exit /b 1
+          %PY% -E -s scripts\check_boundary.py || exit /b 1
+          cd python
+          ..\%PY% -E -s -m unittest tests.test_core tests.test_mcp tests.test_data tests.test_plot tests.test_analysis tests.test_pure || exit /b 1
+
+      - name: Smoke test (WARP, wide, medium and narrow widths)
+        shell: cmd
+        run: |
+          set EXE=dist_release\ycgrid.exe
+          start "" /wait %EXE% --warp --frames 120 --width 1920 --height 1080 --report report-wide.json --screenshot wide.png || exit /b 1
+          start "" /wait %EXE% --warp --frames 120 --width 1150 --height 800 --report report-mid.json --screenshot mid.png || exit /b 1
+          start "" /wait %EXE% --warp --frames 120 --width 820 --height 700 --report report-narrow.json --screenshot narrow.png || exit /b 1
+          start "" /wait %EXE% --warp --frames 120 --expand-rows --top-row 99999990 --report report-100m.json || exit /b 1
+          start "" /wait %EXE% --warp --frames 60 --keys "w:3|t:1|k:Enter|t:=A1*2|k:Enter|w:3" --report report-edit.json || exit /b 1
+          dist_release\runtime\python\python.exe -E -s -c "import json;j=json.load(open('report-edit.json',encoding='utf-8'));c=j['cells'];assert c['A2']==['=A1*2','2'],c"
+          type report-wide.json
+
+      - name: Release zip and wheel, each with its SHA-256
+        shell: cmd
+        run: |
+          call scripts\package.cmd --with-python /silent || exit /b 1
+          call scripts\build_wheel.cmd release || exit /b 1
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke
+          if-no-files-found: ignore
+          path: |
+            report-*.json
+            *.png
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          if-no-files-found: error
+          path: |
+            dist/YCGrid-*.zip
+            dist/YCGrid-*.zip.sha256
+            build/wheel/ycgrid-*.whl
+            build/wheel/ycgrid-*.whl.sha256

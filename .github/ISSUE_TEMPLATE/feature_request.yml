@@ -1,0 +1,35 @@
+name: Feature request
+description: Something YCGrid should do that it doesn't
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        YCGrid follows Excel's habits where people work every day, and ships building blocks (what needs the C++ side,
+        speed or stability) rather than finished trading screens, which developers build from the blocks.
+        Please read "Kept on purpose" and "Not planned" in docs/excel-parity-backlog.md first: those were decided, with reasons.
+  - type: checkboxes
+    id: read
+    attributes:
+      label: Before you ask
+      options:
+        - label: I checked docs/excel-parity-backlog.md and this is not listed as "Not planned" or "Kept on purpose".
+          required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: What you are trying to do
+      description: The work you do (research, a trading screen, a report) and where YCGrid gets in the way
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: How Excel does it, if it does; or the Python API you'd like, with Excel's names where they exist
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead

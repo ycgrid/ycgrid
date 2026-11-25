@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "ycgrid",
+  "version-string": "0.10.3",
+  "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",
+  "dependencies": [
+    {
+      "name": "freetype",
+      "default-features": false
+    },
+    "nlohmann-json",
+    "catch2",
+    "pugixml",
+    "zlib",
+    "zstd"
+  ]
+}

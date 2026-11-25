@@ -1,0 +1,1 @@
+# Python packages this project needs (one per line). When the code imports a package that isn't installed, YCGrid offers to install it.

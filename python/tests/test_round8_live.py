@@ -1,0 +1,419 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Round 8: read-only mode while a cell is being edited, writes into merged cells and visible cells of one cell,
+each test failing without its fix.
+
+Run: python -m unittest tests.test_round8_live (with the bundled Python).
+"""
+from __future__ import annotations
+
+import os
+import sys
+import time
+import unittest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import yc  # noqa: E402
+
+EXE = os.environ.get("YCGRID_EXE") or os.path.join(os.path.dirname(__file__), "..", "..", "dist_release", "ycgrid.exe")
+LIVE = os.path.exists(EXE) and os.environ.get("YC_NO_LIVE") != "1"
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class ReadOnlyModeTest(unittest.TestCase):
+    """Trading > Operator Mode off (read-only) while the user is typing in a cell, then the basic operations."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.conn = yc.connect(target=cls.proc.pid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.proc.wait(10)
+
+    def setUp(self):
+        from yc import excel, safety
+
+        safety.set_operator_mode(True)
+        self.keys("k:Escape|m:2,2|w:2")
+        excel.Application.CutCopyMode = False
+        self.ws = excel.Worksheets.Add(After=excel.Worksheets(excel.Worksheets.Count))
+        self.ws.Activate()
+        self.ws.Range("B2").Value2 = 5
+        self.ws.Range("C3").Value2 = 7
+        self.errors0 = len(yc.ui.errors())
+
+    def tearDown(self):
+        from yc import safety
+
+        safety.set_operator_mode(True)
+        self.keys("k:Escape|m:2,2|w:2")
+
+    def keys(self, script):
+        self.conn.request("ui.input", {"script": script, "timeout_ms": 8000}, timeout=20)
+        time.sleep(0.2)
+
+    def new_errors(self):
+        return yc.ui.errors()[self.errors0:]
+
+    def test_an_entry_in_progress_is_dropped_when_read_only_mode_turns_on(self):
+        from yc import safety
+
+        self.keys("g:A1|w:2|t:=SUM(|w:3")
+        self.assertTrue(yc.ui.state().get("edit"), "A1 should be in edit mode")
+        safety.set_operator_mode(False)
+        self.keys("w:4")
+        self.assertFalse(yc.ui.state().get("edit"), "the entry stayed open in read-only mode")
+        # the basic operations: click a cell, type, Enter, Delete, F2, double-click, paste
+        self.keys("A:C3|w:4|t:abc|w:2|k:Enter|w:4")
+        self.keys("A:B2|w:4|k:Delete|w:4|k:F2|w:3|k:Escape|w:2|Q:B2|w:4|k:Escape|w:2")
+        self.keys("k:c-C|w:3|A:D4|w:3|k:c-V|w:4|k:Escape|w:2")
+        self.assertEqual(self.new_errors(), [], "read-only mode raised error messages")
+        self.assertEqual(yc.ui.state()["dialog"], 0)
+        self.assertFalse(yc.ui.state().get("edit"))
+        self.assertEqual(self.ws.Range("A1").Formula, "")
+        self.assertEqual(self.ws.Range("B2").Value2, 5)
+        self.assertEqual(self.ws.Range("C3").Value2, 7)
+        self.assertIsNone(self.ws.Range("D4").Value2)
+        self.assertIn("Read-only", yc.ui.state()["status"])
+        self.assertEqual(yc.ui.state()["active_cell"], "D4")  # the clicks still select
+        # back in operator mode typing works at once
+        safety.set_operator_mode(True)
+        self.keys("w:3|A:E5|w:3|t:42|k:Enter|w:4")
+        self.assertEqual(self.ws.Range("E5").Value2, 42)
+
+    def test_read_only_mode_offers_no_drag_and_drop(self):
+        from yc import safety
+
+        safety.set_operator_mode(False)
+        self.keys("w:3|A:B2|w:3")
+        x0, y0, x1, y1 = yc.ui.cell_rect("B2")
+        tx0, ty0, tx1, ty1 = yc.ui.cell_rect("C3")
+        # the selection's right border dragged onto C3 (it holds 7): no "There's already data here" question
+        bx, by = int(x1) - 1, int((y0 + y1) / 2)
+        self.keys(f"m:{bx},{by}|w:4|d:{bx},{by},{int((tx0 + tx1) / 2)},{int((ty0 + ty1) / 2)}|w:8")
+        self.assertEqual(yc.ui.state()["dialog"], 0, "a question opened for a move read-only mode refuses")
+        self.assertEqual(self.new_errors(), [])
+        self.assertEqual(self.ws.Range("B2").Value2, 5)
+        self.assertEqual(self.ws.Range("C3").Value2, 7)
+        # the fill handle drags nothing either
+        self.keys(f"A:B2|w:3|m:{int(x1) - 1},{int(y1) - 1}|w:4|d:{int(x1) - 1},{int(y1) - 1},{int(x1) - 1},{int(ty1) + 20}|w:8|m:2,2")
+        self.assertIsNone(self.ws.Range("B3").Value2)
+        self.assertEqual(self.new_errors(), [])
+
+    def test_escape_puts_the_paste_options_button_away(self):
+        # the button sits over the cell below and to the right of the paste: left there after Escape, it took the next
+        # click on that cell (E5 stayed unselected and typing went nowhere)
+        self.keys("A:B2|w:3|k:c-C|w:3|A:D4|w:3|k:c-V|w:4|k:Escape|w:3")
+        self.keys("A:E5|w:4|t:42|k:Enter|w:4")
+        self.assertEqual(self.ws.Range("E5").Value2, 42)
+        self.assertEqual(self.ws.Range("D4").Value2, 5)
+        self.assertEqual(self.new_errors(), [])
+
+    def test_no_stray_debug_window(self):
+        # ImGui's implicit Debug window shows over the sheet only when something draws into it
+        names = [w["name"] for w in yc.ui.state()["windows"]]
+        self.assertNotIn("Debug##Default", names)
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class UiOpsRound8Test(unittest.TestCase):
+    """Everyday keys and clicks a UI tester found misbehaving (round 8, uiops): each as a person does it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.conn = yc.connect(target=cls.proc.pid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.proc.wait(10)
+
+    def setUp(self):
+        from yc import excel
+
+        self.keys("k:Escape|w:2|k:Escape|m:2,2|w:2")
+        excel.Application.CutCopyMode = False
+        # the earlier tests' sheets go: with many sheets the tabs clicked here scroll out of the tab bar
+        excel.Application.DisplayAlerts = False
+        while excel.Worksheets.Count > 1:
+            excel.Worksheets(excel.Worksheets.Count).Delete()
+        self.ws = excel.Worksheets.Add(After=excel.Worksheets(excel.Worksheets.Count))
+        self.other = excel.Worksheets.Add(After=self.ws)
+        self.ws.Activate()
+        self.keys("w:3")
+        self.errors0 = len(yc.ui.errors())
+
+    def tearDown(self):
+        self.keys("k:Escape|w:2|k:Escape|m:2,2|w:2")
+
+    def keys(self, script):
+        self.conn.request("ui.input", {"script": script, "timeout_ms": 8000}, timeout=20)
+        time.sleep(0.2)
+
+    def tab(self, ws):
+        hits = [i for i in yc.ui.items("") if i["id"] == ws.Name + "##sheettab"]
+        self.assertTrue(hits, "the sheet's tab is shown")
+        x0, y0, x1, y1 = hits[0]["rect"]
+        return int((x0 + x1) / 2), int((y0 + y1) / 2)
+
+    def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
+        x, y = self.tab(self.other)
+        self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")
+        self.assertFalse(yc.ui.state().get("edit"), "the entry stayed open on the other sheet")
+        self.assertEqual(self.ws.Range("B1").Value2, "hello")
+        self.keys("g:C2|w:2|t:7|k:Enter|w:4")
+        self.assertEqual(self.other.Range("C2").Value2, 7)  # typing works on the sheet clicked
+
+    def test_a_formula_points_at_another_sheet_and_enter_goes_back(self):
+        from yc import excel
+
+        self.other.Range("B3").Value2 = 42
+        x, y = self.tab(self.other)
+        self.keys(f"g:C1|w:2|t:=|w:3|m:{x},{y}|w:3|c:{x},{y}|w:5|A:B3|w:4|k:Enter|w:6")
+        self.assertFalse(yc.ui.state().get("edit"), "Enter did nothing on the other sheet")
+        self.assertEqual(self.ws.Range("C1").Formula, "=" + self.other.Name + "!B3")
+        self.assertEqual(self.ws.Range("C1").Value2, 42)
+        self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)  # back where the entry is
+        # Escape cancels and comes back too
+        x, y = self.tab(self.other)
+        self.keys(f"g:D1|w:2|t:=|w:3|m:{x},{y}|w:3|c:{x},{y}|w:5|A:B3|w:4|k:Escape|w:6")
+        self.assertFalse(yc.ui.state().get("edit"))
+        self.assertIsNone(self.ws.Range("D1").Value2)
+        self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
+    def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
+        from yc import excel
+
+        self.other.Range("C2").Value2 = 5
+        self.keys("g:C1|w:2|t:=|w:3|k:c-PageDown|w:4|k:Down|w:3|k:Enter|w:6")
+        self.assertEqual(self.ws.Range("C1").Formula, "=" + self.other.Name + "!C2")
+        self.assertEqual(self.ws.Range("C1").Value2, 5)
+        self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)
+
+    def test_ctrl_enter_gives_every_cell_the_entry_format(self):
+        self.keys("g:F2:F5|w:2|t:5%|k:c-Enter|w:5")
+        self.assertEqual([self.ws.Range(f"F{r}").Text for r in range(2, 6)], ["5%"] * 4)  # F3:F5 showed 0.05
+        self.keys("g:G2:G4|w:2|t:2024/1/7|k:c-Enter|w:5")
+        self.assertEqual(self.ws.Range("G4").Text, self.ws.Range("G2").Text)
+
+    def test_f2_enter_keeps_a_long_number(self):
+        self.ws.Range("B1").Value2 = 123456789012
+        self.ws.Range("B2").Value2 = 1.2345678901234567e-15
+        self.keys("g:B1|w:2|k:F2|w:3|k:Enter|w:4|g:B2|w:2|k:F2|w:3|k:Enter|w:4")
+        self.assertEqual(self.ws.Range("B1").Value2, 123456789012)  # was 123457000000
+        self.assertEqual(self.ws.Range("B1").NumberFormat, "General")
+        self.assertAlmostEqual(self.ws.Range("B2").Value2 / 1.23456789012346e-15, 1, places=13)
+
+    def test_delete_formatting_and_fill_end_copy_mode(self):
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        self.ws.Range("B5:B6").Value = [["x"], ["y"]]
+        for k in ("k:Delete", "k:c-B", "k:c-D", "k:c-s-4"):
+            self.ws.Range("B5:B6").Value = [["x"], ["y"]]
+            self.keys(f"g:A1:A3|w:2|k:c-C|w:2|g:B5:B6|w:2|{k}|w:3")
+            self.assertFalse(yc.ui.state()["copy_mode"], k + " should end copy mode")
+            self.keys("k:Enter|w:3")
+            self.assertNotEqual(self.ws.Range("B7").Value2, 3, k + ": Enter pasted the copied cells")
+
+    def test_cut_cells_paste_once(self):
+        self.ws.Range("A1:A2").Value = [[1], [2]]
+        self.keys("g:A1:A2|w:2|k:c-X|w:2|g:D1|w:2|k:c-V|w:4|g:F1|w:2|k:c-V|w:4")
+        self.assertEqual(self.ws.Range("D2").Value2, 2)
+        self.assertIsNone(self.ws.Range("F1").Value2)  # was pasted again from the clipboard's text
+
+    def test_escape_that_closes_a_menu_keeps_the_copied_cells(self):
+        self.ws.Range("A1:A2").Value = [[1], [2]]
+        self.keys("g:A1:A2|w:2|k:c-C|w:2|R:C3|w:5|k:Escape|w:3")
+        self.assertTrue(yc.ui.state()["copy_mode"], "the first Escape only closes the menu (Excel)")
+        self.keys("g:C3|w:2|k:c-V|w:4")
+        self.assertEqual(self.ws.Range("C4").Value2, 2)
+        self.keys("k:Escape|w:2|k:Escape|w:2")
+        self.assertFalse(yc.ui.state()["copy_mode"])
+
+    def test_a_column_pasted_on_a_row_is_repeated_across_it(self):
+        self.ws.Range("A1:A2").Value = [[1], [2]]
+        self.keys("g:A1:A2|w:2|k:c-C|w:2|g:I1:J1|w:2|k:c-V|w:4")
+        self.assertEqual([self.ws.Range(a).Value2 for a in ("I1", "J1", "I2", "J2")], [1, 1, 2, 2])
+
+    def test_a_paste_that_cuts_a_merged_cell_is_refused(self):
+        self.ws.Range("A1:B2").Value = [[1, 2], [3, 4]]
+        self.ws.Range("H2:H3").Merge()
+        self.keys("g:A1:B2|w:2|k:c-C|w:2|g:H1|w:2|k:c-V|w:5")
+        self.assertTrue(self.ws.Range("H2").MergeCells)
+        self.assertIsNone(self.ws.Range("H1").Value2)
+        self.assertTrue(any("merged cell" in e["text"] for e in yc.ui.errors()[self.errors0:]))
+
+    def test_escape_ends_drawing_a_form_control(self):
+        before = self.ws.Shapes.Count
+        x0, y0, _, _ = yc.ui.cell_rect("C3")
+        _, _, x1, y1 = yc.ui.cell_rect("E6")
+        self.keys(f"x:InsertFormButton|w:4|k:Escape|w:3|m:{int(x0) + 4},{int(y0) + 4}|w:3|d:{int(x0) + 4},{int(y0) + 4},{int(x1) - 4},{int(y1) - 4}|w:6|m:2,2")
+        self.assertEqual(self.ws.Shapes.Count, before)
+        self.assertEqual(self.ws.Range("C3:E6").Address, yc.excel.Application.Selection.Address)
+
+    def test_f4_repeats_inserting_whole_rows(self):
+        self.ws.Range("A1:A6").Value = [[1], [2], [3], [4], [5], [6]]
+        self.keys("g:A2|w:2|k:s-Space|w:2|k:c-s-Equal|w:4|g:B5|w:2|k:F4|w:5")
+        self.assertEqual(yc.ui.state()["dialog"], 0, "F4 opened the Insert dialog")
+        self.assertEqual([self.ws.Range(f"A{i}").Value2 for i in range(1, 9)], [1, None, 2, 3, None, 4, 5, 6])
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class DialogsRound8Test(unittest.TestCase):
+    """Dialogs used the way a person does (round 8, dialogs): range boxes, drop-downs, Go To, filters, Sort."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.conn = yc.connect(target=cls.proc.pid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.proc.wait(10)
+
+    def setUp(self):
+        from yc import excel
+
+        self.keys("k:Escape|w:2|k:Escape|m:2,2|w:2")
+        self.ws = excel.Worksheets.Add(After=excel.Worksheets(excel.Worksheets.Count))
+        self.ws.Activate()
+        self.keys("w:3")
+        self.errors0 = len(yc.ui.errors())
+
+    def tearDown(self):
+        self.keys("k:Escape|w:2|k:Escape|w:2|k:Escape|m:2,2|w:2")
+
+    def keys(self, script):
+        self.conn.request("ui.input", {"script": script, "timeout_ms": 8000}, timeout=20)
+        time.sleep(0.2)
+
+    def item(self, ident, window=""):
+        hits = sorted([i for i in yc.ui.items(window) if i["id"] == ident], key=lambda i: (i["rect"][1], i["rect"][0]))
+        self.assertTrue(hits, ident + " is shown")
+        return hits[0]
+
+    def click(self, rect, dx=None):
+        x0, y0, x1, y1 = rect
+        x, y = (int((x0 + x1) / 2) if dx is None else int(x0 + dx)), int((y0 + y1) / 2)
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:5")
+
+    def test_picking_cells_for_a_range_box_keeps_the_sheet_selection(self):
+        for r in range(2, 6):
+            self.ws.Cells(r, 1).Value = r
+        self.keys("g:D2|w:2|x:CfGreater|w:8")
+        self.assertNotEqual(yc.ui.state()["dialog"], 0)
+        rb = self.item("##rb")
+        bx, by = int(rb["rect"][2] + 22), int((rb["rect"][1] + rb["rect"][3]) / 2)
+        self.keys(f"m:{bx},{by}|w:3|c:{bx},{by}|w:6")
+        x0, y0, x1, y1 = yc.ui.cell_rect("A3")
+        self.keys(f"m:{int((x0 + x1) / 2)},{int((y0 + y1) / 2)}|w:3|c:{int((x0 + x1) / 2)},{int((y0 + y1) / 2)}|w:5|k:Enter|w:6")
+        self.assertEqual(yc.ui.state()["active_cell"], "D2", "picking moved the sheet's selection (Excel puts it back)")
+        self.keys("k:Enter|w:6")
+        self.assertEqual(self.ws.Range("D2").FormatConditions.Count, 1)
+        self.assertEqual(self.ws.Range("A3").FormatConditions.Count, 0)  # the rule went to the cells picked
+
+    def test_escape_on_a_drop_down_in_a_dialog_closes_the_drop_down_only(self):
+        self.ws.Range("A1:B3").Value = [["Name", "Qty"], ["b", 2], ["a", 1]]
+        self.keys("g:A2|w:2|x:CustomSort|w:8")
+        self.assertNotEqual(yc.ui.state()["dialog"], 0)
+        self.click(self.item("##ord0")["rect"])
+        self.keys("k:Escape|w:4")
+        self.assertNotEqual(yc.ui.state()["dialog"], 0, "Escape on the open Order list closed the Sort dialog")
+        self.keys("k:Escape|w:4")
+        self.assertEqual(yc.ui.state()["dialog"], 0)
+
+    def test_go_to_offers_where_the_last_go_to_started_selected(self):
+        self.keys("g:A1|w:2|k:F5|w:6|t:C3:D4|k:Enter|w:5")
+        self.assertEqual(yc.ui.state()["active_cell"], "C3")
+        self.keys("k:F5|w:6|t:E9|k:Enter|w:5")  # typing replaces what the box offers
+        self.assertEqual(yc.ui.state()["active_cell"], "E9")
+        self.keys("k:F5|w:6|k:Enter|w:5")  # F5, Enter: back to where the last Go To started
+        self.assertEqual(yc.ui.state()["active_cell"], "C3")
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
+    def test_custom_autofilter_takes_the_value_typed_at_once(self):
+        self.ws.Range("A1:A5").Value = [["Name"], ["Apple"], ["Banana"], ["Avocado"], ["Cherry"]]
+        self.ws.Range("A1:A5").AutoFilter()
+        self.keys("g:A1|w:2|k:a-Down|w:8")
+        for label in ("Text Filters", "Begins With..."):
+            hits = sorted([i for i in yc.ui.items("") if i["label"] == label], key=lambda i: (i["rect"][1], i["rect"][0]))
+            self.assertTrue(hits, label + " is shown")
+            self.click(hits[0]["rect"])
+            self.keys("w:4")
+        self.assertNotEqual(yc.ui.state()["dialog"], 0, "Custom AutoFilter opened")
+        self.keys("t:A|k:Enter|w:6")
+        self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 6)], [False, True, False, True])
+
+    def test_function_arguments_take_cells_picked_with_the_range_button(self):
+        self.ws.Range("B2:B5").Value = [[1], [2], [3], [4]]
+        self.keys("g:C7|w:2|k:s-F3|w:8|t:SUM|w:3|k:Enter|w:8")
+        rb = self.item("##rb", "Function Arguments")
+        bx, by = int(rb["rect"][2] + 20), int((rb["rect"][1] + rb["rect"][3]) / 2)
+        self.keys(f"m:{bx},{by}|w:3|c:{bx},{by}|w:6")
+        a, b = yc.ui.cell_rect("B2"), yc.ui.cell_rect("B5")
+        x0, y0, x1, y1 = int((a[0] + a[2]) / 2), int((a[1] + a[3]) / 2), int((b[0] + b[2]) / 2), int((b[1] + b[3]) / 2)
+        self.keys(f"m:{x0},{y0}|w:4|d:{x0},{y0},{x1},{y1}|w:8|k:Enter|w:6")
+        self.assertTrue([w for w in yc.ui.state()["windows"] if w["name"].startswith("Function Arguments")], "the dialog came back")
+        self.keys("k:Enter|w:8")
+        self.assertEqual(self.ws.Range("C7").Formula, "=SUM(B2:B5)")
+        self.assertEqual(self.ws.Range("C7").Value2, 10)
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
+    def test_sorting_a_lone_empty_cell_says_so(self):
+        self.ws.Range("A1:B3").Value = [["Name", "Qty"], ["b", 2], ["a", 1]]
+        self.keys("g:F9|w:2|x:CustomSort|w:6")
+        self.assertEqual(yc.ui.state()["dialog"], 0)
+        self.assertTrue(any("can't be applied to the selected range" in e["text"] for e in yc.ui.errors()[self.errors0:]))
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class MergedAndVisibleRound8Test(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.conn = yc.connect(target=cls.proc.pid)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.proc.wait(10)
+
+    def setUp(self):
+        from yc import excel
+
+        self.ws = excel.Worksheets.Add(After=excel.Worksheets(excel.Worksheets.Count))
+        self.ws.Activate()
+
+    def test_a_write_to_a_merged_range_fills_its_first_cell_only(self):
+        self.ws.Range("A1:B2").Merge()
+        self.ws.Range("A1:B2").Value2 = 7
+        self.ws.Range("D1").Formula = "=SUM(A1:B2)"
+        self.assertEqual(self.ws.Range("D1").Value2, 7)  # was 28: every hidden cell held 7
+        self.ws.Range("B2").Value2 = 9  # a cell under the merge takes nothing (Excel)
+        self.assertEqual(self.ws.Range("D1").Value2, 7)
+        self.ws.Range("A1:B2").Formula = "=1+1"
+        self.assertEqual(self.ws.Range("D1").Value2, 2)
+        self.ws.Range("A1:B2").UnMerge()
+        self.assertIsNone(self.ws.Range("B2").Value2)
+        self.assertIsNone(self.ws.Range("B1").Value2)
+
+    def test_visible_cells_of_one_cell_and_of_empty_columns(self):
+        for i in range(1, 5):
+            self.ws.Range(f"A{i}").Value2 = i
+        self.ws.Rows("2:3").Hidden = True
+        # one cell: the visible cells of the whole sheet once rows are hidden (Excel 16, measured; $A$1 with none)
+        self.assertEqual(self.ws.Range("A1").SpecialCells(12).Address, "$1:$1,$4:$1048576")
+        self.assertEqual(self.ws.Range("Z99").SpecialCells(12).Address, "$1:$1,$4:$1048576")
+        self.assertEqual(self.ws.Range("A1:B4").SpecialCells(12).Address, "$A$1:$B$1,$A$4:$B$4")
+        self.assertEqual(self.ws.Range("C1:C4").SpecialCells(12).Address, "$C$1,$C$4")
+        self.ws.Rows("2:3").Hidden = False
+        self.assertEqual(self.ws.Range("A1").SpecialCells(12).Address, "$A$1")
+
+
+if __name__ == "__main__":
+    unittest.main()

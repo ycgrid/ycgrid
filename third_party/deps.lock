@@ -1,0 +1,30 @@
+# YCGrid pin file of the third-party submodules (single source)
+# Format: <name>.<field>=<value>; read by CMake (cmake/YcDeps.cmake) and scripts\*.cmd.
+# How to change it: see "Upgrade procedure" in third_party/README.md; never move a submodule without updating this file.
+
+imgui.path=third_party/imgui
+imgui.url=https://github.com/ocornut/imgui.git
+imgui.ref=v1.93.0-docking
+imgui.commit=b916186e66aa3c02b72c6ca17455516512ed8049
+imgui.version=1.93.0
+imgui.version_num=19300
+
+implot.path=third_party/implot
+implot.url=https://github.com/epezent/implot.git
+implot.ref=master
+implot.commit=851cdbdd60d1dfb64c23e987969694de0f547a6b
+implot.version=1.1 WIP
+implot.version_num=10100
+
+# Not submodules: files committed directly to the repo (downloaded from a fixed commit)
+fluent_icons.url=https://github.com/microsoft/fluentui-system-icons.git
+fluent_icons.commit=463d58b8186f874ab2f51cf0a08b4ff5097c912f
+
+# vcpkg registry baseline (builtin-baseline in vcpkg.json must match)
+vcpkg.baseline=9eec002df1cd109f8f104cd966a763daf9751489
+vcpkg.tag=2026.10.16
+
+# Packaging tools (scripts\package.cmd --with-python)
+uv.version=0.12.24
+uv.url=https://github.com/astral-sh/uv/releases/download/0.12.24/uv-x86_64-pc-windows-msvc.zip
+python.version=3.12.15

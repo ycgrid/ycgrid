@@ -1,0 +1,777 @@
+# Every UI command (CommandRegistry id) and its Python entry points (PLAN §13.5a: anything the UI can do, Python can do).
+#
+#   Id: Entry[, Entry...]
+#
+# An entry is an object model member (Range.Font.Bold, Application.Undo, Chart.SetElement), a yc module function
+# (yc.safety.kill), a built-in pane (ui.pane("watch")) or, for commands that only drive the UI itself, ExecuteMso.
+# Every command can also be run by id: yc.ui.command(id) / Application.CommandBars.ExecuteMso(id).
+# Ids ending in * cover the commands made in a loop (ChartType0, ChartType1...).
+#
+# scripts/check_commands.py fails when a registered command is missing here or an entry doesn't exist in yc, and
+# writes skill/ycgrid-python/references/ui-coverage.md from this file.
+
+# ---- File, Quick Access Toolbar ----
+Save: Workbook.Save
+FileSave: Workbook.Save
+FileSaveAs: Workbook.SaveAs, Application.GetSaveAsFilename
+FileNew: Workbooks.Add
+FileOpen: Workbooks.Open, Application.GetOpenFilename
+FileClose: Workbook.Close, Application.Quit
+About: Application.Version, Application.Path
+AboutCopyInfo: Application.Version, Application.Path
+OpenProgramLocation: Application.Path
+ExportCsv: Workbook.SaveAs
+ExportPdf: Workbook.ExportAsFixedFormat, Worksheet.ExportAsFixedFormat
+FilePrint: Worksheet.PrintOut
+PrintNow: Worksheet.PrintOut
+PrintPreview: Worksheet.PrintPreview
+Undo: Application.Undo
+Redo: Application.Redo
+Repeat: Application.Repeat
+
+# ---- File: Info's Security Warning, Options > Trust Center (trust.cpp) ----
+TrustCenterSettings: Application.TrustCenter, Application.AutomationSecurity
+EnableContent: ExecuteMso
+EnableEditing: ProtectedViewWindow.Edit, Application.ProtectedViewWindows
+SecurityOptions: ExecuteMso
+
+# ---- Home: clipboard ----
+Paste: Worksheet.Paste
+PasteValues: Range.PasteSpecial
+PasteFormulas: Range.PasteSpecial
+PasteFormats: Range.PasteSpecial
+PasteTranspose: Range.PasteSpecial
+PasteSpecial: Range.PasteSpecial
+PasteAsPicture: Worksheet.Pictures, Chart.CopyPicture
+Cut: Range.Cut
+Copy: Range.Copy
+CopyAsPicture: Range.CopyPicture
+FormatPainter: Range.Copy, Range.PasteSpecial
+ClipboardPane: ui.pane("clipboard")
+
+# ---- Home: share (screenshots) ----
+Screenshot: Range.ExportImage
+ScreenshotSelection: Range.ExportImage
+ScreenshotTable: Range.ExportImage, ListObject.Range
+ScreenshotSheet: Worksheet.ExportImage
+ScreenshotWorkbook: Workbook.ExportImage
+ScreenshotVisible: ui.screenshot
+ScreenshotWindow: ui.screenshot
+ScreenshotWin*: ui.screenshot, ui.windows
+ScreenshotHeadings: Range.ExportImage
+ScreenshotHiRes: Range.ExportImage
+ScreenshotSaveLast: Range.ExportImage
+
+# ---- Home: font ----
+Bold: Range.Font.Bold
+Italic: Range.Font.Italic
+Underline: Range.Font.Underline
+UnderlineDouble: Range.Font.Underline
+Strikethrough: Range.Font.Strikethrough
+FontName: Range.Font.Name
+FontSize: Range.Font.Size
+FontSizeIncrease: Range.Font.Size
+FontSizeDecrease: Range.Font.Size
+FontColor: Range.Font.Color
+FillColor: Range.Interior.Color
+Borders: Range.Borders, Range.BorderAround
+BorderAll: Range.Borders
+BorderNone: Range.Borders
+BorderOutside: Range.BorderAround
+BorderThickOutside: Range.BorderAround
+BorderTop: Range.Borders
+BorderBottom: Range.Borders
+BorderLeft: Range.Borders
+BorderRight: Range.Borders
+BorderTopBottom: Range.Borders
+BorderTopThickBottom: Range.Borders
+BorderTopDoubleBottom: Range.Borders
+MoreBorders: Range.Borders
+BorderDraw: Range.Borders
+BorderDrawGrid: Range.Borders
+BorderErase: Range.Borders
+BorderLineColor: Border.Color
+BorderLineStyle: Border.LineStyle, Border.Weight
+BorderLineStyle*: Border.LineStyle, Border.Weight
+BorderDoubleBottom: Range.Borders
+BorderThickBottom: Range.Borders
+FormatCellsFontDialog: Range.Font
+
+# ---- Home: alignment ----
+AlignLeft: Range.HorizontalAlignment
+AlignCenter: Range.HorizontalAlignment
+AlignRight: Range.HorizontalAlignment
+AlignTop: Range.VerticalAlignment
+AlignMiddle: Range.VerticalAlignment
+AlignBottom: Range.VerticalAlignment
+TextOrientationMenu: Range.Orientation
+AngleClockwise: Range.Orientation
+AngleCounterclockwise: Range.Orientation
+VerticalText: Range.Orientation
+RotateTextUp: Range.Orientation
+RotateTextDown: Range.Orientation
+WrapText: Range.WrapText
+IndentIncrease: Range.InsertIndent, Range.IndentLevel
+IndentDecrease: Range.InsertIndent, Range.IndentLevel
+MergeCenter: Range.Merge, Range.HorizontalAlignment
+MergeAcross: Range.Merge
+MergeCells: Range.Merge
+UnmergeCells: Range.UnMerge
+FormatCellsAlignmentDialog: Range.HorizontalAlignment, Range.VerticalAlignment, Range.Orientation
+
+# ---- Home: number ----
+NumberFormat: Range.NumberFormat
+AccountingFormat: Range.NumberFormat
+Accounting*: Range.NumberFormat
+MoreAccountingFormats: Range.NumberFormat
+CurrencyFormat: Range.NumberFormat
+PercentStyle: Range.NumberFormat
+CommaStyle: Range.NumberFormat
+GeneralFormat: Range.NumberFormat
+NumberStyle: Range.NumberFormat
+TimeFormat: Range.NumberFormat
+DateFormat: Range.NumberFormat
+ScientificFormat: Range.NumberFormat
+DecimalIncrease: Range.NumberFormat
+DecimalDecrease: Range.NumberFormat
+FormatCellsNumberDialog: Range.NumberFormat
+FormatCellsDialog: Range.NumberFormat, Range.Font, Range.Interior, Range.Borders, Range.Locked
+
+# ---- Home: styles ----
+ConditionalFormatting: Range.FormatConditions
+CfHighlightRules: FormatConditions.Add
+CfTopBottomRules: FormatConditions.AddTop10, FormatConditions.AddAboveAverage
+CfDataBars: FormatConditions.AddDatabar
+CfColorScales: FormatConditions.AddColorScale
+CfNewRule: FormatConditions.Add, FormatConditions.AddIconSetCondition
+CfManageRules: Range.FormatConditions
+CfClearRules: FormatConditions.Delete
+CfClearSelection: FormatConditions.Delete
+CfClearSheet: FormatConditions.Delete
+Cf*: FormatConditions.Add, FormatConditions.AddTop10, FormatConditions.AddAboveAverage, FormatConditions.AddUniqueValues, FormatConditions.AddIconSetCondition
+FormatAsTable: ListObjects.Add, ListObject.TableStyle
+CellStyles: Range.Style
+CellStyle*: Range.Style
+NewCellStyle: Styles.Add
+MergeStyles: Styles.Merge
+
+# ---- Home: cells ----
+InsertCells: Range.Insert
+InsertRows: Range.EntireRow, Range.Insert
+InsertColumns: Range.EntireColumn, Range.Insert
+InsertSheet: Worksheets.Add
+NewSheetAfter: Worksheets.Add
+DeleteCells: Range.Delete
+DeleteRows: Range.EntireRow, Range.Delete
+DeleteColumns: Range.EntireColumn, Range.Delete
+DeleteSheet: Worksheet.Delete
+FormatCellsMenu: Range.RowHeight, Range.ColumnWidth
+RowHeight: Range.RowHeight
+ColumnWidth: Range.ColumnWidth
+DefaultWidth: Worksheet.StandardWidth
+LockCell: Range.Locked
+AutoFitRows: Range.AutoFit
+AutoFitColumns: Range.AutoFit
+HideRows: Range.Hidden
+HideColumns: Range.Hidden
+UnhideRows: Range.Hidden
+UnhideColumns: Range.Hidden
+HideSheet: Worksheet.Visible
+HideUnhideMenu: Range.EntireRow.Hidden, Worksheet.Visible
+NotesMenu: Range.AddComment, Comment.Visible
+UnhideSheet: Worksheet.Visible
+RenameSheet: Worksheet.Name
+TabColor: Worksheet.Tab
+CopySheet: Worksheet.Copy, Worksheet.Move
+NextSheet: Worksheet.Next, Worksheet.Activate
+PrevSheet: Worksheet.Previous, Worksheet.Activate
+ExpandRows100M: Worksheet.RowLimit
+
+# ---- Home: editing ----
+AutoSum: Range.Formula
+AutoAverage: Range.Formula
+AutoCount: Range.Formula
+AutoMax: Range.Formula
+AutoSumMoreFunctions: Range.Formula
+AutoMin: Range.Formula
+FillMenu: Range.FillDown
+FillDown: Range.FillDown
+FillUp: Range.FillUp
+FillLeft: Range.FillLeft
+FillRight: Range.FillRight
+FillSeries: Range.DataSeries
+FlashFill: Range.FlashFill
+ClearMenu: Range.Clear
+ClearAll: Range.Clear
+ClearContents: Range.ClearContents
+ClearFormats: Range.ClearFormats
+ClearComments: Range.ClearComments
+ClearHyperlinks: Range.ClearHyperlinks
+RemoveHyperlinks: Range.ClearHyperlinks, Range.ClearFormats
+SortFilter: Range.Sort, Range.AutoFilter
+SortAscending: Range.Sort
+SortDescending: Range.Sort
+CustomSort: Range.Sort, Worksheet.Sort
+SortCellColorTop: Worksheet.Sort, SortFields.Add
+SortFontColorTop: Worksheet.Sort, SortFields.Add
+SortIconTop: Worksheet.Sort, SortFields.Add
+FindSelect: Range.Find
+Find: Range.Find, Range.FindNext
+Replace: Range.Replace
+GoTo: Application.Goto
+CopyFormulaAbove: Range.Formula
+CopyValueAbove: Range.Value
+GoToSpecial: Range.SpecialCells, Range.CurrentRegion, Range.CurrentArray, Range.DirectPrecedents, Range.Precedents, Range.DirectDependents, Range.Dependents
+FindNext: Range.FindNext
+SelectFormulas: Range.SpecialCells
+SelectConstants: Range.SpecialCells
+SelectNotes: Range.SpecialCells
+SelectConditionalFormats: Range.SpecialCells
+SelectDataValidation: Range.SpecialCells
+SelectVisibleCells: Range.SpecialCells
+
+# ---- Insert ----
+InsertTable: ListObjects.Add
+InsertPivotTable: PivotCaches.Create, PivotCache.CreatePivotTable
+InsertPivotChart: PivotCaches.Create, PivotCache.CreatePivotTable, Shapes.AddChart2
+InsertPicture: Shapes.AddPicture
+InsertShapesMenu: Shapes.AddShape
+InsertShape*: Shapes.AddShape
+InsertTextBox: Shapes.AddTextbox
+InsertSymbol: Range.Value
+InsertIcons: Shapes.AddPicture
+InsertWordArtMenu: Shapes.AddTextEffect
+WordArt*: Shapes.AddTextEffect
+InsertHeaderFooter: PageSetup.CenterHeader, PageSetup.LeftHeader, PageSetup.RightHeader
+
+# ---- Shape Format / Picture Format, objects (copy, arrange) ----
+ObjectCopy: Shape.Copy, ChartObject.Copy
+ObjectCut: Shape.Cut, ChartObject.Cut
+ObjectPaste: Worksheet.Paste
+ObjectDuplicate: Shape.Duplicate, ChartObject.Duplicate
+FormatShapePane: Shape.Fill, Shape.Line, Shape.TextFrame2, Shape.TextFrame, Shape.Rotation, Shape.LockAspectRatio, Shape.Placement, Shape.PrintObject, Shape.Locked, Shape.AlternativeText
+ShapeFill: Shape.Fill.ForeColor
+ShapeNoFill: Shape.Fill.Visible
+ShapeOutline: Shape.Line.ForeColor
+PictureBorder: Shape.Line.ForeColor
+ShapeNoOutline: Shape.Line.Visible
+ShapeWeightMenu: Shape.Line.Weight
+ShapeWeight*: Shape.Line.Weight
+ShapeDashesMenu: Shape.Line.DashStyle
+ShapeDash*: Shape.Line.DashStyle
+ShapeArrowsMenu: Shape.Line.EndArrowheadStyle
+ShapeArrow*: Shape.Line.BeginArrowheadStyle, Shape.Line.EndArrowheadStyle
+ShapeTextAlignMenu: Shape.TextFrame.HorizontalAlignment
+ShapeText*: Shape.TextFrame.HorizontalAlignment, Shape.TextFrame.VerticalAlignment
+BringForward: Shape.ZOrder
+BringToFront: Shape.ZOrder
+SendBackward: Shape.ZOrder
+SendToBack: Shape.ZOrder
+SelectionPane: Shape.Visible, Shape.Select
+ObjAlignMenu: ShapeRange.Align
+ObjAlign*: ShapeRange.Align
+ObjDistribute*: ShapeRange.Distribute
+ObjGroupMenu: ShapeRange.Group
+GroupObjects: ShapeRange.Group
+UngroupObjects: Shape.Ungroup
+ObjRotateMenu: Shape.Rotation
+RotateRight90: Shape.IncrementRotation
+RotateLeft90: Shape.IncrementRotation
+FlipVertical: Shape.Flip
+FlipHorizontal: Shape.Flip
+ResetPicture: Shape.PictureFormat, Shape.ScaleHeight
+ChangePicture: Shapes.AddPicture
+CropPicture: Shape.PictureFormat.CropLeft
+InsertChartDialog: Shapes.AddChart2, ChartObjects.Add
+InsertChartObject: Shapes.AddChart2, ChartObjects.Add
+InsertChartSheet: Charts.Add
+InsertChartColumn: Shapes.AddChart2, Chart.ChartType
+InsertChartBar: Shapes.AddChart2, Chart.ChartType
+InsertChartLine: Shapes.AddChart2, Chart.ChartType
+InsertChartPie: Shapes.AddChart2, Chart.ChartType
+InsertChartArea: Shapes.AddChart2, Chart.ChartType
+InsertChartScatter: Shapes.AddChart2, Chart.ChartType
+InsertChartRadar: Shapes.AddChart2, Chart.ChartType
+InsertChartStock: Shapes.AddChart2, Chart.ChartType
+InsertChartCombo: Shapes.AddChart2, Chart.ChartType
+InsertChartComboMenu: Shapes.AddChart2, Chart.ChartType
+InsertChartComboSecondary: Shapes.AddChart2, Series.AxisGroup
+InsertChartComboArea: Shapes.AddChart2, Series.ChartType
+InsertChartComboCustom: Shapes.AddChart2, Series.ChartType
+InsertChartRadarMarkers*: Shapes.AddChart2, Chart.ChartType
+InsertChartRadarFilled*: Shapes.AddChart2, Chart.ChartType
+InsertChartSurface: Shapes.AddChart2, Chart.ChartType
+InsertChartContour: Shapes.AddChart2, Chart.ChartType
+InsertChartWireframe: Shapes.AddChart2, Chart.ChartType
+InsertChartSurfaceMenu: Shapes.AddChart2
+InsertChartHistogram: Shapes.AddChart2, Chart.ChartType
+InsertChartPareto: Shapes.AddChart2, Chart.ChartType
+InsertChartBoxWhisker: Shapes.AddChart2, Chart.ChartType
+InsertChartStatisticMenu: Shapes.AddChart2
+InsertChartWaterfall: Shapes.AddChart2, Chart.ChartType
+InsertChartFunnel: Shapes.AddChart2, Chart.ChartType
+InsertChartWaterfallMenu: Shapes.AddChart2
+InsertChartTreemap: Shapes.AddChart2, Chart.ChartType
+InsertChartSunburst: Shapes.AddChart2, Chart.ChartType
+InsertChartHierarchyMenu: Shapes.AddChart2
+InsertChartMap: Shapes.AddChart2, Chart.ChartType
+InsertChart3DMenu: Shapes.AddChart2
+InsertChart3DColumn: Shapes.AddChart2, Chart.ChartType
+InsertChart3DClusteredColumn: Shapes.AddChart2, Chart.ChartType
+InsertChart3DStackedColumn: Shapes.AddChart2, Chart.ChartType
+InsertChart3DBar: Shapes.AddChart2, Chart.ChartType
+InsertChart3DLine: Shapes.AddChart2, Chart.ChartType
+InsertChart3DPie: Shapes.AddChart2, Chart.ChartType
+InsertChart3DArea: Shapes.AddChart2, Chart.ChartType
+InsertChartColumnStacked*: Shapes.AddChart2, Chart.ChartType
+InsertChartBarStacked*: Shapes.AddChart2, Chart.ChartType
+InsertChartLineMarkers*: Shapes.AddChart2, Chart.ChartType
+InsertChartLineStacked*: Shapes.AddChart2, Chart.ChartType
+InsertChartAreaStacked*: Shapes.AddChart2, Chart.ChartType
+InsertChartDoughnut*: Shapes.AddChart2, Chart.ChartType
+InsertChartScatterSmooth*: Shapes.AddChart2, Chart.ChartType
+InsertChartScatterLines*: Shapes.AddChart2, Chart.ChartType
+InsertChartBubble*: Shapes.AddChart2, Chart.ChartType, Series.BubbleSizes
+InsertChartStockHLC*: Shapes.AddChart2, Chart.ChartType
+InsertChartStockV*: Shapes.AddChart2, Chart.ChartType, ChartGroup.HasUpDownBars, ChartGroup.UpBars
+InsertChartPieOfPie*: Shapes.AddChart2, Chart.ChartType, ChartGroup.SplitType
+InsertChartBarOfPie*: Shapes.AddChart2, Chart.ChartType, ChartGroup.SecondPlotSize
+InsertChartColumnMenu: Shapes.AddChart2
+InsertChartLineMenu: Shapes.AddChart2
+InsertChartPieMenu: Shapes.AddChart2
+InsertChartScatterMenu: Shapes.AddChart2
+InsertChartMoreColumn: Shapes.AddChart2, ChartObjects.Add
+InsertChartMoreLine: Shapes.AddChart2, ChartObjects.Add
+InsertChartMorePie: Shapes.AddChart2, ChartObjects.Add
+InsertChartMoreScatter: Shapes.AddChart2, ChartObjects.Add
+RecommendedCharts: Shapes.AddChart2, Chart.ChartType
+InsertSparkLine: SparklineGroups.Add
+QaSpark*: SparklineGroups.Add
+QuickAnalysis: ExecuteMso
+InsertSparkColumn: SparklineGroups.Add
+InsertSparkWinLoss: SparklineGroups.Add
+InsertSlicer: SlicerCaches.Add, SlicerCache.ListObject
+SlicerSettings: SlicerCache.SortItems
+InsertTimeline: SlicerCaches.Add
+InsertHyperlink: Hyperlinks.Add
+FollowHyperlink: Hyperlink.Follow, Workbook.FollowHyperlink
+InsertComment: Range.AddComment
+FormatComment: Comment.Shape
+NewComment: Range.AddCommentThreaded
+DeleteComment: Range.ClearComments
+DeleteCommentThread: CommentThreaded.Delete
+NextComment: CommentThreaded.Next
+PreviousComment: CommentThreaded.Previous
+ShowComments: ui.pane("comments")
+ConvertToComments: Range.ConvertNotesToComments
+ShowHideNote: Comment.Visible
+ShowAllNotes: Comment.Visible
+PreviousNote: Comment.Previous
+NextNote: Comment.Next
+InsertDate: Range.Value
+InsertTime: Range.Value
+InsertFunction: Range.Formula
+
+# ---- Table Design ----
+ConvertToRange: ListObject.Unlist
+RenameTable: ListObject.Name
+ResizeTable: ListObject.Resize
+TableStylesMenu: ListObject.TableStyle
+TableStyle*: ListObject.TableStyle
+NewTableStyle: TableStyles.Add, TableStyle.TableStyleElements
+TblHeaderRow: ListObject.ShowHeaders
+TblTotalRow: ListObject.ShowTotals
+TblBandedRows: ListObject.ShowTableStyleRowStripes
+TblBandedColumns: ListObject.ShowTableStyleColumnStripes
+TblFirstColumn: ListObject.ShowTableStyleFirstColumn
+TblLastColumn: ListObject.ShowTableStyleLastColumn
+TblFilterButton: ListObject.ShowAutoFilterDropDown
+
+# ---- Sparkline ----
+SparkTypeLine: SparklineGroup.Type
+SparkTypeColumn: SparklineGroup.Type
+SparkTypeWinLoss: SparklineGroup.Type
+SparkHigh: SparklineGroup.Points
+SparkLow: SparklineGroup.Points
+SparkFirst: SparklineGroup.Points
+SparkLast: SparklineGroup.Points
+SparkNegative: SparklineGroup.Points
+SparkMarkers: SparklineGroup.Points
+SparkAxis: SparklineGroup.Axes
+SparkClear: SparklineGroups.Clear
+SparkEditGroup: SparklineGroup.Modify
+SparkEditSingle: SparklineGroup.ModifySourceData
+SparkHiddenEmpty: SparklineGroup.DisplayBlanksAs, SparklineGroup.DisplayHidden
+SparkSwitchRowCol: SparklineGroup.Modify
+SparkStylesMenu: SparklineGroup.SeriesColor, SparklineGroup.Points
+SparkStyle*: SparklineGroup.SeriesColor, SparklineGroup.Points
+SparkColorMenu: SparklineGroup.SeriesColor
+SparkColor: SparklineGroup.SeriesColor
+SparkWeightMenu: SparklineGroup.LineWeight
+SparkWeight*: SparklineGroup.LineWeight
+SparkMarkerColorMenu: SparklineGroup.Points
+SparkMarker*: SparklineGroup.Points
+SparkAxisMenu: SparklineGroup.Axes
+SparkAxisGeneral: SparklineGroup.DateRange
+SparkAxisDate: SparklineGroup.DateRange, SparklineGroup.ModifyDateRange
+SparkRightToLeft: SparklineGroup.Axes.Horizontal.RightToLeftPlotOrder
+SparkMinAuto: SparklineGroup.Axes.Vertical.MinScaleType
+SparkMinSame: SparklineGroup.Axes.Vertical.MinScaleType
+SparkMinCustom: SparklineGroup.Axes.Vertical.CustomMinScaleValue
+SparkMaxAuto: SparklineGroup.Axes.Vertical.MaxScaleType
+SparkMaxSame: SparklineGroup.Axes.Vertical.MaxScaleType
+SparkMaxCustom: SparklineGroup.Axes.Vertical.CustomMaxScaleValue
+SparkGroup: SparklineGroups.Group
+SparkUngroup: SparklineGroups.Ungroup
+SparkClearGroups: SparklineGroups.ClearGroups
+
+# ---- PivotTable Analyze / Design ----
+PivotRefresh: PivotTable.RefreshTable
+RefreshAll: Workbook.RefreshAll
+PivotChangeSource: PivotTable.ChangePivotCache, PivotTable.SourceData
+PivotFieldList: ui.pane("pivot_fields")
+PivotCalcField: PivotTable.CalculatedFields
+PivotCalcItem: PivotField.CalculatedItems
+PivotChart: Shapes.AddChart2, Chart.SetSourceData
+PivotClear: PivotTable.ClearTable
+PivotDelete: PivotTable.Delete
+PivotMove: PivotTable.Location
+PivotRename: PivotTable.Name
+PivotGrandMenu: PivotTable.RowGrand, PivotTable.ColumnGrand
+PivotLayoutMenu: PivotTable.RowAxisLayout
+PivotSubtotalsMenu: PivotTable.SubtotalLocation
+PivotSubtotals*: PivotTable.SubtotalLocation, PivotField.Subtotals
+PivotGrand*: PivotTable.RowGrand, PivotTable.ColumnGrand
+PivotLayout*: PivotTable.RowAxisLayout, PivotTable.RepeatAllLabels
+PivotOptions: PivotTable.Name, PivotTable.MergeLabels, PivotTable.CompactRowIndent, PivotTable.NullString, PivotTable.ErrorString, PivotTable.PreserveFormatting, PivotTable.HasAutoFormat, PivotTable.ColumnGrand, PivotTable.RowGrand, PivotTable.SortUsingCustomLists, PivotTable.ShowDrillIndicators, PivotTable.DisplayFieldCaptions, PivotTable.FieldListSortAscending, PivotCache.RefreshOnFileOpen, PivotTable.EnableDrilldown
+PivotFieldSettings: PivotField.Caption, PivotField.Subtotals, PivotField.RepeatLabels, PivotField.LayoutBlankLine, PivotField.ShowAllItems, PivotField.IncludeNewItemsInFilter, PivotField.LayoutForm, PivotField.LayoutCompactRow, PivotField.LayoutSubtotalLocation, PivotField.LayoutPageBreak
+PivotActiveField: PivotField.Caption
+PivotEnableSelection: PivotTable.EnableSelection
+PivotFilterConnections: SlicerCache.PivotTables, SlicerPivotTables.AddPivotTable, SlicerPivotTables.RemovePivotTable
+SlicerReportConnections: SlicerCache.PivotTables, SlicerPivotTables.AddPivotTable, SlicerPivotTables.RemovePivotTable
+PivotCalcMenu: PivotTable.CalculatedFields, PivotField.CalculatedItems
+RecommendedPivotTables: PivotCaches.Create, PivotCache.CreatePivotTable
+TimelineShow*: TimelineViewState.ShowHeader, TimelineViewState.ShowSelectionLabel, TimelineViewState.ShowHorizontalScrollbar, TimelineViewState.ShowTimeLevel
+PivotExpandField: PivotField.ShowDetail
+PivotCollapseField: PivotField.ShowDetail
+PivotGroupSelection: Range.Group
+PivotUngroup: PivotField.Ungroup
+PivotGroupField: PivotField.Group
+PivotClearMenu: PivotTable.ClearTable, PivotTable.ClearAllFilters
+PivotClearFilters: PivotTable.ClearAllFilters
+PivotSelectMenu: PivotTable.PivotSelect
+PivotSelect*: PivotTable.PivotSelect
+PivotToggleButtons: PivotTable.ShowDrillIndicators
+PivotToggleFieldHeaders: PivotTable.DisplayFieldCaptions
+PivotChartButtons: PivotTable.ShowAllFieldButtons
+PivotBlankRowsMenu: PivotField.LayoutBlankLine
+PivotBlankRows*: PivotField.LayoutBlankLine
+PivotStylesMenu: PivotTable.TableStyle2
+PivotStyleRowHeaders: PivotTable.ShowTableStyleRowHeaders
+PivotStyleColHeaders: PivotTable.ShowTableStyleColumnHeaders
+PivotStyleBandedRows: PivotTable.ShowTableStyleRowStripes
+PivotStyleBandedCols: PivotTable.ShowTableStyleColumnStripes
+PivotStyle*: PivotTable.TableStyle2
+
+# ---- Chart Design / Format ----
+ChartAddElementMenu: Chart.SetElement
+ChartElemTitle: Chart.SetElement, Chart.HasTitle
+ChartElemLines*: Chart.SetElement, ChartGroup.HasHiLoLines
+ChartElemHiLo*: Chart.SetElement, ChartGroup.HasHiLoLines
+ChartElemUpDown*: Chart.SetElement, ChartGroup.HasUpDownBars
+ChartElemDataLabels: Chart.SetElement, Chart.ApplyDataLabels
+ChartElemLegendNone: Chart.SetElement, Chart.HasLegend
+ChartElemLegendRight: Chart.SetElement, Legend.Position
+ChartElemLegendTop: Chart.SetElement, Legend.Position
+ChartElemLegendLeft: Chart.SetElement, Legend.Position
+ChartElemLegendBottom: Chart.SetElement, Legend.Position
+ChartElemLegendCorner: Legend.Position
+ChartElemAxisCat: Chart.SetElement, Axis.Visible
+ChartElemAxisVal: Chart.SetElement, Axis.Visible
+ChartElemAxisTitleCat: Chart.SetElement, Axis.HasTitle
+ChartElemAxisTitleVal: Chart.SetElement, Axis.HasTitle
+ChartElemGridCat: Chart.SetElement, Axis.HasMajorGridlines
+ChartElemGridVal: Chart.SetElement, Axis.HasMajorGridlines
+ChartElemTitleNone*: Chart.SetElement, Chart.HasTitle
+ChartElemTitleAbove*: Chart.SetElement, ChartTitle.IncludeInLayout
+ChartElemTitleOverlay*: Chart.SetElement, ChartTitle.IncludeInLayout
+ChartElemLabels*: Chart.SetElement, DataLabels.Position
+ChartElemErr*: Chart.SetElement, Series.ErrorBar
+ChartElemGridValMinor*: Chart.SetElement, Axis.HasMinorGridlines
+ChartElemGridCatMinor*: Chart.SetElement, Axis.HasMinorGridlines
+ChartElemAxisVal2*: Chart.HasAxis, Axis.Visible
+ChartElemAxisTitleVal2*: Axis.HasTitle, AxisTitle.Formula
+ChartElemTrend*: Chart.SetElement, Trendlines.Add
+ChartChangeColorsMenu: Chart.ChartColor
+ChartColors*: Chart.ChartColor
+ChartQuickLayoutMenu: Chart.ApplyLayout
+ChartQuickLayout*: Chart.ApplyLayout
+ChartStylesMenu: Chart.ChartStyle
+ChartStyle*: Chart.ChartStyle
+ChartChangeTypeMenu: Chart.ChartType
+ChartType*: Chart.ChartType
+ChartSwitchRowCol: Chart.PlotBy
+ChartSelectData: Chart.SetSourceData, SeriesCollection.NewSeries, Series.Values, Series.XValues, Chart.PlotVisibleOnly, Chart.DisplayBlanksAs, Chart.DisplayNAAsBlank
+MoveChart: Chart.Location
+ChartElementsMenu: ChartArea.Select, PlotArea.Select, Legend.Select, Series.Select
+ChartSelChartArea: Chart.ChartArea, ChartArea.Select
+ChartSelPlotArea: Chart.PlotArea, PlotArea.Select
+ChartSelTitle: Chart.ChartTitle
+ChartSelLegend: Chart.Legend, Legend.Select
+ChartSelCatAxis: Chart.Axes
+ChartSelValAxis: Chart.Axes
+ChartSelSeries: Chart.SeriesCollection, Series.Select
+ChartSelSeries?*: Chart.SeriesCollection, Series.Select
+ChartSelValAxis2: Chart.Axes, Axis.Select
+ChartSelGridlines: Axis.MajorGridlines, Gridlines.Select
+ChartFormatSelection: ChartArea.Format, Series.Format, ChartGroup.GapWidth, ChartGroup.ShowConnectorLines, Axis.MinimumScale, Series.DataLabels, Series.Trendlines, Series.ErrorBar, Point.Format
+ChartResetStyle: Chart.ClearToMatchStyle, ChartArea.ClearFormats
+DeleteObject: Shape.Delete, ChartObject.Delete
+
+# ---- Page Layout ----
+ThemesMenu: Workbook.ApplyTheme
+ThemeColorsMenu: ThemeColorScheme.Name
+ThemeFontsMenu: ThemeFontScheme.Name
+ThemeApply*: Workbook.ApplyTheme
+ThemeColors*: ThemeColorScheme.Name
+ThemeFonts*: ThemeFontScheme.Name
+ThemeEffectsMenu: ThemeEffectScheme.Load
+ThemeEffects*: ThemeEffectScheme.Load
+ShapeEffectsMenu: Shape.Shadow, Shape.Glow, Shape.SoftEdge, Shape.Reflection, Shape.ThreeD
+ShapeFxPreset*: Shape.ThreeD, Shape.Shadow
+ShapeFxShadow*: Shape.Shadow
+ShapeFxReflection*: Shape.Reflection
+ShapeFxGlow*: Shape.Glow
+ShapeFxSoft*: Shape.SoftEdge
+ShapeFxBevel*: Shape.ThreeD
+ShapeFx3D*: Shape.ThreeD
+ShapeQuickStylesMenu: Shape.ShapeStyle
+ShapeStyle*: Shape.ShapeStyle
+MarginsMenu: PageSetup.TopMargin, PageSetup.LeftMargin
+MarginsCustom: PageSetup.TopMargin, PageSetup.LeftMargin
+Margins*: PageSetup.TopMargin, PageSetup.LeftMargin
+OrientationMenu: PageSetup.Orientation
+OrientPortrait: PageSetup.Orientation
+OrientLandscape: PageSetup.Orientation
+PaperSizeMenu: PageSetup.PaperSize
+Paper*: PageSetup.PaperSize
+PrintAreaMenu: PageSetup.PrintArea
+SetPrintArea: PageSetup.PrintArea
+ClearPrintArea: PageSetup.PrintArea
+BreaksMenu: Worksheet.HPageBreaks, Worksheet.VPageBreaks
+InsertPageBreak: HPageBreaks.Add
+RemovePageBreak: PageBreak.Delete
+ResetPageBreaks: Worksheet.ResetAllPageBreaks
+PrintTitles: PageSetup.PrintTitleRows, PageSetup.PrintTitleColumns
+ScaleMenu: PageSetup.Zoom, PageSetup.FitToPagesWide
+Scale*: PageSetup.Zoom, PageSetup.FitToPagesWide, PageSetup.FitToPagesTall
+PrintGridlines: PageSetup.PrintGridlines
+PrintHeadings: PageSetup.PrintHeadings
+PageSetupDialog: Worksheet.PageSetup
+PageSetupSheet: Worksheet.PageSetup
+AddToPrintArea: PageSetup.PrintArea
+SheetBackground: Worksheet.SetBackgroundPicture
+DeleteBackground: Worksheet.SetBackgroundPicture
+PrinterProperties: ExecuteMso
+HfPageNumber*: PageSetup.CenterHeader, PageSetup.CenterFooter
+HfNumberOfPages*: PageSetup.CenterHeader, PageSetup.CenterFooter
+HfCurrent*: PageSetup.CenterHeader, PageSetup.CenterFooter
+HfFile*: PageSetup.CenterHeader, PageSetup.CenterFooter
+HfSheetName*: PageSetup.CenterHeader, PageSetup.CenterFooter
+HfPicture: PageSetup.CenterHeaderPicture
+HfFormatPicture: PageSetup.CenterHeaderPicture
+HfGoToHeader: PageSetup.CenterHeader
+HfGoToFooter: PageSetup.CenterFooter
+HfDifferentFirst*: PageSetup.DifferentFirstPageHeaderFooter
+HfDifferentOddEven*: PageSetup.OddAndEvenPagesHeaderFooter
+HfScaleWithDoc*: PageSetup.ScaleWithDocHeaderFooter
+HfAlignMargins*: PageSetup.AlignMarginsHeaderFooter
+HfHeader*: PageSetup.CenterHeader
+HfFooter*: PageSetup.CenterFooter
+
+# ---- Formulas ----
+DefineName: Names.Add
+NameManager: Workbook.Names
+CreateNamesFromSelection: Range.CreateNames
+PasteName: Range.ListNames, Workbook.Names
+TracePrecedents: Range.ShowPrecedents
+SelectPrecedents: Range.DirectPrecedents
+SelectAllPrecedents: Range.Precedents
+SelectDependents: Range.DirectDependents
+SelectAllDependents: Range.Dependents
+TraceDependents: Range.ShowDependents
+RemoveArrows: Worksheet.ClearArrows
+RemovePrecedentArrows: Range.ShowPrecedents
+RemoveDependentArrows: Range.ShowDependents
+SelectCurrentArray: Range.CurrentArray
+SelectObstructingCells: ExecuteMso
+ExpandFormulaBar: Application.FormulaBarHeight
+Functions*: Range.Formula
+InsertFn_*: Range.Formula
+EvaluateFormula: Application.Evaluate
+WatchWindow: Application.Watches, ui.pane("watch")
+Calculate: Application.Calculate
+CalculateFull: Application.CalculateFull
+CalculateSheet: Worksheet.Calculate
+CalculationOptions: Application.Calculation
+CalcAutomatic: Application.Calculation
+CalcManual: Application.Calculation
+CalcSemiautomatic: Application.Calculation
+ErrorChecking: Range.Errors, Application.ErrorCheckingOptions
+TraceError: Range.ShowErrors
+CircularReferences: Worksheet.CircularReference
+CircularRef*: Worksheet.CircularReference
+UseInFormula: Range.Formula, Workbook.Names
+ApplyNames: Range.ApplyNames
+UseName*: Range.Formula, Workbook.Names
+ShowFormulas: Window.DisplayFormulas
+
+# ---- Data ----
+EditLinks: Workbook.LinkSources, Workbook.ChangeLink
+ToggleFilter: Range.AutoFilter
+ClearFilter: Worksheet.ShowAllData
+ReapplyFilter: AutoFilter.ApplyFilter
+AdvancedFilter: Range.AdvancedFilter
+TextToColumns: Range.TextToColumns
+RemoveDuplicates: Range.RemoveDuplicates
+CircleInvalidData: Worksheet.CircleInvalid
+ClearValidationCircles: Worksheet.ClearCircles
+DataValidation: Validation.Add
+Consolidate: Range.Consolidate
+Subtotal: Range.Subtotal, Range.RemoveSubtotal
+ForecastSheet: ExecuteMso
+ImportText: Worksheet.QueryTables
+GetDataMenu: Worksheet.QueryTables
+WhatIfMenu: Range.GoalSeek
+GoalSeek: Range.GoalSeek
+ScenarioManager: Worksheet.Scenarios
+DataTableDialog: Range.Table
+Solver: yc.excel.SolverOk, yc.excel.SolverSolve
+GroupOutline: Range.Group
+UngroupOutline: Range.Ungroup
+ClearOutline: Range.ClearOutline
+AutoOutline: Range.AutoOutline
+OutlineSettings: Outline.SummaryRow, Outline.SummaryColumn, Outline.AutomaticStyles
+ShowDetail: Range.ShowDetail, Outline.ShowLevels
+HideDetail: Range.ShowDetail, Outline.ShowLevels
+DataAnalysis: yc.analysis.run, yc.analysis.Descr, yc.analysis.Regress
+
+# ---- Review ----
+Spelling: Range.CheckSpelling, Application.CheckSpelling
+ProtectSheet: Worksheet.Protect, Worksheet.Unprotect
+ProtectWorkbook: Workbook.Protect, Workbook.Unprotect
+AllowEditRanges: Protection.AllowEditRanges
+
+# ---- View ----
+ViewNormal: Window.View
+ViewPageBreakPreview: Window.View
+ViewPageLayout: Window.View
+ToggleGridlines: Window.DisplayGridlines
+ToggleHeadings: Window.DisplayHeadings
+ToggleFormulaBar: Application.DisplayFormulaBar
+ToggleRuler: Window.DisplayRuler
+CustomViews: Workbook.CustomViews
+Zoom100: Window.Zoom
+ZoomDialog: Window.Zoom
+ZoomToSelection: Window.Zoom
+FreezePanes: Window.FreezePanes
+FreezeTopRow: Window.SplitRow, Window.FreezePanes
+FreezeFirstColumn: Window.SplitColumn, Window.FreezePanes
+FreezeCenterColumns: Window.CenterColumns
+SplitWindow: Window.Split
+NewWindow: Window.NewWindow
+ArrangeAll: Windows.Arrange
+HideWindow: Window.Visible
+UnhideWindow: Window.Visible
+ViewSideBySide: Windows.CompareSideBySideWith, Windows.BreakSideBySide
+SyncScrolling: Windows.SyncScrollingSideBySide
+ResetWindowPosition: Windows.ResetPositionsSideBySide
+SwitchWindowsMenu: Workbook.Activate
+SwitchWindow*: Workbook.Activate
+NextWindow: Window.ActivateNext
+ViewCode: ExecuteMso
+ViewMacros: Application.Run, ExecuteMso
+MacroSecurity: Application.AutomationSecurity
+FocusCell: ExecuteMso
+PrevWindow: Window.ActivatePrevious
+NewContainer: Containers.Add
+LayoutSave: Layout.Save
+LayoutLoad: Layout.Restore
+LayoutReset: Layout.Reset
+ToggleChartWindow: ui.pane("chart_window")
+TogglePerf: ui.pane("perf")
+ToggleImGuiDemo: ExecuteMso
+ToggleImPlotDemo: ExecuteMso
+
+# ---- Ribbon, Quick Access Toolbar, search ----
+RibbonAlwaysShow: Application.RibbonDisplay
+RibbonTabsOnly: Application.RibbonDisplay
+RibbonAutoHide: Application.RibbonDisplay
+CustomizeQat: ui.qat
+CommandSearch: ui.commands, ui.command
+
+# ---- Developer ----
+Macros: Application.Run
+ImmediateWindow: ui.pane("immediate")
+DebugInVSCode: yc.debug.start
+ReloadPython: ExecuteMso
+OpenVSCode: ExecuteMso
+DesignMode: Application.DesignMode
+ControlProperties: OLEObject.Object
+InsertControlsMenu: OLEObjects.Add
+InsertButton: OLEObjects.Add
+InsertCheckBox: OLEObjects.Add
+InsertComboBox: OLEObjects.Add
+InsertListBox: OLEObjects.Add
+InsertOptionButton: OLEObjects.Add
+InsertToggleButton: OLEObjects.Add
+InsertTextBoxControl: OLEObjects.Add
+InsertLabel: OLEObjects.Add
+InsertImageControl: OLEObjects.Add
+InsertScrollBar: OLEObjects.Add
+InsertSpinButton: OLEObjects.Add
+InsertFormButton: Worksheet.Buttons
+InsertFormCheckBox: Worksheet.CheckBoxes
+InsertFormComboBox: Worksheet.DropDowns
+InsertFormListBox: Worksheet.ListBoxes
+InsertFormOptionButton: Worksheet.OptionButtons
+InsertFormGroupBox: Worksheet.GroupBoxes
+InsertFormLabel: Worksheet.Labels
+InsertFormScrollBar: Worksheet.ScrollBars
+InsertFormSpinButton: Worksheet.Spinners
+
+# ---- Trading ----
+OperatorMode: yc.safety.operator_mode, yc.safety.set_operator_mode
+KillSwitch: yc.safety.kill, yc.safety.on_kill
+MarkParameter: yc.safety.parameter
+ChangeLog: yc.safety.change_log, ui.pane("change_log")
+Heartbeats: yc.safety.heartbeat, ui.pane("heartbeats")
+RecordData: yc.replay.record, yc.replay.stop_recording
+RecordEverything: yc.replay.record, yc.replay.mark, yc.replay.pin, yc.replay.compare
+ReplayData: yc.replay.play
+ReplayLive: yc.replay.live
+LatencyMonitor: ui.pane("latency")
+AlertRules: yc.alerts.add, ui.pane("alerts")
+ErrorLog: ui.pane("errors"), ui.errors
+
+# ---- Cells and sheets by mouse and keyboard (cells_ui.cpp) ----
+SelectAllSheets: Sheets.Select
+UngroupSheets: Worksheet.Select
+SelectNextSheet: Worksheet.Select, Window.SelectedSheets
+SelectPrevSheet: Worksheet.Select, Window.SelectedSheets
+ActivateSheetList: Worksheet.Activate
+SelectRowDifferences: Range.RowDifferences
+SelectColumnDifferences: Range.ColumnDifferences
+ToggleObjectsDisplay: Workbook.DisplayDrawingObjects
+ToggleOutlineSymbols: Window.DisplayOutline
+NextPane: ExecuteMso
+PrevPane: ExecuteMso
+FillJustify: Range.Justify
+FillAcrossWorksheets: Sheets.FillAcrossSheets
+SelectObjects: Shape.Select
+FilterBySelectedValue: Range.AutoFilter
+FilterBySelectedColor: Range.AutoFilter
+FilterBySelectedFontColor: Range.AutoFilter
+FilterBySelectedIcon: Range.AutoFilter, Workbook.IconSets
+ClearFilterColumn: Range.AutoFilter
+PickFromList: Range.Value

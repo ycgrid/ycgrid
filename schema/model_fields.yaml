@@ -1,0 +1,313 @@
+# Every member of the model, accounted for (scripts/check_model_fields.py, run by check_all and tests.test_core).
+#
+# saved: each member of Sheet and Workbook, and how it is kept in a .ycg file.
+#   ycg              the round trip (tests/unit/test_model_roundtrip.cpp) compares it after a save and an open
+#   elsewhere FILE   kept another way, checked in FILE
+#   transient WHY    not saved, and why
+#
+# references: each field of a model struct that may name cells (a text, a rectangle, a cell), and what keeps it right
+# when cells move, sheets are renamed, deleted or copied.
+#   text             a reference list walks it (src/model/ref_texts.h), and test_ref_registry.cpp has its slot
+#   rect FILE        the structure operations move it (document_struct.cpp / document_data.cpp), checked in FILE
+#   key              a cell position kept as a map key (notes, hyperlinks): it moves with its cell
+#   kept WHY         names cells but stays as it is, as in Excel (measured)
+#   none WHY         not a reference
+#
+# A new member or field fails the check until it has a line here: decide, and give it the test its kind asks for.
+
+saved:
+  Sheet.id: ycg
+  Sheet.name: ycg
+  Sheet.code_name: ycg
+  Sheet.row_limit: ycg
+  Sheet.col_limit: ycg
+  Sheet.visible: ycg
+  Sheet.very_hidden: ycg
+  Sheet.tab_color: ycg
+  Sheet.chart_sheet: ycg
+  Sheet.outline_below: ycg
+  Sheet.outline_right: ycg
+  Sheet.outline_styles: ycg
+  Sheet.values: ycg  # through ContentDump
+  Sheet.meta: ycg  # formulas and styles of the cells, through ContentDump
+  Sheet.rows: ycg  # through ContentDump
+  Sheet.cols: ycg  # through ContentDump
+  Sheet.merges: ycg  # through ContentDump
+  Sheet.row_styles: ycg  # through ContentDump
+  Sheet.col_styles: ycg  # through ContentDump
+  Sheet.controls: ycg
+  Sheet.charts: ycg
+  Sheet.notes: ycg
+  Sheet.ignored_errors: ycg
+  Sheet.links: ycg
+  Sheet.rich: ycg
+  Sheet.store: ycg
+  Sheet.cond_formats: ycg
+  Sheet.validations: ycg
+  Sheet.autofilter: ycg
+  Sheet.spills: ycg
+  Sheet.protection: ycg
+  Sheet.tables: ycg
+  Sheet.shapes: ycg
+  Sheet.linked_pictures: ycg
+  Sheet.tab_selected: ycg
+  Sheet.sparklines: ycg
+  Sheet.page_setup: ycg
+  Sheet.background: ycg
+  Sheet.pivots: ycg
+  Sheet.slicers: ycg
+  Sheet.data_tables: ycg
+  Sheet.scenarios: ycg
+  Sheet.solver: ycg
+  Sheet.consolidate: ycg
+  Sheet.view: ycg  # its zoom, gridlines and headings are the window's (layout_json)
+  Sheet.has_used: transient worked out again from the cells (ComputeUsedRange)
+  Sheet.used: transient worked out again from the cells (ComputeUsedRange)
+  Workbook.sheets: ycg
+  Workbook.next_sheet_id: ycg
+  Workbook.next_object_id: ycg
+  Workbook.formulas: ycg  # through ContentDump (each cell's formula text)
+  Workbook.styles: ycg  # through ContentDump (each cell's format)
+  Workbook.names: ycg
+  Workbook.store: ycg
+  Workbook.doc_props: ycg
+  Workbook.panels: ycg
+  Workbook.containers: ycg
+  Workbook.theme: ycg
+  Workbook.cell_styles: ycg
+  Workbook.legacy_decimal: transient set while an old file's formulas are read (their DECIMAL is converted), then false
+  Workbook.external_links: ycg
+  Workbook.bound_tables: ycg
+  Workbook.parameters: ycg
+  Workbook.audit_log: ycg
+  Workbook.safety: ycg
+  Workbook.alerts: ycg
+  Workbook.notebook: ycg
+  Workbook.layout_json: ycg
+  Workbook.protect_structure: ycg
+  Workbook.protect_windows: ycg
+  Workbook.protect_hash: ycg
+  Workbook.calc_iterate: ycg
+  Workbook.calc_max_iterations: ycg
+  Workbook.calc_max_change: ycg
+  Workbook.calc_mode: ycg
+  Workbook.date1904: ycg
+  Workbook.precision_as_displayed: ycg
+  Workbook.force_full_calc: ycg
+  Workbook.active_sheet: ycg
+  Workbook.unknown_chunks: ycg
+  Workbook.open_password: elsewhere tests/unit/test_io.cpp  # the file is encrypted with it
+  Workbook.path: transient where the file was opened from, not part of it
+  Workbook.dirty: transient whether the window has changes to save
+  Workbook.read_only: transient set when opening a file this version can't fully edit
+  Workbook.read_only_reason: transient set with read_only when opening
+  Workbook.file_format_major: transient the version of the file opened, set when reading it
+  Workbook.file_format_minor: transient the version of the file opened, set when reading it
+
+references:
+  AlertRule.name: none the rule's name
+  AlertRule.range: rect tests/unit/test_ref_registry.cpp
+  AllowEditRange.title: none the range's title
+  AllowEditRange.rect: rect tests/unit/test_ref_registry.cpp
+  AuditEntry.user: none a log line's text
+  AuditEntry.kind: none a log line's text
+  AuditEntry.target: none a log line's text (an address as it was then)
+  AuditEntry.before: none a log line's text
+  AuditEntry.after: none a log line's text
+  AuditEntry.source: none a log line's text
+  AutoFilter.range: rect tests/unit/test_ref_registry.cpp
+  AutoFilter.adv_range: rect tests/unit/test_ref_registry.cpp
+  BoundColumn.name: none a column's name
+  BoundColumn.number_format: none a format code
+  BoundTable.name: none a table's name
+  BoundTable.key: none a key column's name
+  CellNote.author: none text
+  CellNote.text: none text
+  CfFormat.numfmt: none a format code
+  CfRule.ranges: rect tests/unit/test_ref_registry.cpp
+  CfRule.formula1: text
+  CfRule.formula2: text
+  CfRule.text: none the text a Text that Contains rule looks for
+  CfRule.point_formula: text
+  CfRule.bar_min_formula: text
+  CfRule.bar_max_formula: text
+  ChartAxisFormat.title: text
+  ChartAxisFormat.number_format: none a format code
+  ChartFont.name: none a font's name
+  ChartObj.name: none the chart's name
+  ChartObj.title: text
+  ChartObj.pivot: none the name of the PivotTable a PivotChart shows
+  ChartObj.source: text
+  ChartPointFormat.label_text: text
+  ChartSeries.name: text
+  ChartSeries.values: text
+  ChartSeries.x_values: text
+  ChartSeries.topic: none a live data topic's id
+  ChartSeries.err_plus: text
+  ChartSeries.err_minus: text
+  ChartSeries.label_range: text
+  ChartSeries.label_format: none a format code
+  ChartSeries.label_sep: none the separator between a label's parts
+  ChartSeries.bubble_sizes: text
+  ChartSeries.picture: none a picture's bytes
+  ChartSeries.trend_name: none a trendline's name
+  ChartSeries.xerr_plus: text
+  ChartSeries.xerr_minus: text
+  ChartTrendline.name: none a trendline's name
+  ConsolidateSettings.refs: kept the Consolidate dialog's remembered references, as typed (Excel keeps the list it was given)
+  ContainerDef.name: none a container's name
+  ContainerDef.caption: none text
+  Control.name: none the control's name
+  Control.caption: none text
+  Control.font_name: none a font's name
+  Control.items: none the list's own items
+  Control.list_fill_range: text
+  Control.linked_cell: text
+  Control.value: none the control's value
+  Control.group_name: none an option group's name
+  Control.password_char: none a character
+  Control.picture: none a picture's bytes
+  Control.on_action: none a macro's name
+  Control.alt_text: none text
+  DataTable.rect: rect tests/unit/test_ref_registry.cpp
+  DocProp.link_source: none the defined name a linked property shows (names follow by themselves)
+  DvRule.ranges: rect tests/unit/test_ref_registry.cpp
+  DvRule.formula1: text
+  DvRule.formula2: text
+  DvRule.input_title: none text
+  DvRule.input_message: none text
+  DvRule.error_title: none text
+  DvRule.error_message: none text
+  ExternalLink.path: none another workbook's file
+  ExternalLink.sheets: none another workbook's sheet names
+  ExternalLink.error: none text
+  FilterColumn.values: none the values a filter shows
+  FilterColumn.crit1: none a criterion
+  FilterColumn.crit2: none a criterion
+  FormulaDef.key: none the formula table's own key (cell formulas follow through the formula engine)
+  HfPicture.image: none a picture's bytes
+  Hyperlink.address: none a web address or file
+  Hyperlink.sub_address: kept a place in the workbook stays as typed (Excel 16, measured: T!B3 after rows went in above)
+  Hyperlink.tip: none text
+  IconThreshold.formula: text
+  LinkedPicture.rect: rect tests/unit/test_ref_registry.cpp
+  Look.font_name: none a font's name
+  NameDef.name: none the name
+  NameDef.refers_to: text  # walked by each operation itself (relative names have rules of their own)
+  NameDef.comment: none text
+  NamedStyle.name: none a style's name
+  NamedStyle.section: none a gallery section
+  NamedStyle.number_format: none a format code
+  NoteReply.author: none text
+  NoteReply.text: none text
+  PageSetup.area: rect tests/unit/test_ref_registry.cpp
+  PageSetup.header_left: none header text
+  PageSetup.header_center: none header text
+  PageSetup.header_right: none header text
+  PageSetup.footer_left: none footer text
+  PageSetup.footer_center: none footer text
+  PageSetup.footer_right: none footer text
+  PageSetup.first_hf: none header and footer text
+  PageSetup.even_hf: none header and footer text
+  PageSetup.more_areas: rect tests/unit/test_ref_registry.cpp
+  Panel.name: none the panel's name
+  Panel.caption: none text
+  Panel.dock: none where the panel docks
+  PanelControl.type: none the control's kind
+  PanelControl.name: none the control's name
+  PanelControl.caption: none text
+  PanelControl.linked_cell: text  # when it names a sheet; without one it reads the active sheet
+  PanelControl.on_action: none a macro's name
+  PanelControl.list_fill_range: text  # when it names a sheet
+  PanelControl.chart: none a chart's name
+  PanelControl.items: none the list's own items
+  PanelControl.value: none the control's value
+  PanelControl.group: none an option group's name
+  PanelControl.number_format: none a format code
+  ParameterDef.name: none the parameter's name
+  ParameterDef.choices: none the values it allows
+  PivotAxisField.hidden: none item names
+  PivotAxisField.page_item: none an item name
+  PivotAxisField.collapsed: none item names
+  PivotAxisField.sort_col: none item names
+  PivotAxisField.caption: none text
+  PivotAxisField.manual_order: none item names
+  PivotAxisField.known: none item names
+  PivotCalcField.name: none a field's name
+  PivotCalcField.formula: none a formula on field names, not cells
+  PivotCalcItem.name: none an item's name
+  PivotCalcItem.formula: none a formula on item names, not cells
+  PivotDataField.caption: none text
+  PivotDataField.number_format: none a format code
+  PivotDataField.base_item: none an item name
+  PivotFilter.v1: none a filter's value
+  PivotFilter.v2: none a filter's value
+  PivotFormat.row: none an item name
+  PivotFormat.col: none an item name
+  PivotGroup.name: none a group's name
+  PivotTable.name: none the report's name
+  PivotTable.src: rect tests/unit/test_ref_registry.cpp
+  PivotTable.src_table: none a table's name (tables keep their names)
+  PivotTable.style: none a style's name
+  PivotTable.error_string: none text
+  PivotTable.null_string: none text
+  PivotTable.grand_name: none text
+  PivotTable.refreshed_by: none a user's name
+  PivotTable.written_rows: none item names
+  PivotTable.written_cols: none item names
+  PivotTable.output: rect tests/unit/test_parity_pivots.cpp
+  PivotTable.fields: none field names
+  RawChunk.data: none a chunk's bytes
+  RichPiece.text: none text
+  RichRun.font: none a font's name
+  RichText.text: none text
+  RunFont.name: none a font's name
+  SafetySettings.kill_macro: none a macro's name
+  Scenario.name: none the scenario's name
+  Scenario.comment: none text
+  Scenario.cells: rect tests/unit/test_ref_registry.cpp
+  SeriesData.cats: none category texts read from the cells
+  ShapeObj.name: none the shape's name
+  ShapeObj.text: none text
+  ShapeObj.font_name: none a font's name
+  ShapeObj.image: none a picture's bytes
+  ShapeObj.on_action: none a macro's name
+  ShapeObj.alt_text: none text
+  Sheet.name: none the sheet's name
+  Sheet.code_name: none the sheet's code name
+  Sheet.used: none worked out from the cells
+  Slicer.name: none the slicer's name
+  Slicer.caption: none text
+  Slicer.pivot: none a PivotTable's name
+  Slicer.more_pivots: none PivotTable names
+  Slicer.table: none a table's name
+  SolverConstraint.ref: text
+  SolverConstraint.rhs: text
+  SolverModel.objective: text
+  SolverModel.changing: text
+  Sparkline.src: rect tests/unit/test_ref_registry.cpp
+  SparklineGroup.date_range: text
+  SpillRange.rect: rect tests/unit/test_ref_registry.cpp
+  StyleTable.default_font: none a font's name
+  StyleTable.strings_: none interned format codes and fonts
+  StyleTable.general_: none the format code General
+  Table.name: none the table's name
+  Table.range: rect tests/unit/test_ref_registry.cpp
+  Table.style: none a style's name
+  TableColumn.name: none a column's name
+  TableColumn.totals_label: none text
+  TableStyleDef.name: none a style's name
+  Theme.name: none the theme's name
+  Theme.colors_name: none a color set's name
+  Theme.major_font: none a font's name
+  Theme.fonts_name: none a font set's name
+  Theme.minor_font: none a font's name
+  ThemeColorSet.name: none a color set's name
+  ThemeFontPair.name: none a font set's name
+  ThemeFontPair.major: none a font's name
+  ThemeFontPair.minor: none a font's name
+  User.name: none a Windows account
+  Workbook.layout_json: none the window layout
+  Workbook.path: none the file's path
+  Workbook.read_only_reason: none text
+  Workbook.open_password: none a password
