@@ -2544,6 +2544,7 @@ class LockTest(unittest.TestCase):
         from yc.constants import ycDockRight
 
         panels = excel.Application.Panels
+        before = max([e["id"] for e in ui.errors()] or [0])  # the Error Log keeps what earlier tests' refusals wrote
         panels.Add("LockTicket", Caption="LockTicket", Dock=ycDockRight, Width=260)
         panels("LockTicket").Controls.Add(1, "lbl", Caption="Buy")
         # placed on the left, away from the panel's splitter at any DPI (the default place can cover it)
@@ -2584,7 +2585,7 @@ class LockTest(unittest.TestCase):
             self.assertFalse(excel.ThisWorkbook.ProtectWindows)
             panels("LockTicket").Locked = True
             self.assertTrue(panels("LockTicket").Locked)
-            self.assertFalse([e for e in ui.errors() if e.get("error")])
+            self.assertFalse([e for e in ui.errors() if e.get("error") and e["id"] > before])
         finally:
             fig.close()
             panels("LockTicket").Delete()
