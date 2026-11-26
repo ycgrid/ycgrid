@@ -10635,3 +10635,4 @@ date,tool,seed,seconds,result,note
 2026-11-23,doc_fuzz,2300000,300,ok,--more --xlsx
 2026-11-23,doc_fuzz,2400000,300,ok,
 2026-11-26,screen_walk,r01,900,found,dom_ladder: bid / cancel clicks, fast clicks, drags, right clicks
+2026-11-26,screen_walk,r02,900,found,txo_market_maker: start / stop, double-clicks, parameter typos, Delete on a parameter, kill switch, DOM

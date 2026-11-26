@@ -28,10 +28,11 @@ except ImportError:
 @unittest.skipUnless(HAVE_NUMPY, "the example screens need numpy")
 class ScreenBase(unittest.TestCase):
     EXAMPLE = ""
+    FILE = ""  # the workbook's name when it isn't the folder's
 
     @classmethod
     def setUpClass(cls):
-        path = os.path.join(ROOT, "examples", cls.EXAMPLE, cls.EXAMPLE + ".ycg")
+        path = os.path.join(ROOT, "examples", cls.EXAMPLE, (cls.FILE or cls.EXAMPLE) + ".ycg")
         cls.proc = yc.launch(path, hidden=True, exe=EXE, lang="en", size=(2000, 1221))
         cls.conn = yc.connect(target=cls.proc.pid)
         end = time.time() + 90
@@ -184,6 +185,28 @@ class DomLadderTest(ScreenBase):
         x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
         self.keys(f"m:{x},{y}|w:2|d:{x},{y},{x},{y + 100}|w:6", 1.5)
         self.assertEqual(len(self.working()), n0)
+        self.assertClean()
+
+
+class TxoMarketMakerTest(ScreenBase):
+    EXAMPLE, FILE = "txo_market_maker", "txo_mm"
+
+    def test_a_double_click_on_start_starts_the_strategy(self):
+        """The second click of a double-click on Start ran the toggle again: the strategy started and stopped at once,
+        and the trader saw Start where they had just clicked it."""
+        from yc import excel, safety, ui
+
+        safety.set_operator_mode(True)
+        ws = excel.Worksheets("Strategies")
+        ws.Activate()
+        time.sleep(0.5)
+        self.assertEqual(ws.Range("B3").Value, "Stopped")
+        x0, y0, x1, y1 = ui.cell_rect("F3")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:1|c:{x},{y}|w:4", 1.5)
+        self.assertEqual(ws.Range("B3").Value, "Running")
+        self.click("F3", 1.5)  # one click stops it
+        self.assertEqual(ws.Range("B3").Value, "Stopped")
         self.assertClean()
 
 

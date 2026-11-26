@@ -106,6 +106,8 @@ def cancel(side, ctx):
 
 
 def toggle(ctx):
+    if ctx.get("double"):  # the second click of a double-click: started, then stopped at once
+        return
     if not safety.operator_mode():
         MsgBox("Strategies can be started and stopped in operator mode only.", vbExclamation, "Strategies")
         return

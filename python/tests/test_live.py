@@ -1919,6 +1919,19 @@ class HiddenInstanceEndsTest(unittest.TestCase):
         finally:
             k32.CloseHandle(ctypes.c_void_p(h))
 
+    def test_launching_a_file_that_cannot_be_opened_raises(self):
+        """yc.launch of a misspelled path returned a hidden YCGrid with a blank Book1, and the script went on working
+        on it; it raises, as Workbooks.Open does, and leaves no YCGrid running."""
+        from yc.errors import ApplicationDefinedError
+
+        path = os.path.join(tempfile.gettempdir(), f"yc_missing_{os.getpid()}.ycg")
+        before = {i.get("pid") for i in yc.find_instances()}
+        with self.assertRaises(ApplicationDefinedError):
+            yc.launch(path, hidden=True, exe=EXE, lang="en")
+        time.sleep(1)
+        left = {i.get("pid") for i in yc.find_instances() if i.get("open_failed")} - before
+        self.assertFalse([pid for pid in left if yc._pid_alive(pid)], "no YCGrid left running")
+
 
 class CrashDumpTest(unittest.TestCase):
     """A crash leaves a dump with the crashing thread's stack (written by a thread of its own: written from the

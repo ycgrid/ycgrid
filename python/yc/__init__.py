@@ -171,7 +171,15 @@ def launch(file: str = None, hidden: bool = False, exe: str = None, lang: str = 
     while True:
         # started for a file: ready once the file is read (or failed to open), so the caller finds the workbook
         # (another YCGrid's CompareSideBySideWith / Workbooks(name) look for it by its file name)
-        if any(i.get("pid") == proc.pid and i.get("pipe") and not (file and i.get("opening")) for i in find_instances()):
+        mine = [i for i in find_instances() if i.get("pid") == proc.pid and i.get("pipe") and not (file and i.get("opening"))]
+        if mine and file and mine[0].get("open_failed"):
+            # the file couldn't be read: its error, never its blank Book1 (a script would work on the wrong workbook),
+            # as Workbooks.Open raises (Excel's error 1004)
+            from .errors import ApplicationDefinedError
+
+            proc.terminate()
+            raise ApplicationDefinedError(mine[0].get("open_error") or f"The workbook couldn't be opened: {file}")
+        if mine:
             try:
                 conn = connect(proc.pid)
             except BaseException:
