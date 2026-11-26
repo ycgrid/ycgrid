@@ -135,8 +135,7 @@ def loop():
             gw.market.spot = gw.market.last = round(spot)  # the paper market follows the feed (or a replay of it)
         last = float(gw.market.last)
         mine = [o for o in om.orders(open_only=True) if o.price is not None]
-        ui["ladder"].update(last, *gw.market.book(levels=15), {o.price: o.qty - o.filled for o in mine if o.side == "buy"},
-                            {o.price: o.qty - o.filled for o in mine if o.side == "sell"})
+        ui["ladder"].update(last, *gw.market.book(levels=15), *Ladder.working(mine))
         q = om.position("TXF")
         if ui["running"]:
             spread, size, max_pos = param("B2"), param("B3"), param("B4")

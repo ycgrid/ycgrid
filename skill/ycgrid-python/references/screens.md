@@ -202,7 +202,8 @@ Application.OnKey("{F9}", "risk.hedge_all")                              # Excel
 ctx = interact.cell_context()                                            # the active cell's context
 ```
 
-- Click actions fire on a mouse click only, never on arrow keys; a handled right click opens no context menu.
+- Click actions fire on a mouse click only, never on arrow keys: a press and a release on the same cell, as a button's,
+  so a drag that starts on the range (selecting cells) fires nothing. A handled right click opens no context menu.
 - `on_click(target, fn=None, buttons=("left",))` returns the function (its id in `fn.click_id`);
   `interact.off_click(fn or id)` removes it, `interact.off_key(key)` gives the key its built-in action back.
 - `ctx` (a dict whose items are also attributes): `sheet`, `sheet_name`, `row`, `col` (0-based), `address`, `value`,

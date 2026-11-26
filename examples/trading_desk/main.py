@@ -255,10 +255,7 @@ def run(seconds: float = 0, bar_seconds: float = 5.0, bars_shown: int = 90):
                 m.step(0.1)
             if now - last_draw >= 0.25:
                 last_draw = now
-                mine = [o for o in om.orders(open_only=True) if o.price is not None]
-                lad.update(tx, *mkt.book(levels=12),
-                           {o.price: o.qty - o.filled for o in mine if o.side == "buy"},
-                           {o.price: o.qty - o.filled for o in mine if o.side == "sell"})
+                lad.update(tx, *mkt.book(levels=12), *Ladder.working(om.orders(open_only=True)))
                 watch.update(watch_rows(tx))
                 q, avg = om.position("TXF"), om.avg_cost("TXF")
                 open_pnl = (tx - avg) * q * POINT if q and avg else 0.0

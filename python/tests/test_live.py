@@ -1602,6 +1602,37 @@ class UserFlowTest(unittest.TestCase):
         self.assertNotIn("edit", ui.state())
         self.assertEqual(self.ws.Range("B3").Value, 99)
 
+    def test_a_drag_from_a_click_action_cell_is_no_click(self):
+        """A click action ran on the press: selecting cells by a drag that began on a ladder's size sent an order. It
+        runs on a press and a release on the same cell, as a button does."""
+        from yc import ui
+        from yc.mcp import tools
+
+        name = self.ws.Name
+        self.ws.Range("B2:B6").Value = [[100], [99], [98], [97], [96]]
+        tools._host_ready()
+        r = tools.yc_exec_python(
+            "from yc import excel, interact\n"
+            f"ws = excel.Worksheets({name!r})\n"
+            "ws.Range('E1').Value = 0\n"
+            "def h(ctx):\n"
+            "    c = ws.Range('E1')\n"
+            "    c.Value = (c.Value or 0) + 1\n"
+            "interact.on_click(ws.Range('B2:B6'), h)\n", target="host", timeout_ms=60000)
+        self.assertTrue(r.get("ok"), r)
+        x0, y0, x1, y1 = ui.cell_rect("B3")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        y2 = int(sum(ui.cell_rect("B5")[1::2]) / 2)
+        self.keys(f"m:{x},{y}|w:3|d:{x},{y},{x},{y2}|w:6")  # a drag over the sizes: a selection, no click
+        time.sleep(1.0)
+        self.assertEqual(self.ws.Range("E1").Value, 0)
+        self.assertEqual(ui.state()["selection"], "B3:B5")
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:6")  # a click still is one
+        end = time.time() + 10
+        while time.time() < end and self.ws.Range("E1").Value != 1:
+            time.sleep(0.2)
+        self.assertEqual(self.ws.Range("E1").Value, 1)
+
     def test_regression_by_keyboard(self):
         from yc import excel, ui
 

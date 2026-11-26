@@ -59,6 +59,16 @@ class Ladder:
         self.prices = [c + (LEVELS // 2 - i) * TICK for i in range(LEVELS)]
         self.table.replace({"Price": self.prices}, wait=True)
 
+    @staticmethod
+    def working(orders) -> tuple[dict, dict]:
+        """The size still working at each price, buys and sells: several orders at one price add up."""
+        mine: tuple[dict, dict] = ({}, {})
+        for o in orders:
+            if o.price is not None:  # market orders have no level
+                side = mine[0] if o.side == "buy" else mine[1]
+                side[o.price] = side.get(o.price, 0) + o.qty - o.filled
+        return mine
+
     def update(self, last: float, bids, asks, my_bids: dict, my_asks: dict):
         self.last_cell.Value = last
         if not self.prices or not (self.prices[-1] + 4 * TICK < last < self.prices[0] - 4 * TICK):

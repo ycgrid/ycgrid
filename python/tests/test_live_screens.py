@@ -140,6 +140,53 @@ class OptionChainTest(ScreenBase):
         self.assertClean()
 
 
+class DomLadderTest(ScreenBase):
+    EXAMPLE = "dom_ladder"
+
+    def ladder(self):
+        return self.ws.Range("B6:F35").Value  # My Bid, Bid, Price, Ask, My Ask
+
+    def working(self):
+        rows = self.ws.Range("H9:P60").Value
+        return [r for r in rows if r[0] not in (None, "") and r[8] == "Working"]
+
+    def setUp(self):
+        from yc import excel
+
+        self.ws = excel.ActiveSheet
+
+    def bid_row(self):
+        lad = self.ladder()
+        last = self.ws.Range("D4").Value  # the last price, above the Price column
+        return next(k for k, r in enumerate(lad) if r[1] not in (None, "") and r[2] < last - 3)
+
+    def test_orders_at_one_price_show_their_total(self):
+        """The ladder showed the size of the last order at a price, not the sum: 1 where four lots worked."""
+        k = self.bid_row()
+        px = self.ladder()[k][2]
+        for _ in range(4):
+            row = next(i for i, r in enumerate(self.ladder()) if r[2] == px)
+            self.click(f"C{6 + row}", 0.4)
+        time.sleep(1.0)
+        mine = sum(r[4] - (r[6] or 0) for r in self.working() if r[5] == px)
+        shown = next(r[0] for r in self.ladder() if r[2] == px)
+        self.assertEqual(shown, mine)
+        self.assertGreaterEqual(mine, 4)
+        self.assertClean()
+
+    def test_a_drag_over_the_sizes_sends_nothing(self):
+        """Selecting sizes by a drag that began on one sent an order: a click action ran on the press."""
+        from yc import ui
+
+        n0 = len(self.working())
+        k = self.bid_row()
+        x0, y0, x1, y1 = ui.cell_rect(f"C{6 + k}")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"m:{x},{y}|w:2|d:{x},{y},{x},{y + 100}|w:6", 1.5)
+        self.assertEqual(len(self.working()), n0)
+        self.assertClean()
+
+
 class TradingDeskTest(ScreenBase):
     EXAMPLE = "trading_desk"
     POINT = 200  # TXF: money per index point
