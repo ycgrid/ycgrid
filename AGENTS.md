@@ -542,6 +542,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - The character that starts an entry is put into the editor, not typed into it: no edit event comes for it, so what
   reacts to typing (AutoComplete, `EditState::ac_first`) also runs once for it, or one Chinese character never
   completes.
+- The text that starts an entry can be several characters (a Chinese IME commits `12.5%` in one frame): what the
+  first character decides (automatic percent entry adds a %) looks at all of it, or 12.5% was the text 12.5%%. Test
+  a typed entry as one `t:` step too, not only one character a step.
 - The cell editor's keys work only while its `EditField` is drawn: keep it alive (invisible) when its cell scrolls out
   of view, as for any widget that owns a live entry.
 - The editor's caret (`EditState::caret`) follows every change of its text in the same frame: InputText calls its
