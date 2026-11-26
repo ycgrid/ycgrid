@@ -1180,6 +1180,14 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 
 ### Python and the skill
 
+- A click action (`yc.interact.on_click`) runs on the host's thread beside a screen's live loop: what both change (a
+  figure's items, a shared position) is changed under one lock. market_watch drew its chart from the click and from
+  the loop at once, each saw the symbol change and added its lines, and a dozen fast clicks left seven copies of every
+  line. A click action also runs on every click: an order button that a double-click must not send twice uses
+  `RiskLimits.duplicate_window`, and a quantity typed wrong sends nothing rather than a guess. The example screens are
+  used as a trader uses them in `tests.test_live_screens` (tabs, rows, buttons, mistakes, while the data streams),
+  checked by what they show (`plot.figures()` lists each plot's items): a new example screen gets its class there.
+  The converged random tools never clicked an example's own controls on purpose and found none of these.
 - What a button starts in the background (Install on the package bar) shows that it is working and ends in a state
   the person sees: the bar went away on Install, a failed install said only "Installation failed (code 1)" in the
   Error Log, and the example stayed blank. The bar says "Installing...", and a failure brings it back with the

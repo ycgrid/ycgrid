@@ -1008,7 +1008,8 @@ def figure(title: str = "", rows: Optional[int] = None, cols: Optional[int] = No
 
 def figures() -> list:
     """Every figure of the session (any process): dicts with id, key, title, rows, cols, owner ("host", "script <pid>",
-    "" for YCGrid's own), alive (its owner is still connected) and persist."""
+    "" for YCGrid's own), alive (its owner is still connected), persist, docked and axes (each plot's title and its
+    items' kind and label)."""
     return list(_conn().request("plot.figures", {}))
 
 

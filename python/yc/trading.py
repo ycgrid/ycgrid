@@ -376,6 +376,9 @@ class RiskLimits:
     max_position: int = 0             # absolute position per symbol after the order fills
     price_band: float = 0.0           # limit price within this fraction of the reference price
     max_orders_per_sec: float = 0.0   # orders sent per second, all symbols
+    # seconds: an order the same as the last one sent (symbol, side, qty, type, price, stop) within this time is refused,
+    # as a double-click on an order button sends the second one 0.2 s after the first
+    duplicate_window: float = 0.0
     max_notional: float = 0.0         # qty x price x multiplier per order
     multiplier: float = 1.0
     symbols: Optional[set] = None     # the symbols allowed (None = any)
@@ -389,6 +392,11 @@ def _mark(kind: str, text: str) -> None:
         replay.mark(text, kind)
     except Exception:  # noqa: BLE001 - not connected (tests, offline research)
         pass
+
+
+def _same_order(o: Order) -> tuple:
+    """What makes two orders the same for RiskLimits.duplicate_window."""
+    return (o.symbol, o.side, o.qty, o.type, o.price, o.stop)
 
 
 def _price_text(o: Order) -> str:
@@ -412,6 +420,7 @@ class OrderManager:
         self._cost: dict[str, float] = {}
         self.fills: list[Fill] = []
         self._sent = deque()
+        self._last_sent: Optional[tuple] = None  # (what the order is, when): RiskLimits.duplicate_window
         self._ids = itertools.count(1)
         self._lock = threading.RLock()
         self.on_fill: list[Callable[[Fill], None]] = []
@@ -451,6 +460,7 @@ class OrderManager:
         with self._lock:
             self._orders[o.id] = o
             self._sent.append(time.monotonic())
+            self._last_sent = (_same_order(o), time.monotonic())
         self._record(o)
         self._log("order", o, f"{side} {qty} {symbol} @ {_price_text(o)}")
         _mark("order", f"{o.id} {side} {qty} {symbol} @ {_price_text(o)}")
@@ -564,6 +574,12 @@ class OrderManager:
                 self._sent.popleft()
             if len(self._sent) >= r.max_orders_per_sec:
                 raise Rejected(f"more than {r.max_orders_per_sec:g} orders a second")
+        if r.duplicate_window and replacing is None and self._last_sent is not None:
+            what, at = self._last_sent
+            ago = time.monotonic() - at
+            if what == _same_order(o) and ago < r.duplicate_window:
+                raise Rejected(f"the same order was sent {ago:.2f} s ago (a double-click?): send it again after "
+                               f"{r.duplicate_window:g} s")
         if not self.gw.paper:
             from . import replay, safety
 

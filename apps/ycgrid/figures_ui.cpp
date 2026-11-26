@@ -1716,6 +1716,22 @@ io::MV FigureRequest(AppState& s, const std::string& m, const io::MV& p, const s
       fm.Set("follow_paused", MV::Bool(x.follow_paused));
       if (ImGuiWindow* w = ImGui::FindWindowByName(FigureTitle(x).c_str())) fm.Set("docked", MV::Bool(w->DockIsActive));
       fm.Set("persist", MV::Bool(x.persist));
+      // what each plot shows, for tests: its title and items (a line added twice by two threads shows as two)
+      MV axs = MV::Array();
+      for (const PlotAxes& ax : x.axes) {
+        MV am = MV::Map();
+        am.Set("title", MV::Str(ax.title));
+        MV its = MV::Array();
+        for (const PlotItem& it : ax.items) {
+          MV im = MV::Map();
+          im.Set("kind", MV::Str(it.kind));
+          im.Set("label", MV::Str(it.label));
+          its.Push(std::move(im));
+        }
+        am.Set("items", std::move(its));
+        axs.Push(std::move(am));
+      }
+      fm.Set("axes", std::move(axs));
       a.Push(std::move(fm));
     }
     return a;

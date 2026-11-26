@@ -287,9 +287,12 @@ def run(seconds: float = 0, start_minute: float = 11 * 60 + 5, seed: int = 8):
     def pick(ctx):
         code = (ctx.get("record") or {}).get("Code")
         if code in stocks:
-            select(str(code))
-            with chart():
-                draw(current["code"])
+            # a click runs on the host's thread beside the live loop: both draw under the one lock, or each sees the
+            # symbol change and adds its own lines (every price tag shown twice)
+            with lock:
+                select(str(code))
+                with chart():
+                    draw(current["code"])
 
     if in_host():  # click actions run in the YCGrid host
         for name, cell in tab_cells.items():
@@ -329,7 +332,7 @@ def run(seconds: float = 0, start_minute: float = 11 * 60 + 5, seed: int = 8):
             ws.Range("B2:D2").Value = [[level, level - 20000, vals.mean()]]
             ws.Range("F2").Value = sum(s.volume for s in stocks.values())
             ws.Range("I2:J2").Value = [[f"{UP} {int((vals > 0).sum())}", f"{DOWN} {int((vals < 0).sum())}"]]
-            with chart():
+            with lock, chart():
                 draw(current["code"])
             hb.beat()
             time.sleep(0.25)

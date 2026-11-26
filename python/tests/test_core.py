@@ -410,6 +410,48 @@ class CodeChecksTest(unittest.TestCase):
         self._run("check_lessons.py")
 
 
+class RandomRoundsRuleTest(unittest.TestCase):
+    """random_rounds.py's stopping rule: the hours of rounds since the last real finding."""
+
+    @staticmethod
+    def rule():
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
+        import random_rounds
+
+        return random_rounds.hours_since_last_finding
+
+    @staticmethod
+    def a_round(date, tool, seed, hours, result="ok"):
+        return {"date": date, "tool": tool, "seed": str(seed), "seconds": str(hours * 3600), "result": result}
+
+    @staticmethod
+    def found(date, tool, seed="-", status="fixed"):
+        return {"date": date, "tool": tool, "seed": str(seed), "kind": "real", "status": status, "summary": ""}
+
+    def test_a_finding_by_hand_days_after_the_rounds_counts_none_of_them(self):
+        """Placed at the round of the finding before it, a finding by hand three days after the last round counted
+        every round since as clean, and the report read converged on the day four real bugs were found."""
+        runs = [self.a_round("2026-11-21", "chaos", 1, 10, "fail"), self.a_round("2026-11-22", "basics", 2, 15),
+                self.a_round("2026-11-23", "basics", 3, 6)]
+        findings = [self.found("2026-11-21", "chaos", 1), self.found("2026-11-26", "screen_walk")]
+        since, open_ = self.rule()(runs, findings)
+        self.assertEqual(since, 0.0)
+        self.assertEqual(open_, [])
+
+    def test_a_finding_by_hand_beside_a_round_that_day_counts_from_that_round(self):
+        runs = [self.a_round("2026-11-21", "chaos", 1, 10, "fail"), self.a_round("2026-11-21", "basics", 2, 4),
+                self.a_round("2026-11-22", "basics", 3, 6)]
+        findings = [self.found("2026-11-21", "chaos", 1), self.found("2026-11-21", "review")]
+        since, _ = self.rule()(runs, findings)
+        self.assertAlmostEqual(since, 10.0)  # the two rounds after chaos's
+
+    def test_an_open_finding_is_reported(self):
+        since, open_ = self.rule()([self.a_round("2026-11-21", "basics", 1, 30)],
+                                   [self.found("2026-11-20", "review", status="open")])
+        self.assertAlmostEqual(since, 30.0)
+        self.assertEqual(len(open_), 1)
+
+
 class BoundaryHistoryTest(unittest.TestCase):
     """check_boundary --history: a secret a later commit removed is still found in the history."""
 

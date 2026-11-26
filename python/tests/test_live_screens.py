@@ -1,0 +1,212 @@
+# SPDX-License-Identifier: Apache-2.0
+"""The example screens used the way a trader uses them, checked by their results: each opens its workbook in a hidden
+YCGrid (its Workbook_Open builds the screen and starts its live data), then clicks what a person clicks (tabs, rows,
+buttons) while the data streams, and checks what the screen shows. Needs numpy (the examples' simulations)."""
+from __future__ import annotations
+
+import os
+import sys
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, os.path.abspath(os.path.join(HERE, "..")))
+
+import yc  # noqa: E402
+
+EXE = os.environ.get("YCGRID_EXE") or os.path.join(ROOT, "dist_release", "ycgrid.exe")
+
+try:
+    import numpy  # noqa: F401
+
+    HAVE_NUMPY = True
+except ImportError:
+    HAVE_NUMPY = False
+
+
+@unittest.skipUnless(HAVE_NUMPY, "the example screens need numpy")
+class ScreenBase(unittest.TestCase):
+    EXAMPLE = ""
+
+    @classmethod
+    def setUpClass(cls):
+        path = os.path.join(ROOT, "examples", cls.EXAMPLE, cls.EXAMPLE + ".ycg")
+        cls.proc = yc.launch(path, hidden=True, exe=EXE, lang="en", size=(2000, 1221))
+        cls.conn = yc.connect(target=cls.proc.pid)
+        end = time.time() + 90
+        while not cls.conn.request("python.status", {}).get("workbook_open_done") and time.time() < end:
+            time.sleep(0.2)
+        time.sleep(2)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate()
+        cls.proc.wait(10)
+
+    def keys(self, script, wait=0.3):
+        self.conn.request("ui.input", {"script": script, "timeout_ms": 15000}, timeout=30)
+        time.sleep(wait)
+
+    def click(self, address, wait=0.8):
+        from yc import ui
+
+        x0, y0, x1, y1 = ui.cell_rect(address)
+        x, y = (x0 + x1) / 2, (y0 + y1) / 2
+        self.keys(f"m:{x:.0f},{y:.0f}|w:2|c:{x:.0f},{y:.0f}|w:3", wait)
+
+    def figure(self):
+        figs = self.conn.request("plot.figures", {})
+        self.assertTrue(figs, "the screen's figure")
+        return figs[0]
+
+    def assertClean(self):
+        from yc import ui
+
+        self.assertEqual(ui.state().get("imgui_asserts", 0), 0)
+        self.assertEqual([e for e in ui.errors() if e.get("error")], [], "nothing in the Error Log")
+
+
+class MarketWatchTest(ScreenBase):
+    EXAMPLE = "market_watch"
+    TABS = ["Watch list", "Semis", "Electronics", "Financials", "Shipping", "ETFs"]
+
+    def codes(self):
+        from yc import excel
+
+        return [str(r[0]) for r in excel.ActiveSheet.Range("A6:A60").Value if r[0] not in (None, "")]
+
+    def test_each_tab_lists_its_symbols_and_a_row_charts_its_symbol(self):
+        from yc import excel
+
+        ws = excel.ActiveSheet
+        seen = set()
+        for i, name in enumerate(self.TABS):
+            self.click(ws.Cells(4, 1 + 2 * i).Address.replace("$", ""), 1.2)
+            codes = self.codes()
+            self.assertTrue(codes, name)
+            self.assertTrue(ws.Cells(4, 1 + 2 * i).Font.Bold, f"{name} is lit")
+            if name != "Watch list":
+                self.assertFalse(seen & set(codes), f"{name} repeats another category's symbols")
+                seen |= set(codes)
+            self.click("B7", 1.2)
+            self.assertEqual(str(ws.Range("AA1").Value), codes[1], f"{name}: the row clicked is the one charted")
+            top = self.figure()["axes"][0]
+            self.assertTrue(top["title"].startswith(codes[1] + " "), top["title"])
+        self.assertClean()
+
+    def test_rows_clicked_fast_while_quotes_stream_chart_one_set_of_lines(self):
+        """A click runs on the host's thread beside the live loop: both drew the chart without a lock, each saw the
+        symbol change and added its lines, and every price tag showed twice."""
+        from yc import excel
+
+        ws = excel.ActiveSheet
+        self.click(ws.Cells(4, 1).Address.replace("$", ""), 1.2)  # the watch list
+        for k in range(12):
+            self.click(f"B{6 + k % 6}", 0.12)
+        time.sleep(1.5)
+        for ax in self.figure()["axes"]:
+            labels = [it["label"] for it in ax["items"]]
+            self.assertEqual(len(labels), len(set(labels)), f"{ax['title']}: {labels}")
+        self.assertClean()
+
+
+class OptionChainTest(ScreenBase):
+    EXAMPLE = "option_chain"
+    DAYS = [6.0, 20.0, 55.0, 111.0]  # the expiry tabs' days to expiry
+
+    def test_each_expiry_tab_shows_its_series(self):
+        from yc import excel
+
+        ws = excel.ActiveSheet
+        for i, days in enumerate(self.DAYS):
+            self.click(ws.Cells(3, 1 + 2 * i).Address.replace("$", ""), 1.2)
+            self.assertTrue(ws.Cells(3, 1 + 2 * i).Font.Bold, f"tab {i} is lit")
+            self.assertEqual(ws.Cells(2, 7).Value, days, f"tab {i}: days to expiry")
+            strikes = [r[0] for r in ws.Range("I7:I30").Value if r[0] not in (None, "")]  # the Strike column
+            self.assertEqual(strikes, [float(k) for k in range(22300, 23801, 100)], f"tab {i}: the strikes")
+        self.assertClean()
+
+    def test_tabs_clicked_fast_while_quotes_stream_chart_one_smile_each(self):
+        from yc import excel
+
+        ws = excel.ActiveSheet
+        for k in range(10):
+            self.click(ws.Cells(3, 1 + 2 * (k % 4)).Address.replace("$", ""), 0.1)
+        time.sleep(1.5)
+        for ax in self.figure()["axes"]:
+            labels = [it["label"] for it in ax["items"] if it["label"]]
+            self.assertEqual(len(labels), len(set(labels)), f"{ax['title']}: {labels}")
+        self.assertClean()
+
+
+class TradingDeskTest(ScreenBase):
+    EXAMPLE = "trading_desk"
+    POINT = 200  # TXF: money per index point
+
+    def setUp(self):
+        from yc import excel
+
+        self.ws = excel.ActiveSheet
+        col = [r[0] for r in self.ws.Range("G1:G80").Value]
+        self.pos_r, self.fills_r = col.index("Position") + 3, col.index("Fills") + 2
+        self.click("E4", 1.5)  # flat
+        self.click("F4", 0.8)  # nothing working
+        self.set_qty(2)
+
+    def set_qty(self, text):
+        self.click("B4", 0.3)
+        self.keys(f"t:{text}|k:Enter|w:4", 0.5)
+
+    def position(self):
+        return self.ws.Range(f"G{self.pos_r}:K{self.pos_r}").Value[0]  # Contract, Qty, Avg, P&L, Realized
+
+    def fills(self):
+        rows = self.ws.Range(f"G{self.fills_r + 1}:L{self.fills_r + 60}").Value
+        return [r for r in rows if r[1] not in (None, "")]  # Time, Side, Qty, Price, P&L, #
+
+    def test_a_round_trip_books_its_profit(self):
+        """A fill that closed the position read the order manager's average after the fill, which is gone once flat:
+        the realized profit stayed 0 and the fill's P&L blank."""
+        realized0, n0 = self.position()[4] or 0.0, len(self.fills())
+        self.click("C4", 1.5)
+        self.click("D4", 1.5)
+        rows = self.fills()[n0:]
+        self.assertEqual([r[1] for r in rows], ["BUY", "SELL"])
+        expected = (rows[1][3] - rows[0][3]) * 2 * self.POINT
+        self.assertEqual(self.position()[1], 0)
+        self.assertAlmostEqual((self.position()[4] or 0.0) - realized0, expected)
+        self.assertAlmostEqual(rows[1][4] or 0.0, expected)
+        self.assertClean()
+
+    def test_a_double_click_on_buy_sends_one_order(self):
+        n0 = len(self.fills())
+        from yc import ui
+
+        x0, y0, x1, y1 = ui.cell_rect("C4")
+        x, y = (x0 + x1) / 2, (y0 + y1) / 2
+        self.keys(f"m:{x:.0f},{y:.0f}|w:2|c:{x:.0f},{y:.0f}|w:1|c:{x:.0f},{y:.0f}|w:4", 2.0)
+        self.assertEqual(len(self.fills()) - n0, 1, "one fill for a double-click")
+        self.assertEqual(self.position()[1], 2)
+        self.assertClean()
+
+    def test_a_quantity_typed_wrong_sends_nothing(self):
+        """A typo in the quantity sent one lot."""
+        from yc import excel
+
+        for text in ("abc", "0", "1.5"):
+            n0 = len(self.fills())
+            self.set_qty(text)
+            self.click("C4", 1.5)
+            self.assertEqual(len(self.fills()), n0, f"qty {text!r}")
+            self.assertIn("Order refused", str(excel.Application.StatusBar), text)
+        self.set_qty(15)  # above the 10 lots an order
+        n0 = len(self.fills())
+        self.click("C4", 1.5)
+        self.assertEqual(len(self.fills()), n0)
+        self.assertIn("above the limit", str(excel.Application.StatusBar))
+        self.assertClean()
+
+
+if __name__ == "__main__":
+    unittest.main()

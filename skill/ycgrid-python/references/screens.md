@@ -153,7 +153,12 @@ your own on top of `on_order` / `on_fill`, `Gateway.positions()` / `open_orders(
 `safety.alarm(name, text)` (an alarm that shows until cleared) - YCGrid doesn't ship them.
 
 - `RiskLimits`: `max_qty` per order, `max_position` per symbol (counting working orders), `price_band` around the
-  gateway's reference price, `max_notional` (with `multiplier`), `max_orders_per_sec`, `symbols` allowed.
+  gateway's reference price, `max_notional` (with `multiplier`), `max_orders_per_sec`, `symbols` allowed, and
+  `duplicate_window` (seconds: the same order as the last one sent, again within it, is refused; a click action runs
+  on every click, so a double-click on an order button sends two orders without it).
+- `on_fill` runs after the order manager has counted the fill: `position()` and `avg_cost()` there are the position
+  after it (no average once it is flat). A screen that works out each fill's realized profit keeps the position and
+  average before the fill itself, as `examples/trading_desk` does.
 - Orders to a non-paper gateway are refused during a replay and outside operator mode (`require_operator=True`).
 - Every order, cancel, fill and rejection goes to the change log; a callback that raises doesn't stop the orders.
 - Threads: `on_order` / `on_fill` run on the thread that reports the change - the caller of `submit` / `cancel` /

@@ -7,6 +7,17 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 
 ## Unreleased
 
+### Added
+- `RiskLimits(duplicate_window=seconds)`: an order the same as the last one sent, again within that time, is refused,
+  so a double-click on an order button sends one order. The `trading_desk` example uses it.
+- `plot.figures()` lists each plot's title and items (their kind and label), so a test checks what a figure shows.
+
+### Fixed
+- `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
+  each click could add another copy of every line (every price tag shown twice or more).
+- `trading_desk` example: a round trip's realized profit stayed 0 (a fill that closed the position read the average
+  after the fill); a quantity typed wrong sent one lot instead of nothing; a double-click on BUY MKT sent two orders.
+
 ## 0.10.3 (2026-11-25)
 
 ### Changed
