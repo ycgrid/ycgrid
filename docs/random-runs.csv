@@ -10656,3 +10656,7 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r20,240,ok,backtest_report: a trade clicked marks its day on every chart, a click on the chart finds the nearest trade
 2026-11-26,screen_walk,r21,900,found,time_machine: the replay bar's pause, a click and a drag on the bar, |<, typing during a replay, Back to Live
 2026-11-26,screen_walk,r22,1500,found,every example screen: what its floating windows cover of the sheet (figures over the cells a screen shows)
+2026-11-26,screen_walk,r23,240,ok,the Name Box: an address, a range, a new name, a name in another case, a whole column, another sheet's cell, invalid names, Escape
+2026-11-26,screen_walk,r24,240,ok,Format Painter: one click, a double-click until Escape, Undo, a drag over a range
+2026-11-26,screen_walk,r25,240,ok,a chart: Alt+F1, a drag to move it, Delete and Ctrl+Z, copy and paste, Escape then typing
+2026-11-26,screen_walk,r26,900,found,conditional formatting by KeyTips in English and Chinese: Greater Than typed and picked on the sheet, Undo, Clear Rules

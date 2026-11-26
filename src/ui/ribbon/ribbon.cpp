@@ -422,7 +422,8 @@ std::string KeyTipFor(const std::string& cmd) {
     for (const auto& c : rest) {
       if (g_kt_keys.count(c)) continue;
       std::string letters;
-      for (char ch : OneLine(LabelOf(c))) {
+      // the English label's letters, in every language (a Chinese label has none: its KeyTips were AA, AB...)
+      for (char ch : OneLine(i18n::SourceOf(LabelOf(c).c_str()))) {
         if (std::isalnum(static_cast<unsigned char>(ch))) letters += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
       }
       if (letters.empty()) letters = "Y";
@@ -688,7 +689,9 @@ void MenuKeyTip(const std::string& target, const std::string& label, ImVec2 at) 
   std::string key;
   const auto f = MenuKeyTips().find(id);
   if (f != MenuKeyTips().end() && !taken(f->second)) key = f->second;
-  for (char ch : label) {
+  // the first free letter of the English label, in every language: a Chinese label has none, and Alt, H, L, H, G
+  // reached nothing in the Chinese UI
+  for (char ch : std::string(i18n::SourceOf(label.c_str()))) {
     if (!key.empty()) break;
     const std::string k(1, static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
     if (std::isalnum(static_cast<unsigned char>(ch)) && !taken(k) && !g_kt_reserved.count(k)) key = k;

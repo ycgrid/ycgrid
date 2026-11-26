@@ -20,9 +20,11 @@ EXE = os.environ.get("YCGRID_EXE") or os.path.join(os.path.dirname(__file__), ".
 
 
 class HabitsBase(unittest.TestCase):
+    LANG = "en"
+
     @classmethod
     def setUpClass(cls):
-        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang=cls.LANG)
         cls.conn = yc.connect(target=cls.proc.pid)
         cls.tmp = tempfile.mkdtemp(prefix="yc_parity_habits_")
 
@@ -148,6 +150,36 @@ class HiddenInstanceTest(HabitsBase):
             self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:10|m:2,2|w:2")
             time.sleep(0.5)  # the host loads the saved module again
         self.assertEqual(self.ws.Range("C1").Value, "clicked")
+
+
+class ChineseKeyTipsTest(HabitsBase):
+    """KeyTips in the Traditional Chinese UI, the one people use: an entry without Excel's fixed key took the first
+    letter of its label, and a Chinese label has none, so Alt, H, L, H, G reached nothing (and ribbon commands got
+    AA, AB...). The letters come from the English label in every language."""
+
+    LANG = "zh-TW"
+
+    def test_alt_h_l_h_g_opens_greater_than(self):
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        self.keytips("HLHG", "g:A1:A3|w:2|")
+        self.assertTrue(self.dialog(), "Greater Than")
+        self.keys("k:Escape|w:4")
+
+    def test_a_click_on_the_sheet_fills_the_dialogs_box(self):
+        """Excel's RefEdit: a cell clicked while the box has the keyboard goes into it (only its button did)."""
+        from yc import ui
+
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        self.ws.Range("C1").Value = 2
+        self.keytips("HLHG", "g:A1:A3|w:2|")
+        x0, y0, x1, y1 = ui.cell_rect("C1")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"k:c-A|w:2|m:{x},{y}|w:3|c:{x},{y}|w:8|k:Enter|w:8")
+        fc = self.ws.Range("A1:A3").FormatConditions
+        self.assertEqual(fc.Count, 1)
+        self.assertEqual(fc(1).Formula1, "=$C$1")
+        self.assertEqual(ui.state()["selection"], "A1:A3", "the selection put back")
+        self.assertNotIn("edit", ui.state(), "one click, no editor")
 
 
 class KeyTipsTest(HabitsBase):

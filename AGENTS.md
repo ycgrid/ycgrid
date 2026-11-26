@@ -421,6 +421,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 
 - A modal dialog (`BeginModal`) blocks the sheet: a box that takes cells must use `RefEdit` and let the user reach
   the sheet (a non-modal window, or the dialog shrunk to the box while picking).
+- A range box takes a cell clicked on the sheet while it has the keyboard (Excel's RefEdit), not only through its
+  button: the press the modal dialog kept is handed to the grid (`Pick::direct`, its click time reset so it isn't a
+  double-click that edits the cell) and the dialog comes back when the button goes up.
+- A letter taken from a label (a KeyTip without Excel's fixed key) comes from the English label
+  (`i18n::SourceOf`): a Chinese label has none, and Alt, H, L, H, G reached nothing in the Chinese UI.
 - Picking cells for a range box (RefEdit) puts the sheet's selection back afterwards, as Excel does, and the grid
   leaves a cell entry in progress alone meanwhile (Insert Function's arguments): a dialog that reads the selection
   at OK (Data Validation) applied its rule to the cells picked for its list, and a drag pointed in the cell's
