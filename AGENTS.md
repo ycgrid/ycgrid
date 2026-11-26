@@ -1206,7 +1206,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   order stays in view (`drag_line(..., fit=True)`) and says when the order is gone (filled, refused). A timer chain
   (`Application.OnTime`) that a button pauses and resumes keeps one tick waiting at most, and a live table finds its
   rows by key, never by position: a person sorts it (demo tripled its updates and measured TSMC against MediaTek's
-  open). The example screens are
+  open). A screen with several figures docks them (`Dock`, `Anchor=`): floating, each opened over the one before and
+  the first, the screen's own chart, lay under the rest (ui_sweep's examples fail figures that cover each other).
+  The example screens are
   used as a trader uses them in `tests.test_live_screens` (tabs, rows, buttons, mistakes, while the data streams),
   checked by what they show (`plot.figures()` lists each plot's items): a new example screen gets its class there.
   The converged random tools never clicked an example's own controls on purpose and found none of these.

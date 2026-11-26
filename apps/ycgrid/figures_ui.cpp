@@ -151,6 +151,7 @@ struct PlotAxes {
   double hover_at = 0;
   double synced_x = kNaN;  // the group's cursor drawn in this plot on the last frame (NaN = none)
   std::string cursor_tag;  // the linked row's tag text when YCGrid chose it (a day), for plot.figures
+  bool labels_staggered = false;  // a heatmap's column labels on two lines (too wide for their columns)
 };
 
 PlotTheme g_draw_theme = PlotTheme::Light;  // the figure being drawn (candle colors)
@@ -1752,6 +1753,7 @@ io::MV FigureRequest(AppState& s, const std::string& m, const io::MV& p, const s
         }
         am.Set("items", std::move(its));
         if (!ax.cursor_tag.empty()) am.Set("cursor_tag", MV::Str(ax.cursor_tag));  // the linked row's day
+        if (ax.labels_staggered) am.Set("labels_staggered", MV::Bool(true));
         MV view = MV::Array(), rect = MV::Array(), hs = MV::Array();  // what it shows and where: a test points at a price
         for (double v : ax.view) view.Push(MV::Double(v));
         for (float v : ax.plot_rect) rect.Push(MV::Double(v));
@@ -2794,10 +2796,21 @@ void DrawFigures(AppState& s) {
               if (item.kind != "heatmap" || item.labels.empty() || item.has_extent) continue;  // placed in data units: the axes show them
               std::vector<const char*> xl, yl;
               std::vector<double> xt, yt;
+              // labels wider than their column ran together (HONHAIFUBON): every other one drops to a second line, from
+              // last frame's width of a column
+              const double unit_px = ax.view[1] > ax.view[0] ? (ax.plot_rect[2] - ax.plot_rect[0]) / (ax.view[1] - ax.view[0]) : 0.0;
+              float widest = 0.0f;
+              for (int c = 0; c < item.cols_n && static_cast<size_t>(c) < item.labels.size(); ++c)
+                widest = std::max(widest, ImGui::CalcTextSize(item.labels[static_cast<size_t>(c)].c_str()).x);
+              const bool stagger = unit_px > 0 && widest + S(6) > unit_px;
+              ax.labels_staggered = stagger;
+              std::vector<std::string> lowered;
+              lowered.reserve(static_cast<size_t>(std::max(0, item.cols_n)));
               for (int c = 0; c < item.cols_n && static_cast<size_t>(c) < item.labels.size(); ++c) {
-                xl.push_back(item.labels[static_cast<size_t>(c)].c_str());
+                lowered.push_back(stagger && c % 2 ? "\n" + item.labels[static_cast<size_t>(c)] : item.labels[static_cast<size_t>(c)]);
                 xt.push_back(c + 0.5);
               }
+              for (const auto& l : lowered) xl.push_back(l.c_str());
               for (int r = 0; r < item.rows && static_cast<size_t>(item.cols_n + r) < item.labels.size(); ++r) {
                 yl.push_back(item.labels[static_cast<size_t>(item.cols_n + r)].c_str());
                 yt.push_back(item.rows - r - 0.5);

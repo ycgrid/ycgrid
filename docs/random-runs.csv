@@ -10649,3 +10649,7 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r13,420,found,portfolio_optimizer: weights typed by hand, Solver run again from its dialog (Solve, Keep), percent entries
 2026-11-26,screen_walk,r14,300,ok,entries committed at once as an IME does vs one character at a time: dates, times, currency, fractions, Text cells, percentages, AutoComplete in English and Chinese
 2026-11-26,screen_walk,r15,600,found,a workbook built as a person does (typing, KeyTips, filter, freeze, validation, rules, names, note, merge, chart, outline, protection, zoom), saved with F12 and reopened: 25 properties compared
+2026-11-26,screen_walk,r16,300,ok,sheet tabs: Shift+F11, rename by double-click (Chinese, a duplicate, a / and Escape), typing after, Ctrl+PageDown, a tab dragged and Undo, the tab menu
+2026-11-26,screen_walk,r17,300,ok,a validation list: Alt+Down and arrows, the drop-down arrow, a value typed in another case and a wrong one refused, a paste over it, Delete
+2026-11-26,screen_walk,r18,420,ok,big_data's Data View: header sorts (ties stay in order), the filter row, the wheel and Ctrl+End, clearing a filter, To Sheet past the sheet's rows (stops at its limit, said on the status bar)
+2026-11-26,screen_walk,r19,600,found,quick_plot and strategy_lab: the wheel, a drag and a double-click on the charts, the windows' layout, the heatmap's labels

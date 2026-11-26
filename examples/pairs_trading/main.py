@@ -88,7 +88,7 @@ def run(entry: float = 2.0, exit: float = 0.5, lookback: int = 60, units: float 
                 trades.append({"Time": df["Date"].iloc[t], "Side": "Buy" if pos[t] > 0 else "Sell", "Qty": units,
                                "Price": float(spread.iloc[t]), "PnL": None})
                 open_at = t
-    stats, _, _ = report(fresh_sheet("Pairs Report"), equity, pd.DataFrame(trades, columns=["Time", "Side", "Qty", "Price", "PnL"]),
+    stats, _, rfig = report(fresh_sheet("Pairs Report"), equity, pd.DataFrame(trades, columns=["Time", "Side", "Qty", "Price", "PnL"]),
                          title="Pairs trading: spread mean reversion", name="PairTrades")
     fig = plot.figure("Spread z-score", rows=2, link_x=True, size=(980, 520))
     fig[0].line(df["Date"], df["Y"], label="Y", color="#1565c0")
@@ -98,6 +98,9 @@ def run(entry: float = 2.0, exit: float = 0.5, lookback: int = 60, units: float 
     fig[1].hline([entry, -entry], label="entry", color="#c62828")
     fig[1].hline([exit, -exit], label="exit", color="#2e7d32")
     fig[1].set(title="Spread z-score")
+    # docked, the spread on top and the report a page beside it: floating, the second window covered the first
+    fig.Dock("right", Ratio=0.65)
+    rfig.Dock("tab", Anchor=fig)
     print(f"[example] hedge ratio {beta:.3f}; half-life {hl:.1f} days; Sharpe {stats.get('Sharpe', float('nan')):.2f}, "
           f"{len(trades)} trades")
     return stats, fig

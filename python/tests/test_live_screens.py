@@ -282,6 +282,28 @@ class DemoTest(ScreenBase):
         self.assertClean()
 
 
+class QuickPlotTest(ScreenBase):
+    EXAMPLE = "quick_plot"
+
+    def figures(self):
+        return {f["title"]: f for f in self.conn.request("plot.figures", {})}
+
+    def test_the_chart_is_in_view_and_zooms_and_the_heatmap_labels_dont_run_together(self):
+        """The three windows opened cascaded and the heatmap, opened last, covered the ten million points the example
+        is about (a wheel over the chart zoomed nothing); its column labels ran together (HONHAIFUBON)."""
+        figs = self.figures()
+        self.assertTrue(all(f["docked"] for f in figs.values()), figs.keys())
+        self.assertTrue(figs["Correlation"]["axes"][0].get("labels_staggered"))
+        ax = figs["10,000,000 points"]["axes"][0]
+        x0, y0, x1, y1 = ax["rect"]
+        cx, cy = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"m:{cx},{cy}|w:4|W:3|w:8", 0.4)
+        v = self.figures()["10,000,000 points"]["axes"][0]["view"]
+        self.assertLess(v[1] - v[0], ax["view"][1] - ax["view"][0], "the wheel zooms the chart")
+        self.keys(f"m:{cx},{cy}|w:4|D:{cx},{cy}|w:10", 0.5)
+        self.assertClean()
+
+
 class TxoMarketMakerTest(ScreenBase):
     EXAMPLE, FILE = "txo_market_maker", "txo_mm"
 

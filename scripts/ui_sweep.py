@@ -204,6 +204,15 @@ def sweep_examples(exe, out, failures):
             built = example_build.built()
             if not built or errs or p.poll() is not None:
                 failures.append(f"example {name}: {'not built' if not built else [e.get('text', '')[:160] for e in errs]}")
+            # figure windows floating over each other: the one opened first (the screen's own chart) lay under the
+            # others (quick_plot's heatmap covered its ten million points); a screen docks or places them apart
+            figs = [x for x in ui.windows() if "###yc_fig" in x["name"] and not x.get("docked") and x.get("visible", True)]
+            for i, a in enumerate(figs):
+                for b in figs[i + 1:]:
+                    ra, rb = a["rect"], b["rect"]
+                    over = max(0.0, min(ra[2], rb[2]) - max(ra[0], rb[0])) * max(0.0, min(ra[3], rb[3]) - max(ra[1], rb[1]))
+                    if over > 0.25 * min((ra[2] - ra[0]) * (ra[3] - ra[1]), (rb[2] - rb[0]) * (rb[3] - rb[1])):
+                        failures.append(f"example {name}: the figures {a['label']!r} and {b['label']!r} cover each other")
         except Exception as e:  # noqa: BLE001
             failures.append(f"example {name}: {e}")
         finally:
