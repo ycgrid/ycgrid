@@ -3284,7 +3284,12 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_NoPopupHierarchy | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
     if (io.MouseWheel != 0.0f) {
       if (io.KeyCtrl) {
-        view.zoom = std::clamp(std::round((view.zoom + (io.MouseWheel > 0 ? 0.1f : -0.1f)) * 10.0f) / 10.0f, 0.1f, 4.0f);
+        // 10% a notch, every notch: a quick spin sends several in one frame, and they counted as one
+        static float zoom_accum = 0.0f;
+        zoom_accum += io.MouseWheel;
+        const float notches = std::trunc(zoom_accum);
+        zoom_accum -= notches;
+        if (notches != 0.0f) view.zoom = std::clamp(std::round((view.zoom + 0.1f * notches) * 10.0f) / 10.0f, 0.1f, 4.0f);
       } else {
         ScrollAxis& ax = io.KeyShift ? view.h : view.v;
         ax.wheel_accum -= io.MouseWheel * static_cast<float>(WheelLines());

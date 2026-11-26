@@ -10660,3 +10660,6 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r24,240,ok,Format Painter: one click, a double-click until Escape, Undo, a drag over a range
 2026-11-26,screen_walk,r25,240,ok,a chart: Alt+F1, a drag to move it, Delete and Ctrl+Z, copy and paste, Escape then typing
 2026-11-26,screen_walk,r26,900,found,conditional formatting by KeyTips in English and Chinese: Greater Than typed and picked on the sheet, Undo, Clear Rules
+2026-11-26,screen_walk,r27,420,ok,a PivotTable by Alt+N, V and the field list's check boxes in English and Chinese, Alt+F5 after a source change, a double-click for the details
+2026-11-26,screen_walk,r28,300,ok,a protected sheet in English and Chinese: typing, F2, Delete, Ctrl+V, Ctrl+D, a cut, Backspace, Alt+= on locked cells (refused quietly, the red line), an unlocked cell typed
+2026-11-26,screen_walk,r29,300,found,zoom: clicks, typing and the fill handle at 50% and 175%, Ctrl+wheel, the status bar's + / - / slider / percentage

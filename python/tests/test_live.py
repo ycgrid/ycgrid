@@ -1616,6 +1616,21 @@ class UserFlowTest(unittest.TestCase):
         self.assertGreater(int(ui.state()["selection"].split(":")[1][1:]), top, "and the selection reaches the rows shown")
         self.keys("k:c-Home|w:4")
 
+    def test_ctrl_wheel_zooms_ten_percent_a_notch(self):
+        """Ctrl+wheel moved the zoom one step a frame whatever the notches: a quick spin of three gave 110%."""
+        from yc import excel, ui
+
+        excel.ActiveWindow.Zoom = 100
+        x0, y0, x1, y1 = ui.cell_rect("D5")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        try:
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:3|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 130)
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:-5|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 80)
+        finally:
+            excel.ActiveWindow.Zoom = 100
+
     def test_escape_closes_the_dialogs_that_leave_the_sheet_usable(self):
         """Insert Symbol and Mark Parameter open windows that don't block the sheet: Escape left them open (ui_sweep
         checked only modal dialogs), and every later command ran beside a Symbol window nobody had asked to keep."""
