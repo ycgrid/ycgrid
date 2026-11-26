@@ -57,8 +57,9 @@ def run(seconds: float = 0, bars: int = 24):
                 order["id"] = om.buy("TXF", 1, price, tag="drag")
                 order["price"] = price
                 line.set(price, label=f"BUY LMT 1 @ {price:,.0f}")
-            except trading.Rejected as e:
-                line.set(order["price"], label=f"refused: {e}")
+            except trading.Rejected as e:  # the old order is cancelled already: nothing works now
+                order["id"] = None
+                line.set(order["price"], label=f"refused, no order working: {e}")
 
     def cancel(_handle=None):
         """The line's x button: cancel the working order (double-click the chart to buy again)."""
@@ -68,12 +69,21 @@ def run(seconds: float = 0, bars: int = 24):
                 order["id"] = None
                 line.set(order["price"], label="cancelled - double-click to buy")
 
+    # fit=True: the working order stays in view (the footprint fits its prices, the order may sit below them)
     line = fp.drag_line(order["price"], label="BUY LMT 1", color=T["cyan"], width=2, on_release=lambda h: send(h.value),
-                        on_close=cancel)
+                        on_close=cancel, fit=True)
     fig.on("dblclick", lambda e: send(e.y))
     send(order["price"])
     fill_pts: list = []
-    om.on_fill.append(lambda f: fill_pts.append((f.time, f.price, f"{f.side} {f.qty} @ {f.price:,.0f}")))
+
+    def filled(f):
+        fill_pts.append((f.time, f.price, f"{f.side} {f.qty} @ {f.price:,.0f}"))
+        with lock:  # the line no longer stands for a working order: say so, or a trader waits for a fill already done
+            if f.order_id == order["id"]:
+                order["id"] = None
+                line.set(order["price"], label=f"filled @ {f.price:,.0f} - drag or double-click to buy again")
+
+    om.on_fill.append(filled)
     _state.update(stop=stop, gw=gw, om=om, fig=fig)
 
     def loop():

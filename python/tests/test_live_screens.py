@@ -206,6 +206,33 @@ class TechnicalChartTest(ScreenBase):
         self.assertClean()
 
 
+class OrderFlowTest(ScreenBase):
+    EXAMPLE = "order_flow"
+
+    def footprint(self):
+        return self.figure()["axes"][0]
+
+    def order_line(self):
+        return next(h for h in self.footprint()["handles"] if h["kind"] == "hline")
+
+    def test_the_working_order_is_in_view_and_a_fill_shows_on_its_line(self):
+        """The order line sat below the prices the footprint fitted, out of view, so the trader couldn't see or drag
+        it; and once the order filled the line still read BUY LMT, a working order that was gone."""
+        time.sleep(2)
+        ax, line = self.footprint(), self.order_line()
+        self.assertTrue(line["label"].startswith("BUY LMT 1 @"), line["label"])
+        self.assertTrue(ax["view"][2] <= line["y"] <= ax["view"][3], (line["y"], ax["view"]))
+        # a double-click near the top of the plot: a buy limit above the market, which fills
+        x0, y0, x1, y1 = ax["rect"]
+        x, y = int((x0 + x1) / 2), int(y0 + (y1 - y0) * 0.03)
+        self.keys(f"m:{x},{y}|w:3|D:{x},{y}|w:6", 0.5)
+        end = time.time() + 10
+        while time.time() < end and not self.order_line()["label"].startswith("filled"):
+            time.sleep(0.3)
+        self.assertTrue(self.order_line()["label"].startswith("filled"), self.order_line()["label"])
+        self.assertClean()
+
+
 class TxoMarketMakerTest(ScreenBase):
     EXAMPLE, FILE = "txo_market_maker", "txo_mm"
 

@@ -10642,3 +10642,5 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r06,600,found,imprecise mouse: Escape during fill and move drags, a release outside the window, border double-clicks and clicks, the wheel during a drag and during an entry
 2026-11-26,screen_walk,r07,300,ok,a researcher's table: typed by Tab / Enter, Ctrl+T, a calculated column, Ctrl+Shift+T totals, a filter, an entry and a sort while filtered
 2026-11-26,screen_walk,r08,600,found,KeyTips a trader types daily in English and Chinese: borders, AutoFit, alignment, paste values, freeze panes, number formats, insert and delete rows, Ctrl+T
+2026-11-26,screen_walk,r09,300,ok,keyboard habits: number-format shortcuts, Ctrl+; and Ctrl+Shift+;, Alt+=, F4, Ctrl+Enter, Ctrl+D, Ctrl+' and Ctrl+Shift+", Alt+Enter, row / column selection, hide / unhide, borders, dialog shortcuts
+2026-11-26,screen_walk,r10,600,found,order_flow: the order line, a double-click above the market, the fill

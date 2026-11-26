@@ -122,6 +122,7 @@ struct PlotAxes {
   bool y_set = false;  // limits given from Python: a following plot keeps them instead of fitting y
   double x0 = 0, x1 = 1, y0 = 0, y1 = 1;
   double view[4] = {0, 1, 0, 1};  // the limits drawn last frame (x0, x1, y0, y1), reported in ui.state()
+  float plot_rect[4] = {0, 0, 0, 0};  // the plot area drawn last frame, in window pixels (left, top, right, bottom)
   bool user_view = false;  // the user zoomed / panned or Python set limits: new data stop refitting (double-click fits again)
   double follow = 0;  // seconds (or x units) of the newest data to keep in view; 0 = off
   bool yfit_stable = false;  // following: y changes only when the data near the edges or shrink (no jitter)
@@ -1751,6 +1752,20 @@ io::MV FigureRequest(AppState& s, const std::string& m, const io::MV& p, const s
         }
         am.Set("items", std::move(its));
         if (!ax.cursor_tag.empty()) am.Set("cursor_tag", MV::Str(ax.cursor_tag));  // the linked row's day
+        MV view = MV::Array(), rect = MV::Array(), hs = MV::Array();  // what it shows and where: a test points at a price
+        for (double v : ax.view) view.Push(MV::Double(v));
+        for (float v : ax.plot_rect) rect.Push(MV::Double(v));
+        am.Set("view", std::move(view));
+        am.Set("rect", std::move(rect));
+        for (const auto& h : ax.handles) {  // drag lines (an order), points, bands: their place and label
+          MV hm = MV::Map();
+          hm.Set("kind", MV::Str(h.kind));
+          hm.Set("label", MV::Str(h.label));
+          hm.Set("x", MV::Double(h.x));
+          hm.Set("y", MV::Double(h.y));
+          hs.Push(std::move(hm));
+        }
+        am.Set("handles", std::move(hs));
         axs.Push(std::move(am));
       }
       fm.Set("axes", std::move(axs));
@@ -2793,6 +2808,10 @@ void DrawFigures(AppState& s) {
             const float pxw = ImPlot::GetPlotSize().x;
             const ImPlotRect drawn = ImPlot::GetPlotLimits();
             ax.view[0] = drawn.X.Min, ax.view[1] = drawn.X.Max, ax.view[2] = drawn.Y.Min, ax.view[3] = drawn.Y.Max;
+            {
+              const ImVec2 pp = ImPlot::GetPlotPos(), ps = ImPlot::GetPlotSize();
+              ax.plot_rect[0] = pp.x, ax.plot_rect[1] = pp.y, ax.plot_rect[2] = pp.x + ps.x, ax.plot_rect[3] = pp.y + ps.y;
+            }
             for (size_t i = 0; i < ax.items.size(); ++i) DrawItem(ax.items[i], std::to_string(f.id) + "_" + std::to_string(a) + "_" + ax.items[i].id, pxw);
             // the linked table row
             const double cx = ax.time_x && std::isfinite(cursor) ? SerialToEpoch(cursor) : cursor;
