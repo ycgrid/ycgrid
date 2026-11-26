@@ -188,6 +188,24 @@ class DomLadderTest(ScreenBase):
         self.assertClean()
 
 
+class TechnicalChartTest(ScreenBase):
+    EXAMPLE = "technical_chart"
+
+    def test_the_marked_day_follows_the_row_by_mouse_and_keys(self):
+        """The mark of a daily bar read "7/2 00:00", a time nobody traded at: a day is tagged with its date."""
+        from yc import excel, ui
+
+        ws = excel.ActiveSheet
+        self.click("A20", 1.0)
+        tags = {ax.get("cursor_tag") for ax in self.figure()["axes"]}
+        self.assertEqual(tags, {ws.Range("A20").Value.strftime("%Y-%m-%d")})
+        self.keys("k:Down|w:3|k:Down|w:3|k:Down|w:3", 1.0)  # the keys move the mark too
+        self.assertEqual(ui.state()["active_cell"], "A23")
+        tags = {ax.get("cursor_tag") for ax in self.figure()["axes"]}
+        self.assertEqual(tags, {ws.Range("A23").Value.strftime("%Y-%m-%d")})
+        self.assertClean()
+
+
 class TxoMarketMakerTest(ScreenBase):
     EXAMPLE, FILE = "txo_market_maker", "txo_mm"
 

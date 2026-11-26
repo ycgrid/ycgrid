@@ -48,7 +48,8 @@ fig.link_table("Trades", "Time")   # the active row of table Trades is marked; a
   the window over (place and size stay, items are cleared; `reuse=True` also keeps its title and layout).
   `plot.figures()` lists every figure of the session (`id`, `key`, `title`, `rows`, `cols`, `owner` "host" / "script
   <pid>", `alive`, `persist`, `docked`, and `axes`: each plot's `title` and `items`, each with its `kind` and `label`,
-  so a test checks what a figure shows: a line added twice shows twice); `plot.close(key=...)` closes one from any
+  so a test checks what a figure shows: a line added twice shows twice; `cursor_tag`, the date a linked
+  table's row marks on a daily time axis); `plot.close(key=...)` closes one from any
   process. A figure belongs to the connection
   that made it: when the YCGrid host restarts or exits its figures close, unless made with `persist=True` (then the
   title says "(stopped)"); scripts' figures stay by default (`persist=True`).

@@ -149,6 +149,7 @@ struct PlotAxes {
   ImPlotPoint sel0, sel1;
   double hover_at = 0;
   double synced_x = kNaN;  // the group's cursor drawn in this plot on the last frame (NaN = none)
+  std::string cursor_tag;  // the linked row's tag text when YCGrid chose it (a day), for plot.figures
 };
 
 PlotTheme g_draw_theme = PlotTheme::Light;  // the figure being drawn (candle colors)
@@ -1026,6 +1027,26 @@ std::string SyncGroup(const Figure& f) {
 }
 
 // inside BeginPlot / EndPlot
+// The tag of a marked x on a time axis: at local midnight (daily bars) the date alone; "7/2 00:00" read as a time
+// nobody traded at. Empty: the axis's own text (other times, other axes).
+std::string DayTagText(double x, bool time_axis) {
+  if (!time_axis || !std::isfinite(x) || x != std::floor(x)) return {};
+  const std::time_t t = static_cast<std::time_t>(x);
+  std::tm tm{};
+  if (localtime_s(&tm, &t) != 0 || tm.tm_hour || tm.tm_min || tm.tm_sec) return {};
+  char buf[32];
+  std::strftime(buf, sizeof buf, "%Y-%m-%d", &tm);
+  return buf;
+}
+
+// draws the tag; returns its text when YCGrid chose it, else "" (ImPlot's axis text)
+std::string TagTimeX(double x, bool time_axis, ImVec4 col) {
+  std::string day = DayTagText(x, time_axis);
+  if (!day.empty()) ImPlot::TagX(x, col, "%s", day.c_str());
+  else ImPlot::TagX(x, col, true);
+  return day;
+}
+
 void DrawSyncedCursor(const Figure& f, PlotAxes& ax, int a) {
   ax.synced_x = kNaN;
   const std::string grp = SyncGroup(f);
@@ -1047,7 +1068,7 @@ void DrawSyncedCursor(const Figure& f, PlotAxes& ax, int a) {
   cs.LineWeight = 1.0f;
   cs.Flags = ImPlotItemFlags_NoLegend | ImPlotItemFlags_NoFit;
   ImPlot::PlotInfLines("##synced", &sc->x, 1, cs);
-  ImPlot::TagX(sc->x, ImVec4(0.35f, 0.35f, 0.4f, 1), true);
+  TagTimeX(sc->x, ax.time_x, ImVec4(0.35f, 0.35f, 0.4f, 1));
   ax.synced_x = sc->x;
 }
 
@@ -1729,6 +1750,7 @@ io::MV FigureRequest(AppState& s, const std::string& m, const io::MV& p, const s
           its.Push(std::move(im));
         }
         am.Set("items", std::move(its));
+        if (!ax.cursor_tag.empty()) am.Set("cursor_tag", MV::Str(ax.cursor_tag));  // the linked row's day
         axs.Push(std::move(am));
       }
       fm.Set("axes", std::move(axs));
@@ -2774,13 +2796,14 @@ void DrawFigures(AppState& s) {
             for (size_t i = 0; i < ax.items.size(); ++i) DrawItem(ax.items[i], std::to_string(f.id) + "_" + std::to_string(a) + "_" + ax.items[i].id, pxw);
             // the linked table row
             const double cx = ax.time_x && std::isfinite(cursor) ? SerialToEpoch(cursor) : cursor;
+            ax.cursor_tag.clear();
             if (std::isfinite(cx)) {
               ImPlotSpec cs;
               cs.LineColor = ImVec4(0.85f, 0.2f, 0.2f, 0.9f);
               cs.LineWeight = 1.5f;
               cs.Flags = ImPlotItemFlags_NoLegend;
               ImPlot::PlotInfLines("##cursor", &cx, 1, cs);
-              ImPlot::TagX(cx, ImVec4(0.85f, 0.2f, 0.2f, 1), true);
+              ax.cursor_tag = TagTimeX(cx, ax.time_x, ImVec4(0.85f, 0.2f, 0.2f, 1));
             }
             DrawSyncedCursor(f, ax, static_cast<int>(a));
             if (ltab && ImPlot::IsPlotHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ImGui::GetIO().MouseDragMaxDistanceSqr[0] < 16)
