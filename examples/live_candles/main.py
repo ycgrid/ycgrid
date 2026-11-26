@@ -67,7 +67,7 @@ def run(seconds: float = 0, bar_seconds: float = 5.0):
 
     thread(loop, "example-candles")
     print("[example] live candles are running")
-    return bb
+    return bb, fig
 
 
 def _tz_days() -> float:

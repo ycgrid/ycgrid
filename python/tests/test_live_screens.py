@@ -304,6 +304,30 @@ class QuickPlotTest(ScreenBase):
         self.assertClean()
 
 
+class TimeMachineTest(ScreenBase):
+    EXAMPLE = "time_machine"
+
+    def test_the_ladder_shows_beside_its_candles_and_the_replay_bar_seeks(self):
+        """The candles' sheet, opened last, and its floating chart hid the ladder whose fills the replay is about."""
+        from yc import excel, replay, ui
+
+        self.assertEqual(excel.ActiveSheet.Name, "Ladder")
+        self.assertTrue(all(f["docked"] for f in self.conn.request("plot.figures", {})))
+        end = time.time() + 40
+        while time.time() < end and ui.state().get("replay", {}).get("mode") != "replay":
+            time.sleep(0.5)
+        label = next(w["label"] for w in ui.windows() if w["label"].startswith("Replay"))
+        play = next(i for i in ui.items(label) if i.get("id", "").endswith("##play"))["rect"]
+        bar = next(i for i in ui.items(label) if i.get("id") == "##pos")["rect"]
+        x, y = int((play[0] + play[2]) / 2), int((play[1] + play[3]) / 2)
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:6", 0.5)  # pause
+        tx, ty = int(bar[0] + (bar[2] - bar[0]) * 0.25), int((bar[1] + bar[3]) / 2)
+        self.keys(f"m:{tx},{ty}|w:3|c:{tx},{ty}|w:6", 0.5)
+        st = replay.status()
+        self.assertAlmostEqual(st["position"] / st["length"], 0.25, delta=0.08)
+        self.assertClean()
+
+
 class TxoMarketMakerTest(ScreenBase):
     EXAMPLE, FILE = "txo_market_maker", "txo_mm"
 

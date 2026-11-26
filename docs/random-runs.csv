@@ -10653,3 +10653,5 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r17,300,ok,a validation list: Alt+Down and arrows, the drop-down arrow, a value typed in another case and a wrong one refused, a paste over it, Delete
 2026-11-26,screen_walk,r18,420,ok,big_data's Data View: header sorts (ties stay in order), the filter row, the wheel and Ctrl+End, clearing a filter, To Sheet past the sheet's rows (stops at its limit, said on the status bar)
 2026-11-26,screen_walk,r19,600,found,quick_plot and strategy_lab: the wheel, a drag and a double-click on the charts, the windows' layout, the heatmap's labels
+2026-11-26,screen_walk,r20,240,ok,backtest_report: a trade clicked marks its day on every chart, a click on the chart finds the nearest trade
+2026-11-26,screen_walk,r21,900,found,time_machine: the replay bar's pause, a click and a drag on the bar, |<, typing during a replay, Back to Live
