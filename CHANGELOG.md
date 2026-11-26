@@ -10,13 +10,36 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 ### Added
 - `RiskLimits(duplicate_window=seconds)`: an order the same as the last one sent, again within that time, is refused,
   so a double-click on an order button sends one order. The `trading_desk` example uses it.
-- `plot.figures()` lists each plot's title and items (their kind and label), so a test checks what a figure shows.
+- `plot.figures()` lists each plot's title and items (their kind and label), so a test checks what a figure shows,
+  and its view, its place on the screen, its drag lines and the date a linked row marks.
+- Excel 2003's menu keys after Alt (Alt, E, S, V for Paste Special, Values; Alt, O, C, A to AutoFit; Alt, D, F, F...)
+  run their commands, with Excel's hint while they are typed.
+- A dialog's range box takes a cell clicked or a range dragged on the sheet while it has the keyboard, as Excel's
+  RefEdit (Greater Than's value, a validation list, Goal Seek); its button still works too.
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
   each click could add another copy of every line (every price tag shown twice or more).
 - `trading_desk` example: a round trip's realized profit stayed 0 (a fill that closed the position read the average
   after the fill); a quantity typed wrong sent one lot instead of nothing; a double-click on BUY MKT sent two orders.
+- Click actions (`yc.interact.on_click`, click-to-trade) run on a press and a release on the same cell, as a button:
+  a drag that began on a ladder's size, to select cells, sent an order.
+- The click-to-trade ladder (`dom_ladder`, `trading_desk`, `txo_market_maker`) shows the total of every working
+  order at a price, not the last one's size; a double-click on `txo_market_maker`'s Start no longer starts and stops it.
+- `demo`: pausing and resuming live updates within a second added a second update chain each time, and a sorted
+  quote table measured every change against another stock's open.
+- `order_flow`: the working order's line stays in view and says when the order filled; `time_machine` shows the
+  ladder it replays; `quick_plot`, `strategy_lab`, `pairs_trading` and the other screens dock their charts beside the
+  sheet instead of floating them over its cells, so the tables and trade lists they show can be read and clicked.
+- A daily chart marks the clicked bar with its date, not "00:00"; a heatmap's long column labels no longer run
+  together.
+- Escape closes Insert Symbol and Mark Parameter's windows, as every dialog.
+- The mouse wheel scrolls the sheet while a drag selects cells; Ctrl+wheel zooms 10% for every notch, also in Page
+  Layout view, where it zoomed twice.
+- Alt held with a tab's letter (Alt+W pressed together) opens that tab's KeyTips; Alt in a dialog no longer lights
+  the ribbon's KeyTips behind it; KeyTips work in the Traditional Chinese UI (Alt, H, L, H, G reached nothing).
+- 12.5% typed into a percent cell by a Chinese IME (the whole text at once) is 12.5%, not the text "12.5%%".
+- `yc.launch(path)` raises when the file can't be opened, instead of handing back a blank workbook.
 
 ## 0.10.3 (2026-11-25)
 
