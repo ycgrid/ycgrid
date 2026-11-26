@@ -195,6 +195,7 @@ struct State {
   uint32_t menu_color = 0;
   // KeyTips: 0 off, 1 over the tabs (Alt / F10), 2 over the selected tab's commands
   int keytip_level = 0;
+  std::string legacy_keys;  // Excel 2003's menu keys typed so far after Alt ("ES"), shown as Excel shows them
   // measurements
   double last_cpu_ms = 0.0;
   std::vector<int> last_stages;  // stage of every group of the current tab (for --report and tests)

@@ -182,6 +182,42 @@ class KeyTipsTest(HabitsBase):
         self.assertEqual(self.ws.Range("D1").Value, 2)
         self.assertFalse(self.ws.Range("D1").HasFormula)
 
+    def test_excel_2003_menu_keys_still_work(self):
+        """Alt, E, S, V (Paste Special, Values) and Alt, O, C, A did nothing: Excel still takes the 2003 menu keys after
+        Alt when no tab has the letter, and people who learned them type them without looking."""
+        from yc import ui
+
+        self.ws.Range("A1").Formula = "=1+1"
+        self.keys("g:A1|w:2|k:c-C|w:3")
+        self.keytips("ES", "g:D1|w:2|")
+        self.assertTrue(self.dialog(), "Alt, E, S opens Paste Special")
+        self.keys("k:V|w:3|k:Enter|w:6")
+        self.assertEqual(self.ws.Range("D1").Value, 2)
+        self.assertFalse(self.ws.Range("D1").HasFormula)
+        self.keys("k:Escape|w:3")
+        self.ws.Range("B2").Value = "a long piece of text that needs a wide column"
+        self.ws.Columns("B").ColumnWidth = 4
+        self.keytips("OCA", "g:B2|w:2|")
+        self.assertGreater(self.ws.Columns("B").ColumnWidth, 20)
+        self.keys("m:2,2|w:2|k:LeftAlt|w:3|t:E|w:4")  # half a sequence: Excel's hint, then Esc leaves it
+        self.assertEqual(ui.state()["ribbon"].get("legacy_keys"), "E")
+        self.keys("k:Escape|w:4")
+        self.assertFalse(ui.state()["ribbon"].get("legacy_keys"))
+        self.assertEqual(ui.state()["ribbon"]["keytips"], 0)
+
+    def test_alt_in_a_dialog_is_not_the_ribbons(self):
+        """Alt in a modal dialog lit the ribbon's KeyTips behind it, and the letters typed next went to them: Alt, H
+        then V in Paste Special pasted from Home's Paste menu under the dialog."""
+        from yc import ui
+
+        self.keys("g:A1|w:2|k:c-C|w:3|g:D1|w:2|k:c-a-V|w:8")
+        d = self.dialog()
+        self.assertTrue(d, "Paste Special")
+        self.keys("k:LeftAlt|w:4|t:H|w:4")
+        self.assertEqual(ui.state()["ribbon"]["keytips"], 0)
+        self.assertEqual(self.dialog(), d)
+        self.keys("k:Escape|w:4")
+
     def test_alt_h_b_a_draws_all_borders(self):
         from yc import excel
 

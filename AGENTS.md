@@ -468,6 +468,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - Excel's KeyTips (`FixedKeyTips`, `MenuKeyTips` in ribbon.cpp) are keyed by the command id the ribbon item or menu
   entry really uses (`ConditionalFormatting`, not a made-up `CondFormatMenu`): a wrong or renamed id silently falls
   back to two letters of the label. Test the sequence a person types (Alt, H, O, I), not the map.
+- A modal dialog owns the keyboard: the ribbon's KeyTips stay off while one is open (`GetTopMostPopupModal`; the
+  "visible" variant reads false there, since the ribbon draws before the dialog), or Alt, H in Paste Special ran Home's
+  commands under it. Excel 2003's menu keys (Alt, E, S, V) are `LegacyKeys` in ribbon.cpp, taken when no tab has the
+  letter; a test sends a dialog's letter as a key (`k:V`), since its options read keys, not typed characters.
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in
   the same frame, so the ribbon never collapsed (since the first release). Before adding a key, grep for its chord;
   test the key a person presses and that the state changed (`test_parity_habits.ShortcutsTest`). `check_lessons.py`'s
