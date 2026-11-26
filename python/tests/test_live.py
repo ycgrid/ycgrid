@@ -1602,6 +1602,19 @@ class UserFlowTest(unittest.TestCase):
         self.assertNotIn("edit", ui.state())
         self.assertEqual(self.ws.Range("B3").Value, 99)
 
+    def test_escape_closes_the_dialogs_that_leave_the_sheet_usable(self):
+        """Insert Symbol and Mark Parameter open windows that don't block the sheet: Escape left them open (ui_sweep
+        checked only modal dialogs), and every later command ran beside a Symbol window nobody had asked to keep."""
+        from yc import ui
+
+        for cid, name in (("InsertSymbol", "Symbol###yc_symbol"), ("MarkParameter", "Parameter Cell###yc_param")):
+            self.keys("g:B2|w:2")
+            ui.command(cid)
+            time.sleep(0.5)
+            self.assertIn(name, {w["name"] for w in ui.windows()}, cid)
+            self.keys("k:Escape|w:6")
+            self.assertNotIn(name, {w["name"] for w in ui.windows()}, f"{cid}: Escape closes it")
+
     def test_a_drag_from_a_click_action_cell_is_no_click(self):
         """A click action ran on the press: selecting cells by a drag that began on a ladder's size sent an order. It
         runs on a press and a release on the same cell, as a button does."""

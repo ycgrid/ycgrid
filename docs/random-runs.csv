@@ -10637,3 +10637,5 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r01,900,found,dom_ladder: bid / cancel clicks, fast clicks, drags, right clicks
 2026-11-26,screen_walk,r02,900,found,txo_market_maker: start / stop, double-clicks, parameter typos, Delete on a parameter, kill switch, DOM
 2026-11-26,screen_walk,r03,600,found,technical_chart: rows by mouse and keys, sort, the linked mark
+2026-11-26,screen_walk,r04,420,ok,option_payoff: legs typed (lowercase, thousands commas, a future), a typo and Undo, a row deleted and Undo, the multiplier, a leg cleared; payoff and chart checked
+2026-11-26,screen_walk,r05,1500,found,Traditional Chinese UI: every dialog opened and closed with Escape; ui_sweep dialogs extended to non-modal dialog windows

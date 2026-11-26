@@ -429,6 +429,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   clicks on the sheet silently change it.
 - Live updates (a range box filled while the mouse drags) run on every frame of the drag: derive titles, legends and
   defaults from the final state, never from the first event.
+- A dialog that leaves the sheet usable (a window, not `BeginModal`: Insert Symbol, Mark Parameter) closes on Escape
+  like any dialog: both stayed open, since ui_sweep pressed Escape only on modal dialogs. Its dialogs pass also
+  takes every new floating window with a Cancel or Close button and fails one Escape leaves open.
 - A dialog opened over another (Confirm Password, New Range) takes Enter; the frames after it closes, the dialog under
   it must not take that Enter as its own OK (protect_ui's `ParentOk`), or both close at once.
 - File > Options edits a copy that OK applies and Cancel drops: a new option binds to `cfg` (the copy) and gets its
