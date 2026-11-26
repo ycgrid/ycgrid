@@ -1197,7 +1197,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   `RiskLimits.duplicate_window`, and a quantity typed wrong sends nothing rather than a guess. It runs on a press and
   a release on the same cell, as a button: run on the press, a drag selecting a ladder's sizes sent an order. What a
   screen shows per price (the ladder's My Bid) adds up every order there (`Ladder.working`). A line that stands for an
-  order stays in view (`drag_line(..., fit=True)`) and says when the order is gone (filled, refused). The example screens are
+  order stays in view (`drag_line(..., fit=True)`) and says when the order is gone (filled, refused). A timer chain
+  (`Application.OnTime`) that a button pauses and resumes keeps one tick waiting at most, and a live table finds its
+  rows by key, never by position: a person sorts it (demo tripled its updates and measured TSMC against MediaTek's
+  open). The example screens are
   used as a trader uses them in `tests.test_live_screens` (tabs, rows, buttons, mistakes, while the data streams),
   checked by what they show (`plot.figures()` lists each plot's items): a new example screen gets its class there.
   The converged random tools never clicked an example's own controls on purpose and found none of these.

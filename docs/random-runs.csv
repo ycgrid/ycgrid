@@ -10644,3 +10644,4 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r08,600,found,KeyTips a trader types daily in English and Chinese: borders, AutoFit, alignment, paste values, freeze panes, number formats, insert and delete rows, Ctrl+T
 2026-11-26,screen_walk,r09,300,ok,keyboard habits: number-format shortcuts, Ctrl+; and Ctrl+Shift+;, Alt+=, F4, Ctrl+Enter, Ctrl+D, Ctrl+' and Ctrl+Shift+", Alt+Enter, row / column selection, hide / unhide, borders, dialog shortcuts
 2026-11-26,screen_walk,r10,600,found,order_flow: the order line, a double-click above the market, the fill
+2026-11-26,screen_walk,r11,600,found,demo: the panel's pause / resume, a sort of the live table

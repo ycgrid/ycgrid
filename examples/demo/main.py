@@ -15,6 +15,7 @@ PRODUCTS = [("2330", "TSMC", 1050.0), ("2317", "Hon Hai", 205.0), ("2454", "Medi
             ("2603", "Evergreen", 210.5), ("1301", "Formosa Plastics", 48.2)]
 
 running = True
+pending = False  # a tick is scheduled (Application.OnTime): pausing and resuming within a second must not add one
 
 
 def Workbook_Open():
@@ -109,7 +110,7 @@ def toggle_running(ctrl=None):
     global running
     running = not running
     Application.StatusBar = "Live updates: " + ("running" if running else "paused")
-    if running:
+    if running and not pending:  # a tick still waiting from before the pause goes on: never a second chain
         schedule_tick()
 
 
@@ -124,26 +125,31 @@ def randomize(scale=None):
     """Every price drifts randomly; the change is computed from the opening price."""
     ws = Worksheets("Quotes")
     scale = volatility() if scale is None else scale
-    prices = ws.Range("C2:C11").Value
+    opens = {code: price for code, _name, price in PRODUCTS}
     rows = []
-    for i, row in enumerate(prices):
-        price = float(row[0]) * (1 + random.uniform(-scale, scale))
-        open_price = PRODUCTS[i][2]  # opening price (rows are in the same order as PRODUCTS)
-        rows.append([round(price, 2), round(price / open_price - 1, 4)])
+    for code, _name, now in ws.Range("A2:C11").Value:  # by symbol: the user may have sorted the rows
+        price = float(now) * (1 + random.uniform(-scale, scale))
+        rows.append([round(price, 2), round(price / opens[str(code)] - 1, 4)])
     ws.Range("C2:D11").Value = rows
     return rows
 
 
 def tick():
+    global pending
+    pending = False
     if not running:
         return
     rows = randomize()
     ws = Worksheets("Quotes")
-    ws.ChartObjects("Live").Chart.SeriesCollection(1).AppendData(y=rows[0][0])
+    codes = [str(r[0]) for r in ws.Range("A2:A11").Value]
+    tsmc = rows[codes.index(PRODUCTS[0][0])][0]  # TSMC's row, wherever a sort put it
+    ws.ChartObjects("Live").Chart.SeriesCollection(1).AppendData(y=tsmc)
     schedule_tick()
 
 
 def schedule_tick():
+    global pending
+    pending = True
     Application.OnTime(Now() + TimeValue("00:00:01"), "tick")
 
 

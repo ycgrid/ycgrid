@@ -233,6 +233,55 @@ class OrderFlowTest(ScreenBase):
         self.assertClean()
 
 
+class DemoTest(ScreenBase):
+    EXAMPLE = "demo"
+    OPENS = {"2330": 1050.0, "2317": 205.0, "2454": 1380.0, "2308": 395.0}
+
+    def setUp(self):
+        from yc import excel
+
+        self.ws = excel.Worksheets("Quotes")
+
+    def press(self, label, window="Demo Console"):
+        from yc import ui
+
+        it = next(i for i in ui.items(window) if i.get("label") == label)
+        r = it["rect"]
+        x, y = int((r[0] + r[2]) / 2), int((r[1] + r[3]) / 2)
+        self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4", 0.3)
+
+    def updates_a_second(self, sec=5):
+        n, last, end = 0, self.ws.Range("C2:C11").Value, time.time() + sec
+        while time.time() < end:
+            v = self.ws.Range("C2:C11").Value
+            n += v != last
+            last = v
+            time.sleep(0.05)
+        return n / sec
+
+    def test_pause_and_resume_keep_one_update_a_second(self):
+        """Resuming within a second of a pause left the old tick waiting and started a second chain: every quick
+        pause and resume added an update a second (three a second after three)."""
+        for _ in range(3):
+            self.press("Pause / Resume Live Updates")
+            self.press("Pause / Resume Live Updates")
+        self.assertLess(self.updates_a_second(), 1.6)
+        self.assertClean()
+
+    def test_a_sorted_table_keeps_each_change_against_its_own_open(self):
+        """The prices were written back by position against the opens in their first order: after a sort every Change
+        was measured against another stock's open (TSMC +408%)."""
+        from yc import ui
+
+        self.click("C2", 0.2)
+        ui.command("SortDescending")
+        time.sleep(3)
+        for code, _name, price, change, *_ in self.ws.Range("A2:G11").Value:
+            if str(code) in self.OPENS:
+                self.assertAlmostEqual(change, price / self.OPENS[str(code)] - 1, delta=0.002, msg=code)
+        self.assertClean()
+
+
 class TxoMarketMakerTest(ScreenBase):
     EXAMPLE, FILE = "txo_market_maker", "txo_mm"
 
