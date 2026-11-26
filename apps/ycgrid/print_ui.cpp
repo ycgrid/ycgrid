@@ -1600,8 +1600,7 @@ void DrawPageLayoutView(AppState& s, const model::Sheet& sh, render::GridView& v
   ImGui::SetNextItemAllowOverlap();  // the header / footer sections, rulers and handles drawn over the pages take their clicks
   ImGui::InvisibleButton("##pagelayout", full.GetSize(), ImGuiButtonFlags_MouseButtonLeft);
   const bool hovered = ImGui::IsItemHovered();
-  // Ctrl+wheel zooms, as on the sheet
-  if (hovered && io.MouseWheel != 0 && io.KeyCtrl) view.zoom = std::clamp(view.zoom * (io.MouseWheel > 0 ? 1.1f : 1.0f / 1.1f), 0.1f, 4.0f);
+  // Ctrl+wheel zooms through the sheet's own handler (the grid under the pages): zoomed here too, it went twice as far
   const float px_per_pt = view.zoom * ui::Dpi() * (96.0f / 72.0f);
   const bool headings = s.Win(sh.id).headings;  // View > Headings: column letters above each page, row numbers beside it
   const bool ruler = u.ruler;  // View > Ruler

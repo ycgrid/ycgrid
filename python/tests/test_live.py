@@ -1628,7 +1628,14 @@ class UserFlowTest(unittest.TestCase):
             self.assertEqual(excel.ActiveWindow.Zoom, 130)
             self.keys(f"m:{x},{y}|w:3|H:ctrl|W:-5|w:6|h:|w:3")
             self.assertEqual(excel.ActiveWindow.Zoom, 80)
+            # Page Layout view: the same steps (it multiplied by 1.1 once a frame: 121%, 133.1%)
+            excel.ActiveWindow.Zoom = 100
+            ui.command("ViewPageLayout")
+            time.sleep(0.4)
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:3|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 130)
         finally:
+            ui.command("ViewNormal")
             excel.ActiveWindow.Zoom = 100
 
     def test_escape_closes_the_dialogs_that_leave_the_sheet_usable(self):

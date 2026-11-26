@@ -10663,3 +10663,4 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r27,420,ok,a PivotTable by Alt+N, V and the field list's check boxes in English and Chinese, Alt+F5 after a source change, a double-click for the details
 2026-11-26,screen_walk,r28,300,ok,a protected sheet in English and Chinese: typing, F2, Delete, Ctrl+V, Ctrl+D, a cut, Backspace, Alt+= on locked cells (refused quietly, the red line), an unlocked cell typed
 2026-11-26,screen_walk,r29,300,found,zoom: clicks, typing and the fill handle at 50% and 175%, Ctrl+wheel, the status bar's + / - / slider / percentage
+2026-11-26,screen_walk,r30,300,found,every use of the mouse wheel: the notches a frame (zoom on the sheet and in Page Layout, scrolling)
