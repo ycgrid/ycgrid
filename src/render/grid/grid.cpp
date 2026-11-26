@@ -3278,8 +3278,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
 
   // ---- Mouse wheel ----
   // (a popup opened from the sheet, a chart's flyout, counts as its child for ImGui: the wheel over it is the popup's)
+  // It scrolls while a drag selects cells and while an entry is typed, as Excel's (the drag's or the editor's active
+  // item blocked it: a long range couldn't be selected by a drag and the wheel)
   if (ImGui::IsMouseHoveringRect(rect.Min, ImVec2(rect.Max.x - sb, rect.Max.y - bottom_h)) &&
-      ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_NoPopupHierarchy)) {
+      ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_NoPopupHierarchy | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
     if (io.MouseWheel != 0.0f) {
       if (io.KeyCtrl) {
         view.zoom = std::clamp(std::round((view.zoom + (io.MouseWheel > 0 ? 0.1f : -0.1f)) * 10.0f) / 10.0f, 0.1f, 4.0f);

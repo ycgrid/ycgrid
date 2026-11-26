@@ -10639,3 +10639,4 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r03,600,found,technical_chart: rows by mouse and keys, sort, the linked mark
 2026-11-26,screen_walk,r04,420,ok,option_payoff: legs typed (lowercase, thousands commas, a future), a typo and Undo, a row deleted and Undo, the multiplier, a leg cleared; payoff and chart checked
 2026-11-26,screen_walk,r05,1500,found,Traditional Chinese UI: every dialog opened and closed with Escape; ui_sweep dialogs extended to non-modal dialog windows
+2026-11-26,screen_walk,r06,600,found,imprecise mouse: Escape during fill and move drags, a release outside the window, border double-clicks and clicks, the wheel during a drag and during an entry

@@ -408,6 +408,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   flags`; `col, thickness, flags`): the other order is a deleted overload.
 - ImGui owns Ctrl+Tab / Ctrl+Shift+Tab (its window switcher, even without keyboard navigation) unless
   `ConfigNavWindowingKeyNext` / `Prev` are 0: YCGrid sets them to 0 so the keys switch workbook windows as in Excel.
+- `IsWindowHovered` is false while any item is active, the window's own too: the grid's wheel waited for the end of
+  its own selection drag. What must work during a drag or an entry (the wheel over the sheet) adds
+  `ImGuiHoveredFlags_AllowWhenBlockedByActiveItem`.
 - `IsWindowHovered(ImGuiHoveredFlags_ChildWindows)` is also true over a popup opened from that window (a chart's flyout
   opened by the sheet): add `ImGuiHoveredFlags_NoPopupHierarchy` where the window acts on the mouse (the sheet's wheel).
 - ImGui scales a font so that ascent + descent equals its size: a font's real line height (rows that fit a taller

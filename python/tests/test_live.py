@@ -1602,6 +1602,20 @@ class UserFlowTest(unittest.TestCase):
         self.assertNotIn("edit", ui.state())
         self.assertEqual(self.ws.Range("B3").Value, 99)
 
+    def test_the_wheel_scrolls_while_a_drag_selects_cells(self):
+        """A drag selecting cells made the grid's item active, and the wheel did nothing until the button went up: a
+        range longer than the screen couldn't be selected by a drag and the wheel, as Excel's can."""
+        from yc import excel, ui
+
+        self.keys("g:A1|w:2|k:c-Home|w:4")
+        x0, y0, x1, y1 = ui.cell_rect("A2")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"m:{x},{y}|w:3|p:{x},{y}|w:3|m:{x},{y + 60}|w:2|W:-10|w:6|m:{x},{y + 80}|w:3|u:|w:4")
+        top = excel.ActiveWindow.ScrollRow
+        self.assertGreater(top, 20, "the sheet scrolled")
+        self.assertGreater(int(ui.state()["selection"].split(":")[1][1:]), top, "and the selection reaches the rows shown")
+        self.keys("k:c-Home|w:4")
+
     def test_escape_closes_the_dialogs_that_leave_the_sheet_usable(self):
         """Insert Symbol and Mark Parameter open windows that don't block the sheet: Escape left them open (ui_sweep
         checked only modal dialogs), and every later command ran beside a Symbol window nobody had asked to keep."""
