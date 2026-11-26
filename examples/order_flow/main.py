@@ -35,6 +35,7 @@ def run(seconds: float = 0, bars: int = 24):
     title(ws, "Order flow: footprint, volume profile, VWAP and a draggable limit order (paper)",
           "Drag the cyan line to move the order (it is re-sent at the new price), double-click the chart to place it there.")
     fig = plot.figure("TXF order flow", rows=1, cols=2, size=(1100, 640), pos=(60, 120), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fp, prof = fig[0], fig[1]
     fp.set(title="Footprint: sell x buy volume per price (red = buyers lead)", time=True, follow=BAR * bars, yfit="stable")
     prof.set(title="Volume profile", xlabel="lots")

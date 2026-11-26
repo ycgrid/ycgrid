@@ -113,6 +113,7 @@ def run():
     analysis.Descr(ic_col, ws.Range("K5"), "C", True, True, 95)
     # charts
     fig = plot.figure("Factor research", rows=2, cols=2, size=(1200, 760))
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     cum = (1 + df[["Q1", "Q2", "Q3", "Q4", "Q5"]]).cumprod()
     colors = ["#c62828", "#ef6c00", "#9e9e9e", "#43a047", "#1b5e20"]
     for q, col in zip(["Q1", "Q2", "Q3", "Q4", "Q5"], colors):

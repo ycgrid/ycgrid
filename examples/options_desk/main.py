@@ -91,6 +91,7 @@ def run(seconds: float = 0, days: float = 14.0, width: int = 200, wing: int = 10
     ws.Columns(14).ColumnWidth = 16
     spots = np.linspace(atm * 0.93, atm * 1.07, 300)
     fig = plot.figure("Iron condor P&L", size=(820, 460), pos=(120, 180), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].set(title="P&L (TWD) at expiry and today", xlabel="Underlying price")
     fig[0].line(spots, payoff(legs, spots), label="at expiry", color=T["white"], width=2)
     now_item = fig[0].line(spots, leg_values(legs, spots), label="today", color=T["yellow"], width=2)

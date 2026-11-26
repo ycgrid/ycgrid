@@ -91,6 +91,7 @@ def run(seconds: float = 90.0, lots: int = 40):
     om.on_fill.append(on_fill)
     colors = {"TWAP": T["cyan"], "ICE": T["orange"]}
     fig = plot.figure("Execution algorithms", rows=2, link_x=True, size=(900, 620), pos=(60, 150), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].set(title="TXF and the fills", time=True, follow=seconds * 1.2)
     fig[1].set(title="Filled lots against the schedule", time=True, ylabel="lots", follow=seconds * 1.2)
     price_item = fig[0].line([], [], label="last", color=T["white"], capacity=20000)

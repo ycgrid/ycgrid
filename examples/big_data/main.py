@@ -33,6 +33,7 @@ def run(rows: int = 20_000_000):
     title(ws, f"{rows:,} ticks: one line and a Data View, read from column files by YCGrid",
           f"Files: {folder}. In the Data View: click a header to sort, type >23050 or B in the filter row, To Sheet copies the shown rows.")
     fig = plot.figure(f"{rows:,} ticks", size=(980, 520), pos=(80, 140), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].plot_files("line", x=files["Time"], y=files["Price"], label="price", color=T["yellow"])
     fig[0].set(title="Price, every tick (zoom in: the detail is all there)")
     dv = view(files, title="Ticks")  # the window adds the row count

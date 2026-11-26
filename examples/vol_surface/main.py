@@ -69,6 +69,7 @@ def run(seed: int = 5):
     del grid
     # the charts: the surface and the smiles
     fig = plot.figure("Volatility surface", rows=1, cols=2, size=(1200, 520))
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].surface(MONEYNESS, T, iv * 100, cmap="jet", label="IV")
     fig[0].set(title="Implied volatility (%)", xlabel="K/S", ylabel="T (years)", zlabel="IV %", view=(-50, 28))
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2"]

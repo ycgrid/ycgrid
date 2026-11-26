@@ -213,6 +213,14 @@ def sweep_examples(exe, out, failures):
                     over = max(0.0, min(ra[2], rb[2]) - max(ra[0], rb[0])) * max(0.0, min(ra[3], rb[3]) - max(ra[1], rb[1]))
                     if over > 0.25 * min((ra[2] - ra[0]) * (ra[3] - ra[1]), (rb[2] - rb[0]) * (rb[3] - rb[1])):
                         failures.append(f"example {name}: the figures {a['label']!r} and {b['label']!r} cover each other")
+            # a floating figure over most of the sheet hid the cells the screen shows (backtest_report's statistics and
+            # the trade list meant to be clicked): a screen docks its figures beside the sheet
+            grid = next((x["rect"] for x in ui.windows() if x["name"].startswith("Workbook")), None)
+            for f in figs if grid else []:
+                r = f["rect"]
+                over = max(0.0, min(r[2], grid[2]) - max(r[0], grid[0])) * max(0.0, min(r[3], grid[3]) - max(r[1], grid[1]))
+                if over > 0.4 * (grid[2] - grid[0]) * (grid[3] - grid[1]):
+                    failures.append(f"example {name}: the figure {f['label']!r} floats over {over / ((grid[2] - grid[0]) * (grid[3] - grid[1])):.0%} of the sheet")
         except Exception as e:  # noqa: BLE001
             failures.append(f"example {name}: {e}")
         finally:

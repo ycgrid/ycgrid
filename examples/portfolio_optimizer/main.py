@@ -91,6 +91,7 @@ def run(seed: int = 3, months: int = 120):
     fv, fr = np.array(front).T
     fr = np.maximum.accumulate(fr)  # the efficient part only rises
     fig = plot.figure("Portfolio optimizer", rows=1, cols=2, size=(1200, 520))
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].scatter(pv * 100, pr * 100, label="Random portfolios", color="#b0bec5", size=1.5)
     fig[0].scatter(np.sqrt(np.diag(cov)) * 100, mu * 100, label="Assets", color="#1565c0", size=6, marker="s")
     for a, x, y in zip(ASSETS, np.sqrt(np.diag(cov)) * 100, mu * 100):

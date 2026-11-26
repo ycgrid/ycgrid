@@ -10655,3 +10655,4 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r19,600,found,quick_plot and strategy_lab: the wheel, a drag and a double-click on the charts, the windows' layout, the heatmap's labels
 2026-11-26,screen_walk,r20,240,ok,backtest_report: a trade clicked marks its day on every chart, a click on the chart finds the nearest trade
 2026-11-26,screen_walk,r21,900,found,time_machine: the replay bar's pause, a click and a drag on the bar, |<, typing during a replay, Back to Live
+2026-11-26,screen_walk,r22,1500,found,every example screen: what its floating windows cover of the sheet (figures over the cells a screen shows)

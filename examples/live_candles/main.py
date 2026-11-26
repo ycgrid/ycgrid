@@ -34,6 +34,7 @@ def run(seconds: float = 0, bar_seconds: float = 5.0):
     header(write(ws, "A4", [["Last", "Time", "Bar open", "Bar high", "Bar low", "Bar volume", "Ticks"]]))
     ws.Range("B5").NumberFormat = "hh:mm:ss"
     fig = plot.figure("TXF live candles", rows=3, link_x=True, size=(900, 640), pos=(80, 160), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     for ax in fig._axes:
         ax.set(follow=120, time=True)
     ema_item = fig[0].line([], [], label="EMA 12", color=T["yellow"], width=2)
