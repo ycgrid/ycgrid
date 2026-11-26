@@ -565,27 +565,17 @@ void KeyTipInput() {
   }
   if (ImGui::IsKeyPressed(ImGuiKey_LeftAlt, false) || ImGui::IsKeyPressed(ImGuiKey_RightAlt, false)) alt_tap = true;
   if (other || ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)) alt_tap = alt_tap && !other && !ImGui::IsMouseClicked(0) && !ImGui::IsMouseClicked(1);
-  // Alt + a letter (no Ctrl) goes straight to that tab's KeyTips, like Excel's Alt+H
+  // Alt + a letter (no Ctrl) goes straight to that tab's KeyTips, like Excel's Alt+H, or starts Excel 2003's menu keys
+  // (Alt+E). The tabs register their KeyTips only while KeyTips show, so the letter is matched on the next frame, once
+  // they do: matched at once against none, a held Alt+W did nothing and the F, F that followed were typed into a cell
+  static bool defer = false;
   if (alt_now && !io.KeyCtrl && g_state.keytip_level == 0 && !io.WantTextInput) {
     for (int k = ImGuiKey_A; k <= ImGuiKey_Z; ++k) {
       if (k == ImGuiKey_Q || !ImGui::IsKeyPressed(static_cast<ImGuiKey>(k), false)) continue;
-      const char ch = static_cast<char>('A' + (k - ImGuiKey_A));
-      bool tab = false;
-      for (const auto& t : g_kt_prev) {
-        if (t.tab >= 0 && t.key == std::string(1, ch)) {
-          g_state.selected_tab = t.tab;
-          g_state.keytip_level = 2;
-          g_kt_typed.clear();
-          tab = true;
-        }
-      }
-      std::string cmd;
-      if (!tab && LegacyMatch(std::string(1, ch), &cmd)) {  // Alt+E held: Excel 2003's Edit menu keys follow
-        g_state.keytip_level = 1;
-        g_kt_typed = std::string(1, ch);
-        g_state.legacy_keys = g_kt_typed;
-        io.InputQueueCharacters.resize(0);
-      }
+      g_state.keytip_level = 1;
+      g_kt_typed = std::string(1, static_cast<char>('A' + (k - ImGuiKey_A)));
+      io.InputQueueCharacters.resize(0);
+      defer = true;
     }
   }
   if (!alt_now && alt_tap && (ImGui::IsKeyReleased(ImGuiKey_LeftAlt) || ImGui::IsKeyReleased(ImGuiKey_RightAlt))) {
@@ -612,6 +602,11 @@ void KeyTipInput() {
     else g_state.keytip_level = g_state.keytip_level == 2 ? 1 : 0;
     g_kt_typed.clear();
     g_state.legacy_keys.clear();
+    io.InputQueueCharacters.resize(0);
+    return;
+  }
+  if (defer) {  // a held Alt's letter: the tabs' KeyTips are registered by the time it is matched
+    defer = false;
     io.InputQueueCharacters.resize(0);
     return;
   }

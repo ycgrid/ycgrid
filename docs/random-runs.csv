@@ -10647,3 +10647,5 @@ date,tool,seed,seconds,result,note
 2026-11-26,screen_walk,r11,600,found,demo: the panel's pause / resume, a sort of the live table
 2026-11-26,screen_walk,r12,420,ok,a sort of every live example's bound table (quote_board, tick_replay, options_desk, execution_algos): keys found again, rows stay whole
 2026-11-26,screen_walk,r13,420,found,portfolio_optimizer: weights typed by hand, Solver run again from its dialog (Solve, Keep), percent entries
+2026-11-26,screen_walk,r14,300,ok,entries committed at once as an IME does vs one character at a time: dates, times, currency, fractions, Text cells, percentages, AutoComplete in English and Chinese
+2026-11-26,screen_walk,r15,600,found,a workbook built as a person does (typing, KeyTips, filter, freeze, validation, rules, names, note, merge, chart, outline, protection, zoom), saved with F12 and reopened: 25 properties compared

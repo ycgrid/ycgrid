@@ -205,6 +205,18 @@ class KeyTipsTest(HabitsBase):
         self.assertFalse(ui.state()["ribbon"].get("legacy_keys"))
         self.assertEqual(ui.state()["ribbon"]["keytips"], 0)
 
+    def test_alt_held_with_a_tab_letter(self):
+        """Alt held down with W (not tapped) goes to the View tab's KeyTips, as Excel's: a script's chord set only the
+        Alt flag, never the Alt key a keyboard sends, and F, F were typed into the cell."""
+        from yc import excel
+
+        self.keys("g:B2|w:2|m:2,2|w:2|k:a-W|w:4|t:F|w:4|t:F|w:6")
+        try:
+            self.assertTrue(excel.ActiveWindow.FreezePanes)
+            self.assertNotEqual(self.ws.Range("B2").Value, "FF")
+        finally:
+            excel.ActiveWindow.FreezePanes = False
+
     def test_alt_in_a_dialog_is_not_the_ribbons(self):
         """Alt in a modal dialog lit the ribbon's KeyTips behind it, and the letters typed next went to them: Alt, H
         then V in Paste Special pasted from Home's Paste menu under the dialog."""

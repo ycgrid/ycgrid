@@ -472,6 +472,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   "visible" variant reads false there, since the ribbon draws before the dialog), or Alt, H in Paste Special ran Home's
   commands under it. Excel 2003's menu keys (Alt, E, S, V) are `LegacyKeys` in ribbon.cpp, taken when no tab has the
   letter; a test sends a dialog's letter as a key (`k:V`), since its options read keys, not typed characters.
+- KeyTips register while they show: a held Alt + a letter (Alt+W pressed together) turns them on and is matched the
+  next frame, once the tabs' are there; matched at once against none, it did nothing. ui.input's chords hold the
+  modifier keys too (`ImGuiKey_LeftAlt`), as Windows sends them: with only the flag, no test pressed Alt as a person.
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in
   the same frame, so the ribbon never collapsed (since the first release). Before adding a key, grep for its chord;
   test the key a person presses and that the state changed (`test_parity_habits.ShortcutsTest`). `check_lessons.py`'s
