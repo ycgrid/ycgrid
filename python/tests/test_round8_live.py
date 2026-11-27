@@ -206,6 +206,20 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(excel.Application.ActiveCell.Address, "$B$3")
         self.assertEqual(excel.Application.ActiveWindow.ScrollRow, 1)
 
+    def test_shift_f8_adds_areas_from_the_keyboard(self):
+        # Shift+F8 (Add to Selection) changed nothing for the arrows: the next arrow dropped B2:B4. Excel 16, measured by
+        # keys posted to its sheet window: the arrows move an area of its own beside the areas from before, Shift+arrows
+        # extend it, and that ends the mode
+        sel = lambda: yc.excel.Application.Selection.Address
+        self.keys("g:B2:B4|w:2|k:s-F8|w:2|k:RightArrow|w:2|k:RightArrow|w:3")
+        self.assertEqual(sel(), "$B$2:$B$4,$D$2")
+        self.keys("k:s-DownArrow|w:3")
+        self.assertEqual(sel(), "$B$2:$B$4,$D$2:$D$3")
+        self.keys("k:RightArrow|w:3")
+        self.assertEqual(sel(), "$E$2")
+        self.keys("g:B2:B4|w:2|k:s-F8|w:2|k:s-F8|w:2|k:RightArrow|w:3")  # pressed twice: off again
+        self.assertEqual(sel(), "$C$2")
+
     def test_enter_and_home_with_ctrl_or_alt_leave_the_active_cell(self):
         # outside an entry Alt+Enter moved down as Enter and Alt+Home went to column A as Home; Excel 16 does nothing
         # for either, nor for Ctrl+Enter and Ctrl+Shift+Enter (measured by keys posted to its sheet window)

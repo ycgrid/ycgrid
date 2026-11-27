@@ -183,6 +183,7 @@ struct GridView {  // = Excel's Window (one per sheet)
   // Excel's keyboard modes, shown on the status bar: F8 Extend Selection (arrows and clicks extend), Shift+F8 Add to
   // Selection (a click adds an area), End (the next arrow jumps like Ctrl+arrow); Escape ends them
   bool extend_mode = false, add_mode = false, end_mode = false;
+  size_t add_keep = 0;  // Shift+F8: the areas selected before it, kept while the arrows move the cell added to them
   // the key that ended an entry in Enter mode (GridActions::nav_key), handled as a key on the sheet once the editor is
   // gone: Ctrl+Home, Shift+Right, End...
   struct NavReplay {

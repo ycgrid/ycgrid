@@ -12429,3 +12429,17 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400279,97,ok,
 2026-11-28,chaos,7859,360,ok,
 2026-11-28,chaos,7860,361,ok,
+2026-11-28,calc_fuzz,4617,29,ok,
+2026-11-28,formula_fuzz,5598,1,ok,
+2026-11-28,doc_fuzz,2400280,96,ok,
+2026-11-28,gaps_fuzz,700278,128,ok,
+2026-11-28,basics,4905,177,ok,
+2026-11-28,doc_fuzz,2400281,121,ok,
+2026-11-28,calc_fuzz,4618,30,ok,
+2026-11-28,formula_fuzz,5599,0,ok,
+2026-11-28,gaps_fuzz,700279,94,ok,
+2026-11-28,basics,4906,166,ok,
+
+2026-11-28,screen_walk,r122,300,clean,"Goal Seek from Alt, A, W, G with Tab between its boxes and Enter on the status"
+2026-11-28,screen_walk,r123,300,clean,"A whole-number validation typed outside its range, inside it, and the cell after"
+2026-11-28,screen_walk,r124,300,found,"Shift+F8 (Add to Selection) with the arrows and Shift+arrows, measured in Excel by keys posted to its sheet window"

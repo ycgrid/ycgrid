@@ -3402,7 +3402,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       nr = std::clamp<int64_t>(nr, 0, row_limit - 1);
       nc = std::clamp<int64_t>(nc, 0, col_limit - 1);
       if (extend) {
-        // Shift: extend the current area (the active cell stays, the "other corner" moves)
+        // Shift: extend the current area (the active cell stays, the "other corner" moves); in Shift+F8's Add to
+        // Selection that is the area added, and the mode ends with it (Excel 16, measured by keys: Shift+F8, Right,
+        // Right, Shift+Down over B2:B4 gives B2:B4,D2:D3, and the next Right selects E2 alone)
+        if (view.add_mode) view.add_mode = false;
         Rect& a = selst.areas.back();
         static uint32_t far_r = 0, far_c = 0;
         (void)far_r;
@@ -3413,7 +3416,11 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         selst.mode = SelectMode::Cells;
         EnsureVisible(sheet, view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc));
       } else {
+        // Shift+F8's Add to Selection: the areas from before stay, the active cell is an area of its own (B2:B4,D2)
+        std::vector<Rect> keep;
+        if (view.add_mode) keep.assign(selst.areas.begin(), selst.areas.begin() + std::min(view.add_keep, selst.areas.size()));
         SelectCell(view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc), false);
+        if (!keep.empty()) selst.areas.insert(selst.areas.begin(), keep.begin(), keep.end());
         EnsureVisible(sheet, view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc));
       }
       act.selection_changed = true;
@@ -3433,6 +3440,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false) && !ctrl && !io.KeyAlt) {
       if (io.KeyShift) {
         view.add_mode = !view.add_mode;
+        view.add_keep = selst.areas.size();
         view.extend_mode = false;
       } else {
         view.extend_mode = !view.extend_mode;

@@ -198,6 +198,8 @@ STATES = {
     "pointing": (None, "g:F3|t:=SUM(|k:UpArrow|k:s-UpArrow"),
     "formula_bar": (None, _formula_bar_keys),
     "merged": (_st_merged, "g:B9"),
+    # Shift+F8's Add to Selection, still on: B2:B4 and D2 by the keyboard (as Excel 16 makes them, measured)
+    "add_mode": (None, "g:B2:B4|k:s-F8|k:RightArrow|k:RightArrow"),
     "filtered": (_st_filter, "g:B3"),
     "hidden_row": (_st_hidden, "g:B3"),
     "frozen": (None, "g:B2|x:FreezePanes|g:C4"),
