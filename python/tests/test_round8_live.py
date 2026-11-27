@@ -345,6 +345,17 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_outline_buttons_are_listed_and_clicked(self):
+        # the outline's level buttons and +/- were drawn only: ui.items didn't list them, so no test clicked them
+        self.ws.Range("A1:A6").Value = [["Q1"], ["Jan"], ["Feb"], ["Mar"], ["Q2"], ["Apr"]]
+        self.ws.Range("A2:A4").Rows.Group()
+        self.keys("g:A1|w:4")
+        self.click(self.item("##outline_rows_1")["rect"])
+        self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 5)], [True, True, True])
+        self.click(self.item("##outline_row_5")["rect"])
+        self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 5)], [False, False, False])
+        self.ws.Range("A2:A4").Rows.Ungroup()
+
     def test_task_panes_sit_beside_the_sheets(self):
         # the Clipboard pane floated over columns A:D and the cells it was for; Excel's task panes sit beside the grid.
         # Its entries were labeled with the copied text's line break (alpha\r), so nothing found them by their text

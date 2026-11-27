@@ -2379,8 +2379,11 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     const bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
                        !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
     ImGui::PushFont(F().grid, std::max(9.0f, (F().grid_size - 3.0f)));
-    auto button = [&](ImVec2 center, const char* label) {
+    // ui.items lists each by an id a test finds it by, as a person finds it by its place: ##outline_rows_2 (the rows'
+    // level 2 button), ##outline_row_5 (the +/- on row 5); drawn only, they weren't listed
+    auto button = [&](ImVec2 center, const char* label, const std::string& id) {
       const ImRect b(ImVec2(std::floor(center.x - bs * 0.5f), std::floor(center.y - bs * 0.5f)), ImVec2(std::floor(center.x + bs * 0.5f), std::floor(center.y + bs * 0.5f)));
+      ui::NoteUiItem(id.c_str(), b);
       const bool hot = b.Contains(io.MousePos);
       dl->AddRectFilled(b.Min, b.Max, hot ? t.btn_hover : btn_bg);
       dl->AddRect(b.Min, b.Max, btn_border);
@@ -2388,8 +2391,9 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddText(ImVec2(IM_ROUND(b.GetCenter().x - ts.x * 0.5f), IM_ROUND(b.GetCenter().y - ts.y * 0.5f)), t.header_text, label);
       return hot && click;
     };
-    auto sign = [&](ImVec2 center, bool plus) {
+    auto sign = [&](ImVec2 center, bool plus, const std::string& id) {
       const ImRect b(ImVec2(std::floor(center.x - bs * 0.5f), std::floor(center.y - bs * 0.5f)), ImVec2(std::floor(center.x + bs * 0.5f), std::floor(center.y + bs * 0.5f)));
+      ui::NoteUiItem(id.c_str(), b);
       const bool hot = b.Contains(io.MousePos);
       dl->AddRectFilled(b.Min, b.Max, hot ? t.btn_hover : btn_bg);
       dl->AddRect(b.Min, b.Max, btn_border);
@@ -2404,7 +2408,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddRectFilled(g.Min, g.Max, t.header_bg);
       for (int k = 1; k <= row_levels + 1; ++k) {
         std::snprintf(lbl, sizeof(lbl), "%d", k);
-        if (button(ImVec2(outer.Min.x + lvl_w * (static_cast<float>(k) - 0.5f), rect.Min.y + header_h * 0.5f), lbl)) {
+        if (button(ImVec2(outer.Min.x + lvl_w * (static_cast<float>(k) - 0.5f), rect.Min.y + header_h * 0.5f), lbl, std::string("##outline_rows_") + lbl)) {
           act.outline_level = k;
           act.outline_level_rows = true;
         }
@@ -2422,7 +2426,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             if (lv < k && (sheet.outline_below ? prev >= k : next >= k)) {
               const auto gi = sheet.outline_below ? l.index - 1 : l.index + 1;
               const bool collapsed = d.IsHidden(gi);
-              if (sign(ImVec2(x, l.pos + l.size * 0.5f), collapsed)) {
+              if (sign(ImVec2(x, l.pos + l.size * 0.5f), collapsed, "##outline_row_" + std::to_string(l.index + 1))) {
                 act.outline_toggle = true;
                 act.outline_rows = true;
                 act.outline_index = static_cast<uint32_t>(gi);
@@ -2440,7 +2444,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddRectFilled(g.Min, g.Max, t.header_bg);
       for (int k = 1; k <= col_levels + 1; ++k) {
         std::snprintf(lbl, sizeof(lbl), "%d", k);
-        if (button(ImVec2(rect.Min.x + row_hdr_w * 0.5f, outer.Min.y + lvl_w * (static_cast<float>(k) - 0.5f)), lbl)) {
+        if (button(ImVec2(rect.Min.x + row_hdr_w * 0.5f, outer.Min.y + lvl_w * (static_cast<float>(k) - 0.5f)), lbl, std::string("##outline_cols_") + lbl)) {
           act.outline_level = k;
           act.outline_level_rows = false;
         }
@@ -2457,7 +2461,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             if (lv < k && (sheet.outline_right ? prev >= k : next >= k)) {
               const auto gi = sheet.outline_right ? l.index - 1 : l.index + 1;
               const bool collapsed = d.IsHidden(gi);
-              if (sign(ImVec2(l.pos + l.size * 0.5f, y), collapsed)) {
+              if (sign(ImVec2(l.pos + l.size * 0.5f, y), collapsed, "##outline_col_" + core::ColumnName(static_cast<uint32_t>(l.index)))) {
                 act.outline_toggle = true;
                 act.outline_rows = false;
                 act.outline_index = static_cast<uint32_t>(gi);
