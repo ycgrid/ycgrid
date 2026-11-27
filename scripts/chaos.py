@@ -65,6 +65,7 @@ class Chaos:
         self.logf = open(os.path.join(self.out, "actions.log"), "w", encoding="utf-8")
         self.problems: list[tuple[str, str]] = []
         self.seen_err = 0
+        self.clipped_seen = set()  # dialogs reported as cutting themselves off (once each)
         self.figs: list = []
         self.yc = yc
         # a debug build calculates and draws up to a hundred times slower than the release one (160,000 volatile formulas
@@ -215,6 +216,12 @@ class Chaos:
             return
         if time.time() - t0 > 2.0 * self.slow_scale:
             self.slow("SLOW", f"ui.state took {time.time() - t0:.1f}s after {tag}", mark)
+        # a dialog that hid part of itself under its edge (it scrolled) or cut its contents on the right, once each
+        # (the Name Manager's question, Insert Function's description and Function Arguments' help hid OK and Cancel)
+        for name in st.get("clipped_windows") or []:
+            if name not in self.clipped_seen:
+                self.clipped_seen.add(name)
+                self.problem("CLIPPED_DIALOG", f"{name} cut off part of itself after {tag}")
         for _ in range(3):  # a dialog, a menu or Backstage left open: the user presses Escape
             rb = st.get("ribbon") or {}
             if not (st.get("dialog") or rb.get("popup_open") or rb.get("backstage")):
