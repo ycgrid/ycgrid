@@ -1702,6 +1702,8 @@ void DrawFindReplace(AppState& s) {
     return;
   }
   if (g_find_focus) ImGui::SetWindowFocus();
+  // the dialog has the keyboard: Alt + a letter is its own (Replace All...), not the ribbon's KeyTips behind it
+  if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) ui::ribbon::St().dialog_keys_frame = ImGui::GetFrameCount();
   bool close = !open || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape));
   bool replace = g_find_open == 2;
   if (BeginDlgTabBar("##find_tabs")) {
@@ -1837,9 +1839,11 @@ void DrawFindReplace(AppState& s) {
     combo(TR("Within:"), "##find_within", &within, {TR("Sheet"), TR("Workbook")});
     ImGui::SameLine(label_w + cw + S(30));
     ImGui::Checkbox(TR("Match case"), &g_match_case);
+    if (DlgKey(ImGuiKey_C)) g_match_case = !g_match_case;  // Excel's letters: Match (c)ase, entire cell c(o)ntents
     combo(TR("Search:"), "##find_search", &search, {TR("By Rows"), TR("By Columns")});
     ImGui::SameLine(label_w + cw + S(30));
     ImGui::Checkbox(TR("Match entire cell contents"), &g_whole);
+    if (DlgKey(ImGuiKey_O)) g_whole = !g_whole;
     if (replace) combo(TR("Look in:"), "##find_look", &g_look_in, {TR("Formulas")});
     else combo(TR("Look in:"), "##find_look", &g_look_in, {TR("Formulas"), TR("Values"), TR("Notes")});
     g_scope_wb = within == 1;
@@ -1849,7 +1853,7 @@ void DrawFindReplace(AppState& s) {
   {
     const char* opt = g_find_options ? TR("Options <<") : TR("Options >>");
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(opt).x - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().WindowPadding.x);
-    if (ImGui::Button(opt)) g_find_options = !g_find_options;
+    if (ImGui::Button(opt) || DlgKey(ImGuiKey_T)) g_find_options = !g_find_options;  // Op(t)ions
   }
   ImGui::Separator();
   const model::Sheet* sh = s.FocusSheet();
@@ -1959,7 +1963,8 @@ void DrawFindReplace(AppState& s) {
   auto button = [](const char* l) { return ImGui::Button(l, ImVec2(std::max(S(84), ImGui::CalcTextSize(l).x + S(16)), 0)); };
   if (replace) {
     // read-only mode: the status bar says why, never "We couldn't find anything to replace" (the engine refused)
-    if (button(TR("Replace All")) && s.engine && can_find && !RefuseReadOnlyUi(s)) {
+    // Excel's letters: Replace (A)ll, (R)eplace, F(i)nd All, (F)ind Next (Alt with them from a text box)
+    if ((button(TR("Replace All")) || DlgKey(ImGuiKey_A)) && s.engine && can_find && !RefuseReadOnlyUi(s)) {
       const std::string what = g_find, with = g_repl;
       const bool mc = g_match_case, wh = g_whole;
       std::vector<std::pair<uint32_t, Rect>> targets;
@@ -1975,7 +1980,7 @@ void DrawFindReplace(AppState& s) {
       else s.ShowMessage("YCGrid", TR("All done. We made ") + std::to_string(n) + TR(" replacements."));
     }
     ImGui::SameLine();
-    if (button(TR("Replace")) && s.engine && can_find && sh && !RefuseReadOnlyUi(s)) {
+    if ((button(TR("Replace")) || DlgKey(ImGuiKey_R)) && s.engine && can_find && sh && !RefuseReadOnlyUi(s)) {
       // Excel: the active cell is replaced when it matches, then the next match is selected
       const auto& sel = s.FocusView().sel;
       const uint32_t sheet = s.focus_sheet, r = sel.act_r, c = sel.act_c;
@@ -1990,14 +1995,14 @@ void DrawFindReplace(AppState& s) {
     }
     ImGui::SameLine();
   }
-  if (button(TR("Find All")) && s.engine && can_find) {
+  if ((button(TR("Find All")) || DlgKey(ImGuiKey_I)) && s.engine && can_find) {
     g_hits = collect(g_find);
     g_hit_sel = -1;
     s.SetStatus(g_hits.empty() ? std::string(TR("We couldn't find what you were looking for")) : TR("Find All: found ") + std::to_string(g_hits.size()) + TR(" cells"));
     if (g_hits.empty()) not_found();
   }
   ImGui::SameLine();
-  if (button(TR("Find Next")) || enter) find_next(back);
+  if (button(TR("Find Next")) || enter || DlgKey(ImGuiKey_F)) find_next(back);
   ImGui::SameLine();
   if (button(TR("Close"))) close = true;
   if (!g_hits.empty()) {

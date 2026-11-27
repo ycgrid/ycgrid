@@ -475,6 +475,18 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([self.ws.Range(f"H{r}").Value for r in range(1, 6)], ["Semi", "Semi", "Semi", "Fin", "Fin"])
         self.assertEqual(self.ws.Range("I2").Formula, "2", "the cells with data are left alone")
 
+    def test_find_and_replace_takes_its_alt_letters(self):
+        # Ctrl+H, what, Tab, with, Alt+A: Alt+A went to the ribbon's KeyTips (the Data tab) behind the dialog
+        self.ws.Range("A1:A3").Value = [["AAPL"], ["MSFT"], ["AAPL"]]
+        self.keys("g:A1|w:2|k:c-H|w:6|k:c-A|t:AAPL|k:Tab|w:2|k:c-A|t:Apple|w:2|k:a-A|w:8")
+        try:
+            self.assertEqual([self.ws.Range(f"A{r}").Value for r in (1, 2, 3)], ["Apple", "MSFT", "Apple"])
+            self.assertEqual(yc.ui.state()["ribbon"]["keytips"], 0, "no KeyTips behind the dialog")
+            self.keys("k:s-Tab|w:2|k:c-A|t:MSFT|w:2|k:a-I|w:6")
+            self.assertTrue([i for i in yc.ui.items("Find and Replace") if i["label"] == self.ws.Name + "!$A$2"], "Alt+I: Find All")
+        finally:
+            self.keys("k:Escape|w:3|k:Escape|w:3")
+
     def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
         # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control
         def click(item):

@@ -2093,7 +2093,9 @@ void DrawTabRow(const ImRect& r) {
   g_kt.clear();
   // a modal dialog owns the keyboard: Alt + a letter there is the dialog's (Excel's underlined keys), never the
   // ribbon's KeyTips behind it, which took the letters typed next and ran Home's commands under the dialog
-  if (ImGui::GetTopMostPopupModal()) {  // (the ribbon draws before the dialog: "visible" reads false here)
+  // (the ribbon draws before the dialog: "visible" reads false here; a dialog that isn't modal says it had the keyboard
+  // last frame)
+  if (ImGui::GetTopMostPopupModal() || ImGui::GetFrameCount() - g_state.dialog_keys_frame <= 1) {
     g_state.keytip_level = 0;
     g_state.legacy_keys.clear();
     g_kt_typed.clear();
