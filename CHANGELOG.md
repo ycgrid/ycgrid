@@ -53,6 +53,15 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - In the Traditional Chinese UI, sheets, tables, their headers and PivotTables added later are named in Chinese like
   the first sheet (Sheet2, Table1 and Column1 were English).
 - A double-click on a chart's column formats its series (Format Data Series), as Excel's, not the single point.
+- Figures docked one after another no longer split a pane down to a few pixels (a splitter dragged there stopped a
+  debug build): a pane too small to split takes the figure as a tab.
+- The Clipboard, Format and Selection panes open beside the sheets instead of floating over their cells.
+- The Sort dialog selects the cells it sorts, without the header row while My data has headers is on.
+- A formula typed with a full-width = (a Chinese IME in full-width mode) is entered as a formula, as in Excel.
+- Typing beside a table grows it only over a line that holds nothing else, as Excel does: a total under the table
+  was taken in and became a circular reference. A refused formula no longer grows the table.
+- A click on a status bar statistic (Sum, Average...) copies its value, as in Excel 365.
+- A hidden YCGrid whose TEMP folder is missing no longer ends while starting.
 - An array formula entered with Ctrl+Shift+Enter that reads its own cells no longer leaves what reads it uncalculated
   (`{=A1:B3*2}` beside `=VLOOKUP(A1,A1:C9,2,FALSE)` kept 0 where Excel shows #N/A).
 
