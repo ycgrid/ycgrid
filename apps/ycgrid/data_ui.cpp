@@ -964,6 +964,8 @@ void DrawDataDialogs(AppState& s) {
       ImGui::TextWrapped("%s", TR("If this is correct, choose Next, or choose the data type that best describes your data."));
       ImGui::SeparatorText(TR("Original data type"));
       ImGui::TextUnformatted(TR("Choose the file type that best describes your data:"));
+      if (DlgKey(ImGuiKey_D)) d.tc_kind = 0;  // Excel's letters: (D)elimited, Fixed (W)idth
+      if (DlgKey(ImGuiKey_W)) d.tc_kind = 1;
       ImGui::RadioButton(TR("Delimited"), &d.tc_kind, 0);
       ImGui::SameLine(S(150));
       ImGui::TextDisabled("%s", TR("- Characters such as commas or tabs separate each field."));
@@ -982,6 +984,13 @@ void DrawDataDialogs(AppState& s) {
     } else if (d.tc_step == 1 && d.tc_kind == 0) {
       ImGui::TextWrapped("%s", TR("This screen lets you set the delimiters your data contains. You can see how your text is affected in the preview below."));
       ImGui::SeparatorText(TR("Delimiters"));
+      // Excel's letters: (T)ab, Se(m)icolon, (C)omma, (S)pace, (O)ther, T(r)eat consecutive delimiters as one
+      if (DlgKey(ImGuiKey_T)) d.tc_tab = !d.tc_tab;
+      if (DlgKey(ImGuiKey_M)) d.tc_semi = !d.tc_semi;
+      if (DlgKey(ImGuiKey_C)) d.tc_comma = !d.tc_comma;
+      if (DlgKey(ImGuiKey_S)) d.tc_space = !d.tc_space;
+      if (DlgKey(ImGuiKey_O)) d.tc_other = !d.tc_other;
+      if (DlgKey(ImGuiKey_R)) d.tc_consec = !d.tc_consec;
       ImGui::Checkbox(TR("Tab"), &d.tc_tab);
       ImGui::Checkbox(TR("Semicolon"), &d.tc_semi);
       ImGui::Checkbox(TR("Comma"), &d.tc_comma);

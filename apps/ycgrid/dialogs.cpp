@@ -2316,6 +2316,12 @@ void DrawInsDel(AppState& s, bool insert) {
     g_ins_choice = (a.r1 - a.r0) > (a.c1 - a.c0) ? 4 : 3;
   }
   if (paste_in) ImGui::TextUnformatted(TR("Insert Paste"));
+  // Excel's letters: Shift cells r(I)ght / (L)eft, (D)own / (U)p, Entire (R)ow, Entire (C)olumn (Ctrl+-, R, Enter
+  // deletes the row, as people type it)
+  if (DlgKey(insert ? ImGuiKey_I : ImGuiKey_L)) g_ins_choice = 4;
+  if (DlgKey(insert ? ImGuiKey_D : ImGuiKey_U)) g_ins_choice = 3;
+  if (!paste_in && DlgKey(ImGuiKey_R)) g_ins_choice = 1;
+  if (!paste_in && DlgKey(ImGuiKey_C)) g_ins_choice = 2;
   ImGui::RadioButton(insert ? TR("Shift cells right") : TR("Shift cells left"), &g_ins_choice, 4);
   ImGui::RadioButton(insert ? TR("Shift cells down") : TR("Shift cells up"), &g_ins_choice, 3);
   if (paste_in && g_ins_choice != 3 && g_ins_choice != 4) g_ins_choice = 3;
@@ -3430,6 +3436,13 @@ void PlaceNewWindow(WindowPlace where) {
     case WindowPlace::Right: pos = ImVec2(vp->Pos.x + vp->Size.x - S(24), vp->Pos.y + vp->Size.y * 0.22f), pivot = ImVec2(1.0f, 0.0f); break;
   }
   ImGui::SetNextWindowPos(pos, ImGuiCond_FirstUseEver, pivot);
+}
+
+bool DlgKey(ImGuiKey key) {
+  const ImGuiIO& io = ImGui::GetIO();
+  if (io.KeyCtrl || !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) return false;
+  if (io.WantTextInput && !io.KeyAlt) return false;  // a text box takes the letter itself; Alt+letter still chooses
+  return ImGui::IsKeyPressed(key, false);
 }
 
 bool CheckboxMixed(const char* label, bool* all, bool mixed) {

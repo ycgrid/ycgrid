@@ -451,6 +451,17 @@ class DialogsRound8Test(unittest.TestCase):
             self.keys("k:Escape|w:2")
             self.ws.Unprotect()
 
+    def test_insert_delete_and_text_to_columns_take_excels_letters(self):
+        # Ctrl+-, R, Enter (delete the row) did what Enter alone does: the dialogs took none of their letters
+        self.ws.Range("A1:B4").Value = [[1, 10], [2, 20], [3, 30], [4, 40]]
+        self.keys("g:A2|w:2|k:c-Minus|w:6|k:R|w:3|k:Enter|w:6")
+        self.assertEqual([self.ws.Range(a).Value for a in ("A2", "B2")], [3, 30], "Entire row")
+        self.keys("g:B1|w:2|k:c-s-Equal|w:6|k:C|w:3|k:Enter|w:6")
+        self.assertEqual([self.ws.Range(a).Value for a in ("B1", "C1")], [None, 10], "Entire column")
+        self.ws.Range("E1").Value = "2330,TSMC"
+        self.keys("g:E1|w:2|m:2,2|k:LeftAlt|w:3|t:A|w:3|t:E|w:8|k:Enter|w:6|k:a-C|w:3|k:Enter|w:6|k:Enter|w:8")
+        self.assertEqual([self.ws.Range(a).Value for a in ("E1", "F1")], [2330, "TSMC"], "Alt+C ticks Comma")
+
     def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
         # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control
         def click(item):
