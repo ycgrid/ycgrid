@@ -3091,15 +3091,17 @@ void DrawFunctionArgs(AppState& s) {
     StartEdit(s, true, f);
     CommitEdit(s, false, 0);
   } else if (ok && d.span_begin >= 0 && s.edit.active && d.span_end <= static_cast<int>(s.edit.text.size())) {
-    // the call around the caret: it is written back over itself
+    // the call around the caret: it is written back over itself, and OK enters the formula, as Excel's does (Ctrl+A
+    // after =SUM, then OK: the cell has =SUM(A1:A2); left in the editor, the entry waited for an Enter nobody
+    // expected to press). An outer call still missing arguments gets Enter's message, as in Excel
     std::string t = s.edit.text;
     t.replace(static_cast<size_t>(d.span_begin), static_cast<size_t>(d.span_end - d.span_begin), call);
     render::SetEditText(s.edit, t, d.span_begin + static_cast<int>(call.size()));
     s.edit.ref_begin = s.edit.ref_end = -1;
-    s.edit.focus_request = true;
+    CommitEdit(s, false, 0);
   } else if (ok) {
     if (s.edit.active) {
-      // typing a formula: the call goes in at the caret
+      // typing a formula: the call goes in at the caret, and OK enters the formula (as above)
       std::string t = s.edit.text;
       int caret = std::clamp(s.edit.caret, 0, static_cast<int>(t.size()));
       if (t.empty() || t[0] != '=') {
@@ -3109,7 +3111,7 @@ void DrawFunctionArgs(AppState& s) {
       }
       t.insert(static_cast<size_t>(caret), call);
       render::SetEditText(s.edit, t, caret + static_cast<int>(call.size()));
-      s.edit.focus_request = true;
+      CommitEdit(s, false, 0);
     } else {
       // the cell gets the formula, as Excel's OK does
       StartEdit(s, true, "=" + call);

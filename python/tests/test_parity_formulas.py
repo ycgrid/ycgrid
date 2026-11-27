@@ -324,6 +324,8 @@ class FormulaParityTest(unittest.TestCase):
         self.keys("g:C1|w:2|t:=ROUND(SUM(A1:A2|w:2|k:s-F3|w:8")
         self.assertTrue(self.state().get("dialog"))
         self.assertTrue(any(t.startswith("Number1:") for t in self.labels()))   # SUM's first argument
+        # OK enters the formula as Excel's does; ROUND still short of an argument gets Enter's message and the entry
+        # stays, its caret at the end, so the typing goes on
         self.keys("k:c-A|t:A1:A3|w:2|k:Enter|w:4|t:,0)|k:Enter|w:4")
         self.assertEqual(ws.Range("C1").Formula, "=ROUND(SUM(A1:A3),0)")
         ws.Range("C2").Formula = "=SUM(A1:A2)*2"
@@ -338,6 +340,13 @@ class FormulaParityTest(unittest.TestCase):
         self.keys("k:Escape|w:3|g:C4|w:2|t:=ROUND(|w:2|k:c-A|w:8")
         self.assertTrue(self.state().get("dialog"))
         self.keys("k:Escape|w:3|k:Escape|w:3")
+        # OK enters the formula, as Excel's Function Arguments does: the call went back into the editor and the
+        # entry waited for another Enter
+        self.keys("g:C5|w:2|t:=SUM|w:2|k:c-A|w:8|t:A1:A3|w:2|k:Enter|w:6")
+        self.assertFalse(self.state().get("dialog"))
+        self.assertIsNone(self.state().get("edit"), "the entry is over")
+        self.assertEqual(ws.Range("C5").Formula, "=SUM(A1:A3)")
+        self.assertEqual(ws.Range("C5").Value, 6)
 
     def test_function_library_menus_open_function_arguments(self):
         # M7: the Function Library had no category menus
