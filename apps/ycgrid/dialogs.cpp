@@ -3354,6 +3354,8 @@ bool BeginModal(const char* title, bool* open, int flags) {
     opened_width.erase(id);
     return false;
   }
+  // a title that changes (Step 2 of 3) keeps its first one as ImGui's name: ui.items / ui.windows report this one
+  ui::NoteWindowTitle(title);
   if (auto_size) {
     // the width it opened at (the first frames lay it out: the widest of them)
     float& w = opened_width[id];

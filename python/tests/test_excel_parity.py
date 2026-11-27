@@ -470,6 +470,8 @@ class ExcelParityTest(unittest.TestCase):
         self.click("Next >")  # step 2 of Excel's wizard: the break lines
         ruler = [i for i in ui.items("") if i["id"] == "##ruler"]
         self.assertTrue(ruler, "the ruler is shown")
+        # the recorder names the dialog by the title it shows now, not the first one (it said Step 1 of 3)
+        self.assertIn("Convert Text to Columns Wizard - Step 2 of 3", {i.get("window") for i in ui.items("")})
         ui.screenshot(os.path.join(os.environ.get("TEMP", "."), "yc_ttc.png"), max_width=1600)
         self.click("Finish")
         self.assertEqual([self.ws.Range(c).Value for c in ("A1", "B1")], ["AA", "BB12345"], "split at the suggested break")
