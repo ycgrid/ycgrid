@@ -361,8 +361,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - ImGui's implicit Debug window gets its title bar at every frame and is hidden at the frame's end when nothing was
   drawn into it: the recorder lists its items only while it is written to (`WriteAccessed`), or tests see a
   Debug window nobody can.
-- ImGui combo boxes report no label: note each with `ui::NoteUiItem(id, rect)` before `BeginCombo`, so tests find it by
-  its id as a person finds it by its place.
+- ImGui combo boxes report no label: every one goes through `ui::Combo` / `ui::BeginCombo` (yc_ui_items.h), which
+  name it, so tests find it by its id as a person finds it by its place (`check_lessons.py`'s `combo-name`: noted one
+  by one, most were nameless, Data Validation's Allow among them). A range box is also listed as `##rb.<key>`.
 - `ui.items` also lists each id-only button by its bare id (every sheet tab's `##sheettab`, at the tab's place):
   find a control by its whole id (`"Data##sheettab"`), never by a suffix alone, or a test picks the nameless twin
   whenever the map's order puts it first.
