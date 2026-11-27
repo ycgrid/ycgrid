@@ -1745,3 +1745,23 @@ TEST_CASE("doc_fuzz --gaps seed 26: an array reading its own cells and another c
   t.Set("A2", "=SUM(C2:C3)");  // what reads it waits too
   CHECK(t.N("A2") == 0);
 }
+
+TEST_CASE("doc_fuzz --xlsx seed 24000181430: an array value that reads a formula entered later is calculated") {
+  // C2:D2 {=A1:B3*2} is A1*2, B1*2; B1's VLOOKUP reads A1:C9, which holds C2, but C2's value doesn't read B1, so no
+  // value waits for itself: D2 follows B1 (#N/A). After the step's Redo it kept 0 until a full calculation (Undo of
+  // the next step) gave #N/A, so Undo didn't give back what was there
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  std::string err;
+  t.d.ClearUndo();
+  CheckStep(t, [&] { REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("B3:B5"), "A1:B3*2", &err)); });
+  CheckStep(t, [&] { REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("C2:D2"), "A1:B3*2", &err)); });
+  CheckStep(t, [&] { REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("E6:F8"), "A1:B3*2", &err)); });
+  CheckStep(t, [&] { t.d.SetInput(sh, 0, 1, "=VLOOKUP(A1,A1:C9,2,FALSE)"); });
+  CHECK(t.T("B1") == "#N/A");
+  CHECK(t.N("C2") == 0);
+  CHECK(t.T("D2") == "#N/A");
+  CHECK(t.T("F6") == "#N/A");
+  CheckStep(t, [&] { t.d.ModifyStyle(sh, yctest::Doc::Range("A1"), [](model::Style& x) { x.bold = true; }); });
+}
+

@@ -2236,6 +2236,22 @@ void Document::EvaluatePendingSerial(int64_t only_sheet) {
           // it read its own cell: a circular reference, as the NeedCell for it is below
           ++stats_.retries;
           ++stats_.self_reads;
+          // an array entered with Ctrl+Shift+Enter that read only its own cells is settled here when no value of it
+          // waits for itself, as ResolveCycles settles it after the pass, and what waits for it below on the stack
+          // goes on. Left to ResolveCycles, the readers set aside with it were marked again, marked the array again
+          // through what they feed, and met it pending pass after pass: {=A1:B3*2} in C2:D2 kept D2 at 0 after
+          // B1 =VLOOKUP(A1,A1:C9,...) beside {=A1:B3*2} in B3:B5 (doc_fuzz --xlsx seed 24000181430)
+          if (!iterate) {
+            host_->record = nullptr;
+            host_->soft_self = false;
+            host_->ResetSelf();
+            in_progress_.erase(top);
+            if (SettleArrayReadingItself(top)) {
+              stack.pop_back();
+              continue;
+            }
+            in_progress_.insert(top);
+          }
           AbortStack(stack, top);
           continue;
         }
