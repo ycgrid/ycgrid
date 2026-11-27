@@ -2063,10 +2063,30 @@ ContextState& Context() {
 void DrawTabRow(const ImRect& r) {
   ImDrawList* dl = ImGui::GetWindowDrawList();
   g_executed = false;
-  // a contextual tab that went away: back to Home
+  // a contextual tab that went away: back to the tab selected before it opened by itself, else Home
   if (g_state.selected_tab >= 0 && g_state.selected_tab < static_cast<int>(g_tabs.size())) {
     const Tab& sel = g_tabs[static_cast<size_t>(g_state.selected_tab)];
-    if (sel.visible && !*sel.visible) g_state.selected_tab = 1;
+    if (sel.visible && !*sel.visible) {
+      const int before = g_state.tab_before_contextual;
+      const bool usable = before >= 0 && before < static_cast<int>(g_tabs.size()) && !g_tabs[static_cast<size_t>(before)].backstage &&
+                          (!g_tabs[static_cast<size_t>(before)].visible || *g_tabs[static_cast<size_t>(before)].visible);
+      g_state.selected_tab = usable ? before : 1;
+      g_state.tab_before_contextual = -1;
+    }
+  }
+  // an object just inserted brings its contextual tab: selected as it appears, as Excel's (the first one: Chart
+  // Design before Format)
+  g_state.tab_was_visible.resize(g_tabs.size(), 0);
+  for (size_t i = 0; i < g_tabs.size(); ++i) {
+    const bool now = g_tabs[i].visible && *g_tabs[i].visible;
+    if (now && g_tabs[i].visible && !g_state.tab_was_visible[i] && ImGui::GetFrameCount() <= g_state.open_contextual_until) {
+      const int cur = g_state.selected_tab;
+      const bool cur_contextual = cur >= 0 && cur < static_cast<int>(g_tabs.size()) && g_tabs[static_cast<size_t>(cur)].visible;
+      if (!cur_contextual) g_state.tab_before_contextual = cur;
+      g_state.selected_tab = static_cast<int>(i);
+      g_state.open_contextual_until = 0;
+    }
+    g_state.tab_was_visible[i] = now ? 1 : 0;
   }
   g_state.hovered_tile.clear();  // set again by the tile under the mouse (the ribbon body and its popups are drawn after this)
   g_kt_prev = std::move(g_kt);

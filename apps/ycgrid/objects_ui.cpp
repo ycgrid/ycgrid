@@ -5717,8 +5717,12 @@ void DrawSheetObjects(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
             const model::ChartElem e = HitChartElem(u.charts[ch->id], io.MousePos, &es, &ep);
             const model::ChartElem cur = ElemOf(me, &ces, &cep);
             using E = model::ChartElem;
-            const bool label_again = was_selected && e == E::DataLabels && ep >= 0 && (cur == E::DataLabels || cur == E::DataLabel) && ces == es;
-            const bool entry_again = was_selected && e == E::Legend && ep >= 0 && (cur == E::Legend || cur == E::LegendEntry);
+            // the second press of a double-click isn't a second click: it formats what the first selected (Excel: a
+            // double-click on a bar opens Format Data Series, on the legend Format Legend); it chose the point and the
+            // pane said Format Data Point
+            const bool again = was_selected && io.MouseClickedCount[ImGuiMouseButton_Left] % 2 == 1;  // a third press is a click again (Windows alternates them)
+            const bool label_again = again && e == E::DataLabels && ep >= 0 && (cur == E::DataLabels || cur == E::DataLabel) && ces == es;
+            const bool entry_again = again && e == E::Legend && ep >= 0 && (cur == E::Legend || cur == E::LegendEntry);
             if (label_again || entry_again) {
               // a second click on the selected data labels or legend: the one label or entry under the mouse; a drag
               // then moves that label away from its point (or the whole legend), as in Excel
@@ -5740,7 +5744,7 @@ void DrawSheetObjects(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
                 u.elem_drag_frame = hh.frame;
               }
               drag = false;
-            } else if (was_selected && e == E::Series && ep >= 0 && (cur == E::Series || cur == E::Point) && ces == es) {
+            } else if (again && e == E::Series && ep >= 0 && (cur == E::Series || cur == E::Point) && ces == es) {
               SelectElem(me, E::Point, es, ep);  // a second click on the selected series: the point under the mouse
             } else if (was_selected && !ch->interactive && (cur == E::Legend || cur == E::PlotArea) &&
                        ElemHandleAt(cur == E::Legend ? u.charts[ch->id].hit.legend : u.charts[ch->id].hit.plot, io.MousePos) >= 0) {

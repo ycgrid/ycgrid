@@ -16,6 +16,11 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   run their commands, with Excel's hint while they are typed.
 - A dialog's range box takes a cell clicked or a range dragged on the sheet while it has the keyboard, as Excel's
   RefEdit (Greater Than's value, a validation list, Goal Seek); its button still works too.
+- Excel's letters in the menus a person opens from the keyboard: Alt+Down, E, a few letters, Enter filters a list
+  (S and O sort, C clears); Shift+F10 (or the Menu key) then V pastes values, D deletes, I inserts; Ctrl+V, Ctrl, V
+  turns a paste into values (each Paste Options picture takes its letter, named in its tip: Values (V)).
+- Inserting a table, a chart or another object opens its tab (Table Design, Chart Design...), and the tab before it
+  comes back when the selection leaves the object, as in Excel.
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
@@ -40,6 +45,16 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   the ribbon's KeyTips behind it; KeyTips work in the Traditional Chinese UI (Alt, H, L, H, G reached nothing).
 - 12.5% typed into a percent cell by a Chinese IME (the whole text at once) is 12.5%, not the text "12.5%%".
 - `yc.launch(path)` raises when the file can't be opened, instead of handing back a blank workbook.
+- F5, Enter after a Go To selects again everything that was selected (all its areas), not only its active cell.
+- Shift+F2 on a cell with a note goes on typing after the note's text, not in front of it.
+- Function Arguments' OK enters the formula when it was opened while typing (Ctrl+A after =SUM), as Excel's does.
+- Esc in Goal Seek Status and Solver Results puts the original values back, as their Cancel; on Solver's and the
+  Scenario Manager's other pages it goes back a page instead of closing the dialog.
+- In the Traditional Chinese UI, sheets, tables, their headers and PivotTables added later are named in Chinese like
+  the first sheet (Sheet2, Table1 and Column1 were English).
+- A double-click on a chart's column formats its series (Format Data Series), as Excel's, not the single point.
+- An array formula entered with Ctrl+Shift+Enter that reads its own cells no longer leaves what reads it uncalculated
+  (`{=A1:B3*2}` beside `=VLOOKUP(A1,A1:C9,2,FALSE)` kept 0 where Excel shows #N/A).
 
 ## 0.10.3 (2026-11-25)
 

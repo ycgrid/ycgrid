@@ -413,9 +413,27 @@ bool SaveSettings() {
   return ::MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
+std::wstring TempFolder() {
+  std::error_code ec;
+  fs::path dir = fs::temp_directory_path(ec);  // lesson-ok: temp-folder the one place that asks it
+  if (ec || dir.empty()) {
+    wchar_t buf[MAX_PATH + 1];
+    const DWORD n = ::GetTempPathW(MAX_PATH + 1, buf);
+    dir = n ? fs::path(std::wstring(buf, n)) : fs::path();
+  }
+  if (!dir.empty()) {
+    fs::create_directories(dir, ec);
+    if (fs::is_directory(dir, ec)) return dir.wstring();
+  }
+  const std::wstring local = KnownFolder(FOLDERID_LocalAppData);
+  dir = fs::path(local.empty() ? L"." : local) / L"ycgrid" / L"temp";
+  fs::create_directories(dir, ec);
+  return dir.wstring();
+}
+
 std::wstring ProjectsDir() {
   // a hidden instance (tests, agents) makes its projects (Book1, Book2...) in the temp folder, not in Documents
-  if (!g_save_enabled) return (fs::temp_directory_path() / L"YCGrid-hidden-projects").wstring();
+  if (!g_save_enabled) return (fs::path(TempFolder()) / L"YCGrid-hidden-projects").wstring();
   if (!g_settings.projects_folder.empty()) return g_settings.projects_folder;
   std::wstring docs = KnownFolder(FOLDERID_Documents);
   if (docs.empty()) docs = KnownFolder(FOLDERID_Profile);

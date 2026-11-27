@@ -7,6 +7,7 @@
 #include "app_state.h"
 #include "core/i18n.h"
 #include "python_bridge.h"
+#include "settings.h"
 
 #include "commands/command_registry.h"
 #include "engine/bind.h"
@@ -554,7 +555,7 @@ void DrawSafetyFrame(AppState& s) {
       ImGui::InputTextWithHint("##filter", TR("Filter"), u.filter, sizeof u.filter);
       ImGui::SameLine();
       if (ImGui::Button(TR("Export CSV"))) {
-        const std::filesystem::path dir = s.file_path.empty() ? std::filesystem::temp_directory_path() : std::filesystem::path(s.file_path).parent_path();
+        const std::filesystem::path dir = s.file_path.empty() ? std::filesystem::path(TempFolder()) : std::filesystem::path(s.file_path).parent_path();
         std::time_t t = std::time(nullptr);
         std::tm tm{};
         localtime_s(&tm, &t);

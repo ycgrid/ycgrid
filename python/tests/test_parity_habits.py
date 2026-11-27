@@ -207,6 +207,34 @@ class ChineseKeyTipsTest(HabitsBase):
         lo.Unlist()
 
 
+class ContextualTabTest(HabitsBase):
+    """Excel opens the contextual tab of an object just inserted (Table Design after Ctrl+T, Chart Design after
+    Alt+F1) and goes back to the tab before it when the selection leaves the object; a click into it later doesn't
+    switch. The ribbon stayed on Home."""
+
+    def tab(self):
+        from yc import ui
+
+        return (ui.state().get("ribbon") or {}).get("tab_label")
+
+    def test_an_inserted_object_opens_its_tab(self):
+        self.ws.Range("A1:B3").Value = [["a", "b"], [1, 2], [3, 4]]
+        self.keys("g:A1|w:2")
+        self.assertEqual(self.tab(), "Home")
+        self.keys("g:A1:B3|w:2|k:c-T|w:6|k:Enter|w:8")
+        self.assertEqual(self.tab(), "Table Design")
+        self.keys("g:E9|w:2|w:3")
+        self.assertEqual(self.tab(), "Home")
+        self.keys("g:A2|w:2|w:3")
+        self.assertEqual(self.tab(), "Home", "selecting a table cell later doesn't switch")
+        self.keys("g:E9|w:2|g:A1:B3|w:2|k:a-F1|w:10")
+        self.assertEqual(self.tab(), "Chart Design")
+        self.keys("k:Escape|w:3|k:Escape|w:3|g:E9|w:2|w:3")
+        self.assertEqual(self.tab(), "Home")
+        self.ws.ListObjects(1).Unlist()
+        self.ws.ChartObjects(1).Delete()
+
+
 class KeyTipsTest(HabitsBase):
     def test_alt_h_l_opens_conditional_formatting(self):
         # Excel's fixed KeyTips named ids the ribbon doesn't use (CondFormatMenu): Alt, H, L got two other letters

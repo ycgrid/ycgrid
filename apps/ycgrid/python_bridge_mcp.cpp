@@ -451,6 +451,9 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         rb.Set("collapsed", MV::Bool(st.collapsed));
         rb.Set("peek", MV::Bool(st.peek));
         rb.Set("tab", MV::Int(st.selected_tab));
+        // its label as shown (Table Design after Ctrl+T): tests read which tab is up without counting the hidden ones
+        if (const auto& tl = ui::ribbon::Tabs(); st.selected_tab >= 0 && st.selected_tab < static_cast<int>(tl.size()))
+          rb.Set("tab_label", MV::Str(tl[static_cast<size_t>(st.selected_tab)].label));
         rb.Set("backstage", MV::Bool(st.backstage));
         rb.Set("keytips", MV::Int(st.keytip_level));
         if (!st.legacy_keys.empty()) rb.Set("legacy_keys", MV::Str(st.legacy_keys));

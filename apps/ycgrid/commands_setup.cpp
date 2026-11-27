@@ -103,7 +103,7 @@ std::wstring AppState::LayoutPath() const {
   if (local) ::CoTaskMemFree(local);
   // a hidden instance (tests, agents) keeps its window layout to itself: containers and zoom made in a test must not
   // open in the user's next YCGrid
-  if (!UserStateSaved()) dir = (std::filesystem::temp_directory_path() / (L"YCGrid-hidden-" + std::to_wstring(::GetCurrentProcessId()))).wstring();
+  if (!UserStateSaved()) dir = (std::filesystem::path(TempFolder()) / (L"YCGrid-hidden-" + std::to_wstring(::GetCurrentProcessId()))).wstring();
   std::error_code ec;
   std::filesystem::create_directories(dir, ec);
   return dir + L"\\default_layout.json";
@@ -475,6 +475,9 @@ void RegisterCommands(AppState& s) {
       "FillRight", "FillUp", "FillLeft"};
   R.on_run = [&s](const std::string& id) {
     if (id == "Repeat" || id == "Undo" || id == "Redo") return;
+    // an object inserted opens its contextual tab once it is there (the engine answers a few frames later)
+    if (id.rfind("Insert", 0) == 0 || id.rfind("FormatAsTable", 0) == 0 || id.rfind("PivotTable", 0) == 0)
+      ui::ribbon::St().open_contextual_until = ImGui::GetFrameCount() + 60;
     for (const char* k : kRepeatable) {
       if (id != k) continue;
       s.repeat_id = id;

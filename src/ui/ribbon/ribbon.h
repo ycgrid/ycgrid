@@ -153,6 +153,12 @@ enum class Stage : int { Large = 0, Medium = 1, Small = 2, Collapsed = 3 };
 
 struct State {
   int selected_tab = 1;
+  // an insert command just ran (Ctrl+T, Alt+F1, a shape): the contextual tab its object brings is selected when it
+  // appears within this frame (Excel opens Table Design, Chart Design, Shape Format); and the tab that was selected
+  // before it comes back when the contextual tab goes away
+  int open_contextual_until = 0;
+  int tab_before_contextual = -1;
+  std::vector<char> tab_was_visible;
   bool collapsed = false;      // show tabs only (double-click a tab or Ctrl+F1)
   bool peek = false;           // temporarily expanded while collapsed
   // where the tabs and the collapse arrow were drawn last frame (tests and agents click them: ui.state "ribbon")

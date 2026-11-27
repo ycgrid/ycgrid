@@ -148,6 +148,10 @@ bool UserStateSaved();             // false in hidden instances: no settings, re
 // open. A click on a screenshot's picture in a chaos round opened the picture viewer on the user's screen, again and
 // again. owner is the HWND of the window asking (or null).
 bool OpenOnDesktop(const std::wstring& target, const std::wstring& params = L"", void* owner = nullptr, int show = 1);
+// the temp folder, never throwing: the standard library's temp folder call throws when %TMP% names a folder that isn't
+// there, and a hidden instance asked it while starting (YCGrid ended with abort() before its first frame). A missing
+// one is made; one that can't be is replaced by %LOCALAPPDATA%\ycgrid\temp
+std::wstring TempFolder();
 std::wstring ProjectsDir();  // projects_folder, or Documents\YCGrid
 std::wstring AutoRecoverDir();
 // A folder for a message: the user's own folders become %TEMP%, %LOCALAPPDATA%... (no user name in screenshots)
