@@ -38,8 +38,10 @@ invent a sixth:
 
 ## Git
 
-- Work on `dev` or a branch from it; pull requests go to `dev`. `main` holds the released versions.
-- Don't push unless asked.
+- Work on a branch from `dev` and bring it in through a pull request to `dev`, never a direct push; `main` holds the
+  released versions and moves only through a pull request from `dev`. Every step (branch names, the pull request,
+  waiting for CI, merging with a merge commit, the release) is in [docs/git-workflow.md](docs/git-workflow.md).
+- Don't push, open a pull request or merge unless asked.
 - Commit messages are English: a first line saying what changes for the user, then the details when they help. No
   `Co-Authored-By` trailer or any other AI-agent attribution.
 - Every source file of YCGrid's own (C++, Python, `.cmd`, CMake) starts with `SPDX-License-Identifier: Apache-2.0`

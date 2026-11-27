@@ -34,7 +34,9 @@ the checksums are how a user checks that a download is the one published.
    dist_release\runtime\python\python.exe -E -s scripts\check_boundary.py --history
    ```
 
-4. Commit as `Version <version>` (only the version and the changelog), and merge `dev` into `main`.
+4. Commit as `Version <version>` (only the version and the changelog) on a branch, bring it into `dev` through a
+   pull request, then open a pull request from `dev` to `main` and merge it once `checks` passes
+   ([git-workflow.md](git-workflow.md#releasing)). `main` is never pushed to directly.
 
 ## 2. Build the files
 
@@ -56,8 +58,10 @@ list, so a license left by an older build can't ship. A new component goes into 
 ## 3. Tag and publish the release
 
 ```bat
-git tag -a v<version> -m "YCGrid <version>" main
-git push origin main v<version>
+git switch main
+git pull --ff-only
+git tag -a v<version> -m "YCGrid <version>"
+git push origin v<version>
 gh release create v<version> --title "YCGrid <version>" --notes-file notes.md ^
   dist\YCGrid-<version>.zip dist\YCGrid-<version>.zip.sha256 ^
   build\wheel\ycgrid-<version>-py3-none-win_amd64.whl build\wheel\ycgrid-<version>-py3-none-win_amd64.whl.sha256
