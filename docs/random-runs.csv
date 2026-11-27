@@ -11904,3 +11904,6 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5519,0,ok,
 
 2026-11-27,screen_walk,r92,300,found,"Menus opened from the keyboard: Shift+F10, the Menu key, Alt+Down on a filter, Alt, H, B (Borders), Alt, H, H (Fill Color), Alt, H, F, C (Font Color), Alt, N, C, 1"
+2026-11-27,screen_walk,r93,300,clean,"Keys over panes frozen at B2 on a price list: Ctrl+Home, Home, Ctrl+Shift+Home, Ctrl+Up, PageUp"
+2026-11-27,screen_walk,r94,300,clean,"The Undo list on the title bar: three entries chosen by hovering, Undo 3 Actions, then Ctrl+Y"
+2026-11-27,screen_walk,r95,300,clean,"Paste Special from the keyboard: Ctrl+Alt+V with E (transpose), M (multiply by a copied 2), V (values), B (skip blanks)"
