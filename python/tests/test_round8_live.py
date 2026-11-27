@@ -412,6 +412,19 @@ class UiOpsRound8Test(unittest.TestCase):
             self.assertEqual(made(blank, by_keys), "$B$2:$D$7", by_keys)
             self.assertEqual(made(year, by_keys), "$B$2:$D$6", by_keys)
 
+    def test_a_note_left_empty_stays(self):
+        # Excel 16, measured by keys: Shift+F2 then Escape leaves a note on the cell, and a note emptied by Backspace
+        # in its box stays; YCGrid made no note and deleted the emptied one
+        self.keys("m:2,2|g:C3|w:3|k:s-F2|w:6|k:Escape|w:6")
+        self.assertIsNotNone(self.ws.Range("C3").Comment, "a new note left empty stays")
+        self.assertEqual(self.ws.Range("C3").Comment.Text(), "")
+        self.ws.Range("B2").AddComment("abc")
+        self.keys("g:B2|w:3|k:s-F2|w:6|k:Backspace|k:Backspace|k:Backspace|w:3|k:Escape|w:6")
+        self.assertIsNotNone(self.ws.Range("B2").Comment, "an emptied note stays")
+        self.assertEqual(self.ws.Range("B2").Comment.Text(), "")
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(self.ws.Range("B2").Comment.Text(), "abc")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

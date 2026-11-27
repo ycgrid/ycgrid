@@ -54,6 +54,7 @@ struct MiscUi {
   bool note_caret_end = false;  // the box, once it has the keyboard, puts its caret after the note's text
   bool note_active = false;                        // the box had the keyboard last frame
   std::string note_before;                         // its text when the editing started
+  bool note_new = false;                           // the cell had no note: leaving the box makes one, empty or not
   // the note box being sized (a handle: 1..8 from the top-left clockwise) or moved (9) with the mouse
   int note_drag = 0;
   ImVec2 note_m0;
@@ -680,9 +681,12 @@ void DrawNoteEditor(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g
   if (left) {
     const uint32_t sheet = m.note_sheet, r = m.note_r, c = m.note_c;
     const std::string text = m.note_text;
-    if (text != m.note_before) {
-      s.engine->PostUser(text.empty() ? TR("Delete Note") : TR("Notes"), [sheet, r, c, text, author](Document& d) { d.SetNote(sheet, r, c, text.empty() ? "" : author, text); });
+    // the note stays when its box is left empty, a new one too (Excel 16: Shift+F2, Escape leaves a note, and one
+    // emptied by Backspace stays; Delete Note takes it away)
+    if (text != m.note_before || m.note_new) {
+      s.engine->PostUser(TR("Notes"), [sheet, r, c, text, author](Document& d) { d.SetNote(sheet, r, c, author, text, true); });
     }
+    m.note_new = false;
     m.note_inplace = false;
   }
 }
@@ -1076,6 +1080,7 @@ void RegisterMiscCommands(AppState& s) {
     std::snprintf(m.note_text, sizeof(m.note_text), "%s", it != sh->notes->end() ? it->second.text.c_str() : "");
     // Excel: the note opens beside its cell for typing (no dialog); a click elsewhere keeps it
     m.note_before = m.note_text;
+    m.note_new = it == sh->notes->end();
     m.note_inplace = true;
     m.note_focus = true;
     m.note_caret_end = true;

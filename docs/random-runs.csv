@@ -12862,3 +12862,25 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,7928,361,ok,
 
 2026-11-28,screen_walk,r140,1200,found,"Ctrl+T on 13 layouts (text over numbers, all text, all numbers, a year in the headers, blanks, bold or filled headers, dates), My table has headers and OK, measured in Excel through UI Automation and ListObjects.Add(xlGuess)"
+2026-11-28,calc_fuzz,4683,26,ok,
+2026-11-28,formula_fuzz,5664,1,ok,
+2026-11-28,gaps_fuzz,700344,106,ok,
+2026-11-28,doc_fuzz,2400348,163,ok,
+2026-11-28,basics,4971,171,ok,
+2026-11-28,doc_fuzz,2400349,84,ok,
+2026-11-28,calc_fuzz,4684,31,ok,
+2026-11-28,formula_fuzz,5665,0,ok,
+2026-11-28,basics,4972,202,ok,
+2026-11-28,chaos,7929,378,ok,
+2026-11-28,gaps_fuzz,700345,178,ok,
+2026-11-28,doc_fuzz,2400350,112,ok,
+2026-11-28,calc_fuzz,4685,3,ok,
+2026-11-28,formula_fuzz,5666,0,ok,
+2026-11-28,chaos,7930,361,ok,
+2026-11-28,gaps_fuzz,700346,99,ok,
+2026-11-28,basics,4973,168,ok,
+2026-11-28,doc_fuzz,2400351,95,ok,
+2026-11-28,calc_fuzz,4686,16,ok,
+2026-11-28,formula_fuzz,5667,0,ok,
+
+2026-11-28,screen_walk,r141,900,found,"Notes from the keyboard: Shift+F2, typing, Enter, Escape, Shift+F2 on a note, Backspace over all of it, measured in Excel by keys"

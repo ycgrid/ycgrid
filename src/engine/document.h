@@ -646,7 +646,9 @@ class Document : public formula::SheetResolver {
   bool SetSheetBackground(uint32_t sheet, std::string image);
 
   // ---- Notes and hyperlinks ----
-  void SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text);  // empty text = delete
+  // empty text deletes the note, unless keep_empty: a note emptied in its box, or made and left empty, stays (Excel 16,
+  // measured by keys: Shift+F2, Backspace over all of it, Escape keeps the note)
+  void SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text, bool keep_empty = false);
   // a note's box: its size, place and Format Comment look (false: no note there)
   bool SetNoteLook(uint32_t sheet, uint32_t r, uint32_t c, const model::CellNote::Look& look);
   // fonts inside a cell's text (runs that change nothing remove the entry); the cell keeps its value

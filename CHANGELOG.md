@@ -120,6 +120,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - A row hidden by a height of 0 (`RowHeight = 0`) is left out of SUBTOTAL at once: the formula kept counting it.
 - Create Table (Ctrl+T) and `ListObjects.Add` guess a header row as Excel does: a list all of text gets a header row
   added, a header row with a year or set in bold over text is taken as the header.
+- A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
+  away).
 
 ## 0.10.3 (2026-11-25)
 

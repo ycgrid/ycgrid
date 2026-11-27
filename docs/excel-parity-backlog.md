@@ -31,6 +31,12 @@ at the moment (measured against Excel 16 on 2026-11-08), except:
 - Formulas: a name read through a sheet (`Data!Rate`, or `Data!A` a Replace made of `Data!A1`) whose sheet is deleted
   is the workbook's name in Excel 16 (`=SUM(Book1!A:A3)`, #NAME? while no such name exists; measured 2026-11-21);
   YCGrid makes it #REF! (`=SUM(#REF!:A3)`).
+- Review > New Note (Shift+F2): Excel 16 starts the note's text with the author's name in bold and a line break
+  (`UserName:` then the typing), and `Comment.Text` reads it back with that line (measured by keys 2026-11-28; a note made
+  by `AddComment("abc")` has none, its `Author` still the user). YCGrid keeps the author apart (`CellNote::author`) and
+  draws it in bold on top, so the box looks the same, but `Comment.Text` of a note typed in the UI has no author
+  line and the line can't be edited away. Matching it needs the author line kept as the note's own text, with its
+  bold run, in the model and the `.ycg` file: to decide.
 - Home > Paste > Paste Special with an operation (Add, Subtract, Multiply, Divide) or Skip Blanks over any cell of an array formula
   entered with Ctrl+Shift+Enter: YCGrid refuses it with "You can't change part of an array." (it can't combine
   the array cell by cell). What Excel 16 does there is not measured yet: the probe needs Windows' clipboard
