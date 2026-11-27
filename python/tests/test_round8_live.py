@@ -418,6 +418,27 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
+        # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control
+        def click(item):
+            r = item["rect"]
+            x, y = int((r[0] + r[2]) / 2), int((r[1] + r[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:5")
+
+        self.keys("g:C2:C4|w:2|m:2,2|k:LeftAlt|w:3|t:A|w:3|t:V|w:4|t:V|w:8")
+        try:
+            allow = [i for i in yc.ui.items("Data Validation") if i["id"] == "##type"]
+            self.assertTrue(allow, "Allow is listed by its id")
+            click(allow[0])
+            click([i for i in yc.ui.items("") if i["label"] == "List"][0])
+            source = [i for i in yc.ui.items("Data Validation") if i["id"] == "##rb.dv.source"]
+            self.assertTrue(source, "the Source box is listed by its key")
+            click(source[0])
+            self.keys("t:Buy,Sell|w:2|k:Enter|w:6")
+        finally:
+            self.keys("k:Escape|w:3")
+        self.assertEqual((self.ws.Range("C3").Validation.Type, self.ws.Range("C3").Validation.Formula1), (3, "Buy,Sell"))
+
     def test_select_all_shows_mixed_when_some_values_are_ticked(self):
         # (Select All) read empty while 2026's dates were ticked, where Excel shows its filled square
         self.ws.Range("A1").Value = "Date"

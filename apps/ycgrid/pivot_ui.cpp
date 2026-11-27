@@ -3154,7 +3154,7 @@ void DrawPivotDialogs(AppState& s) {
       const int nsrc = have ? static_cast<int>(c.cache->columns) : 0;
       u.item_field = std::clamp(u.item_field, 0, std::max(0, nsrc - 1));
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Field"), u.item_field < nsrc ? c.cache->names[static_cast<size_t>(u.item_field)].c_str() : "")) {
+      if (ui::BeginCombo(TR("Field"), u.item_field < nsrc ? c.cache->names[static_cast<size_t>(u.item_field)].c_str() : "")) {
         for (int f = 0; f < nsrc; ++f) {
           if (ImGui::Selectable(c.cache->names[static_cast<size_t>(f)].c_str(), f == u.item_field)) u.item_field = f;
         }
@@ -3169,7 +3169,7 @@ void DrawPivotDialogs(AppState& s) {
         }
       }
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Name"), u.calc_name)) {
+      if (ui::BeginCombo(TR("Name"), u.calc_name)) {
         for (const auto& ci : p->calc_items) {
           if (ci.field == u.item_field && ImGui::Selectable(ci.name.c_str())) {
             std::snprintf(u.calc_name, sizeof(u.calc_name), "%s", ci.name.c_str());
@@ -3244,7 +3244,7 @@ void DrawPivotDialogs(AppState& s) {
     bool close = p == nullptr;
     if (p) {
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Name"), u.calc_name)) {
+      if (ui::BeginCombo(TR("Name"), u.calc_name)) {
         for (const auto& c : p->calc_fields) {
           if (ImGui::Selectable(c.name.c_str())) {
             std::snprintf(u.calc_name, sizeof(u.calc_name), "%s", c.name.c_str());
@@ -3367,7 +3367,7 @@ void DrawPivotDialogs(AppState& s) {
       }
       if (ImGui::BeginTabItem(TR("Show Values As"), nullptr, u.vf_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::SetNextItemWidth(S(260));
-        if (ImGui::BeginCombo("##show", ShowAsLabel(u.vf_show))) {
+        if (ui::BeginCombo("##show", ShowAsLabel(u.vf_show))) {
           for (int k = 0; k < model::kPivotShowAs; ++k) {
             if (ImGui::Selectable(ShowAsLabel(k), u.vf_show == k)) u.vf_show = k;
           }
@@ -3658,7 +3658,7 @@ void DrawPivotDialogs(AppState& s) {
       ImGui::SetNextItemWidth(S(260));
       const Cached& c = CacheFor(s, *p);
       std::string cur = u.so_by < 0 ? FieldName(*p, field) : (c.ok && static_cast<size_t>(u.so_by) < p->data.size() ? engine::PivotDataCaption(*p, *c.cache, static_cast<size_t>(u.so_by)) : "");
-      if (ImGui::BeginCombo("##by", cur.c_str())) {
+      if (ui::BeginCombo("##by", cur.c_str())) {
         if (ImGui::Selectable(FieldName(*p, field).c_str(), u.so_by < 0)) u.so_by = -1;
         for (size_t d = 0; c.ok && d < p->data.size(); ++d) {
           ImGui::PushID(static_cast<int>(d));
@@ -3704,7 +3704,7 @@ void DrawPivotDialogs(AppState& s) {
       auto data_combo = [&]() {
         ImGui::SetNextItemWidth(S(160));
         const std::string cur = c.ok && static_cast<size_t>(u.pf_data) < p->data.size() ? engine::PivotDataCaption(*p, *c.cache, static_cast<size_t>(u.pf_data)) : "";
-        if (ImGui::BeginCombo("##data", cur.c_str())) {
+        if (ui::BeginCombo("##data", cur.c_str())) {
           for (size_t d = 0; c.ok && d < p->data.size(); ++d) {
             ImGui::PushID(static_cast<int>(d));
             if (ImGui::Selectable(engine::PivotDataCaption(*p, *c.cache, d).c_str(), u.pf_data == static_cast<int>(d))) u.pf_data = static_cast<int>(d);
@@ -3717,13 +3717,13 @@ void DrawPivotDialogs(AppState& s) {
         static const char* kTop[] = {TR("Top"), TR("Bottom")};
         static const char* kUnit[] = {TR("Items"), TR("Percent"), TR("Sum")};
         ImGui::SetNextItemWidth(S(90));
-        ImGui::Combo("##top", &u.pf_top, kTop, 2);
+        ui::Combo("##top", &u.pf_top, kTop, 2);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(70));
         ImGui::InputText("##n", u.pf_v1, sizeof(u.pf_v1), ImGuiInputTextFlags_CharsDecimal);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(90));
-        ImGui::Combo("##unit", &u.pf_unit, kUnit, 3);
+        ui::Combo("##unit", &u.pf_unit, kUnit, 3);
         ImGui::SameLine();
         ImGui::TextUnformatted(TR("by"));
         ImGui::SameLine();
@@ -3741,7 +3741,7 @@ void DrawPivotDialogs(AppState& s) {
                                        TR("is greater than"), TR("is greater than or equal to"), TR("is less than"), TR("is less than or equal to"), TR("is between"),
                                        TR("is not between")};
         ImGui::SetNextItemWidth(S(180));
-        if (ImGui::BeginCombo("##type", kNames[std::clamp(u.pf_type, 0, 28)])) {
+        if (ui::BeginCombo("##type", kNames[std::clamp(u.pf_type, 0, 28)])) {
           if (u.pf_kind == 0) {
             for (int t : kLabelTypes) {
               if (ImGui::Selectable(kNames[t], u.pf_type == t)) u.pf_type = t;
@@ -4033,7 +4033,7 @@ void DrawFilterPopupBody(AppState& s, const PivotTable& p, int area) {
     std::vector<const char*> ptrs;
     for (const auto& n : names) ptrs.push_back(n.c_str());
     ImGui::SetNextItemWidth(S(200));
-    if (ImGui::Combo(TR("Select field:"), &u.filter_field_pos, ptrs.data(), static_cast<int>(ptrs.size()))) u.filter_items.clear();
+    if (ui::Combo(TR("Select field:"), &u.filter_field_pos, ptrs.data(), static_cast<int>(ptrs.size()))) u.filter_items.clear();
   }
   const int pos = std::clamp(u.filter_field_pos, 0, static_cast<int>(axis.size()) - 1);
   const auto& af = axis[static_cast<size_t>(pos)];

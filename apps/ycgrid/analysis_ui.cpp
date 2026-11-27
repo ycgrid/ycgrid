@@ -10,6 +10,7 @@
 #include "io/xlsx.h"
 
 #include "imgui.h"
+#include "yc_ui_items.h"
 
 #include <cstdio>
 #include <cstring>
@@ -350,7 +351,7 @@ void ToolOptions(AppState& s) {
     ImGui::TextUnformatted(TR("Distribution:"));
     ImGui::SameLine(S(190));
     ImGui::SetNextItemWidth(S(160));
-    ImGui::Combo("##dist", &a.distribution, dists, 7);
+    ui::Combo("##dist", &a.distribution, dists, 7);
     switch (a.distribution) {
       case 0:
         FloatField(TR("Between:"), &a.p[0]);

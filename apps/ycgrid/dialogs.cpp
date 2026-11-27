@@ -797,7 +797,7 @@ void DrawFormatCells(AppState& s) {
             ImGui::SetNextItemWidth(S(110));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem("##symbol", ImRect(at, at + ImVec2(S(110), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##symbol", kSymbols[std::clamp(f.symbol, 0, static_cast<int>(std::size(kSymbols)) - 1)])) {
+            if (ui::BeginCombo("##symbol", kSymbols[std::clamp(f.symbol, 0, static_cast<int>(std::size(kSymbols)) - 1)])) {
               for (int k = 0; k < static_cast<int>(std::size(kSymbols)); ++k) {
                 if (ImGui::Selectable(kSymbols[k], f.symbol == k)) f.symbol = k;
               }
@@ -969,7 +969,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##halign", ImRect(at, at + ImVec2(S(190), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo("##halign", &hi, h, IM_ARRAYSIZE(h))) {
+          if (ui::Combo("##halign", &hi, h, IM_ARRAYSIZE(h))) {
             f.edit.halign = static_cast<H>(hi);
             if (f.edit.halign != H::General && f.edit.halign != H::Left && f.edit.halign != H::Right && f.edit.halign != H::Distributed) f.edit.indent = 0;
             if (f.edit.halign != H::Distributed) f.edit.justify_last_line = false;
@@ -1004,7 +1004,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##valign", ImRect(at, at + ImVec2(S(190), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo("##valign", &vi, v, IM_ARRAYSIZE(v))) f.edit.valign = kVOrder[vi];
+          if (ui::Combo("##valign", &vi, v, IM_ARRAYSIZE(v))) f.edit.valign = kVOrder[vi];
           // Justify distributed: only for Distributed (Indent)
           ImGui::BeginDisabled(f.edit.halign != H::Distributed);
           ImGui::Checkbox(TR("Justify distributed"), &f.edit.justify_last_line);
@@ -1025,7 +1025,7 @@ void DrawFormatCells(AppState& s) {
             ImGui::SetNextItemWidth(S(170));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem("##text_direction", ImRect(at, at + ImVec2(S(170), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##text_direction", dirs[dir])) {
+            if (ui::BeginCombo("##text_direction", dirs[dir])) {
               for (int k = 0; k < 3; ++k) {
                 if (ImGui::Selectable(dirs[k], dir == k)) f.edit.reading_order = static_cast<uint8_t>(k);
               }
@@ -1150,7 +1150,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##font_style", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo(TR("Font style"), &st, styles, 4)) {
+          if (ui::Combo(TR("Font style"), &st, styles, 4)) {
             f.edit.bold = st >= 2;
             f.edit.italic = st % 2 == 1;
           }
@@ -1187,7 +1187,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##underline", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo(TR("Underline"), &u, ul, 5)) f.edit.underline = static_cast<model::Underline>(u);
+          if (ui::Combo(TR("Underline"), &u, ul, 5)) f.edit.underline = static_cast<model::Underline>(u);
           ColorEdit(TR("Color"), &f.edit.font_color, true, TR("Automatic"));
           ImGui::Checkbox(TR("Strikethrough"), &f.edit.strike);
           bool sup = f.edit.script == 1, sub = f.edit.script == 2;
@@ -1825,7 +1825,7 @@ void DrawFindReplace(AppState& s) {
       // combo boxes report no label to the UI item recorder: note it, so tests click it as a person does
       const ImVec2 at = ImGui::GetCursorScreenPos();
       ui::NoteUiItem(id, ImRect(at, at + ImVec2(cw, ImGui::GetFrameHeight())));
-      if (ImGui::BeginCombo(id, items[static_cast<size_t>(std::clamp(*v, 0, static_cast<int>(items.size()) - 1))])) {
+      if (ui::BeginCombo(id, items[static_cast<size_t>(std::clamp(*v, 0, static_cast<int>(items.size()) - 1))])) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
           if (ImGui::Selectable(items[static_cast<size_t>(i)], *v == i)) *v = i;
         }
@@ -3171,7 +3171,7 @@ void DrawInsertFunction(AppState& s) {
   ImGui::SameLine();
   ImGui::SetNextItemWidth(S(200));
   category = std::clamp(category, -1, static_cast<int>(cats.size()));
-  if (ImGui::BeginCombo("##cat", category == -1 ? TR("Most Recently Used") : category == 0 ? TR("All") : cats[static_cast<size_t>(category - 1)])) {
+  if (ui::BeginCombo("##cat", category == -1 ? TR("Most Recently Used") : category == 0 ? TR("All") : cats[static_cast<size_t>(category - 1)])) {
     if (ImGui::Selectable(TR("Most Recently Used"), category == -1)) category = -1;
     if (ImGui::Selectable(TR("All"), category == 0)) category = 0;
     for (size_t i = 0; i < cats.size(); ++i) {

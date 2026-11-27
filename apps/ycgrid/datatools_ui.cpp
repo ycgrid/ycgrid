@@ -139,7 +139,7 @@ std::string CellText(AppState& s, const model::Sheet& sh, uint32_t r, uint32_t c
 bool Combo(const char* id, int* v, const char* const* items, int n, float w) {
   ImGui::SetNextItemWidth(w);
   ui::NoteUiItem(id, ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(w, ImGui::GetFrameHeight())));
-  return ImGui::Combo(id, v, items, n);
+  return ui::Combo(id, v, items, n);
 }
 
 // ---- Subtotal ----
@@ -193,7 +193,7 @@ void DrawSubtotal(AppState& s) {
   ImGui::SetNextItemWidth(w);
   ui::NoteUiItem("##st_group", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(w, ImGui::GetFrameHeight())));
   u.st_group = std::clamp(u.st_group, 0, static_cast<int>(names.size()) - 1);
-  if (ImGui::BeginCombo("##st_group", "")) {
+  if (ui::BeginCombo("##st_group", "")) {
     for (size_t k = 0; k < names.size(); ++k) {
       ImGui::PushID(static_cast<int>(k));
       if (ImGui::Selectable("##g", u.st_group == static_cast<int>(k))) u.st_group = static_cast<int>(k);

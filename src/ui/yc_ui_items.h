@@ -8,6 +8,7 @@
 #include "imgui_internal.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace yc::ui {
@@ -34,5 +35,24 @@ void NoteUiText(const char* text, const ImRect& rect);
 std::string LiveWindowTitle(const char* name);
 // a window whose title changes (the Format pane) gives it here every frame: ImGui keeps the first one as its name
 void NoteWindowTitle(const std::string& title);
+// the label of an item ImGui added without reporting one (a combo box: BeginCombo reports none), by its id
+void NameUiItem(ImGuiID id, const char* label);
+
+// ImGui's combo boxes, listed in ui.items by their label ("##type" by its id): ImGui::BeginCombo tells the test hooks
+// no label, and the Data Validation dialog's Allow box, like most others, was a nameless control tests couldn't find.
+// Every combo box in the app goes through these (check_lessons.py's combo-name)
+template <typename... A>
+bool Combo(const char* label, A&&... args) {
+  const ImGuiID id = ImGui::GetID(label);
+  const bool changed = ImGui::Combo(label, std::forward<A>(args)...);  // lesson-ok: combo-name the wrapper itself
+  NameUiItem(id, label);
+  return changed;
+}
+inline bool BeginCombo(const char* label, const char* preview, ImGuiComboFlags flags = 0) {
+  const ImGuiID id = ImGui::GetID(label);
+  const bool open = ImGui::BeginCombo(label, preview, flags);  // lesson-ok: combo-name the wrapper itself
+  NameUiItem(id, label);
+  return open;
+}
 
 }  // namespace yc::ui

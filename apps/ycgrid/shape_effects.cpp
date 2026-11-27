@@ -270,7 +270,7 @@ bool DrawShapeEffectsSection(ShapeObj& m) {
   if (ImGui::TreeNode(TR("Shadow"))) {
     const char* types[] = {TR("No Shadow"), TR("Outer"), TR("Inner"), TR("Perspective")};
     ImGui::SetNextItemWidth(S(150));
-    changed |= ImGui::Combo(TR("Presets##shadow"), &f.shadow, types, 4);
+    changed |= ui::Combo(TR("Presets##shadow"), &f.shadow, types, 4);
     ImGui::BeginDisabled(!f.shadow);
     changed |= ColorBox(TR("Color##shadow"), &f.shadow_color);
     changed |= Percent(TR("Transparency##shadow"), &f.shadow_transparency);
@@ -308,11 +308,11 @@ bool DrawShapeEffectsSection(ShapeObj& m) {
     std::vector<const char*> names;
     for (const char* b : kBevels) names.push_back(TR(b));
     ImGui::SetNextItemWidth(S(150));
-    changed |= ImGui::Combo(TR("Top bevel"), &f.bevel_top, names.data(), static_cast<int>(names.size()));
+    changed |= ui::Combo(TR("Top bevel"), &f.bevel_top, names.data(), static_cast<int>(names.size()));
     changed |= Points(TR("Width##top"), &f.bevel_top_w, 0, 100);
     changed |= Points(TR("Height##top"), &f.bevel_top_h, 0, 100);
     ImGui::SetNextItemWidth(S(150));
-    changed |= ImGui::Combo(TR("Bottom bevel"), &f.bevel_bottom, names.data(), static_cast<int>(names.size()));
+    changed |= ui::Combo(TR("Bottom bevel"), &f.bevel_bottom, names.data(), static_cast<int>(names.size()));
     changed |= Points(TR("Width##bottom"), &f.bevel_bottom_w, 0, 100);
     changed |= Points(TR("Height##bottom"), &f.bevel_bottom_h, 0, 100);
     ImGui::TreePop();
@@ -321,7 +321,7 @@ bool DrawShapeEffectsSection(ShapeObj& m) {
     const auto& rs = model::Rotations3D();
     const char* cur = f.rot_preset > 0 && f.rot_preset <= static_cast<int>(rs.size()) ? TR(rs[static_cast<size_t>(f.rot_preset - 1)].name) : TR("No Rotation");
     ImGui::SetNextItemWidth(S(150));
-    if (ImGui::BeginCombo(TR("Presets##rot"), cur)) {
+    if (ui::BeginCombo(TR("Presets##rot"), cur)) {
       if (ImGui::Selectable(TR("No Rotation"), f.rot_preset == 0)) f.rot_preset = 0, f.rot_x = f.rot_y = f.rot_z = f.perspective = 0, changed = true;
       for (size_t i = 0; i < rs.size(); ++i) {
         if (ImGui::Selectable(TR(rs[i].name), f.rot_preset == static_cast<int>(i + 1))) {

@@ -1538,7 +1538,7 @@ void DrawRuleEditor(AppState& s) {
       const char* styles[] = {TR("2-Color Scale"), TR("3-Color Scale"), TR("Data Bar"), TR("Icon Sets")};
       int st = r.type == T::DataBar ? 2 : r.type == T::IconSet ? 3 : (r.points == 2 ? 0 : 1);
       ImGui::SetNextItemWidth(S(200));
-      if (ImGui::Combo(TR("Format Style"), &st, styles, 4)) {
+      if (ui::Combo(TR("Format Style"), &st, styles, 4)) {
         r.type = st == 2 ? T::DataBar : st == 3 ? T::IconSet : T::ColorScale;
         r.points = st == 0 ? 2 : 3;
         if (r.type == T::IconSet && r.icon_thresholds.size() + 1 != static_cast<size_t>(model::IconSetCount(r.icon_style))) r.icon_thresholds = model::DefaultIconThresholds(r.icon_style);
@@ -1569,7 +1569,7 @@ void DrawRuleEditor(AppState& s) {
             int t = r.point_type[i] < 0 ? def : r.point_type[i];
             ImGui::PushID(i);
             ImGui::SetNextItemWidth(S(130));
-            if (ImGui::BeginCombo("##type", names[std::clamp(t, 0, 5)])) {
+            if (ui::BeginCombo("##type", names[std::clamp(t, 0, 5)])) {
               for (int v : {i == 0 ? 1 : i == 2 ? 2 : -1, 0, 3, 4, 5}) {
                 if (v < 0) continue;
                 if (ImGui::Selectable(names[v], v == t)) {
@@ -1651,7 +1651,7 @@ void DrawRuleEditor(AppState& s) {
             ImGui::SetNextItemWidth(S(140));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem(i ? "##bar_max_type" : "##bar_min_type", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##type", names[shown])) {
+            if (ui::BeginCombo("##type", names[shown])) {
               for (int v : {6, i == 0 ? 1 : 2, 0, 3, 4, 5}) {
                 if (ImGui::Selectable(names[v], v == shown)) {
                   type = v == 6 ? -1 : v;
@@ -1693,7 +1693,7 @@ void DrawRuleEditor(AppState& s) {
           const ImVec2 at = ImGui::GetCursorScreenPos();
           ui::NoteUiItem("##bar_fill", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
         }
-        if (ImGui::Combo(TR("Fill"), &fill, fills, 2)) r.bar_gradient = fill == 1;
+        if (ui::Combo(TR("Fill"), &fill, fills, 2)) r.bar_gradient = fill == 1;
         ImGui::SameLine();
         PaletteColor(TR("Color"), &r.bar_color, false, "");
         const char* borders[] = {TR("No Border"), TR("Solid Border")};
@@ -1703,14 +1703,14 @@ void DrawRuleEditor(AppState& s) {
           const ImVec2 at = ImGui::GetCursorScreenPos();
           ui::NoteUiItem("##bar_border", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
         }
-        if (ImGui::Combo(TR("Border"), &border, borders, 2)) r.bar_border = border ? r.bar_color : 0;
+        if (ui::Combo(TR("Border"), &border, borders, 2)) r.bar_border = border ? r.bar_color : 0;
         if (r.bar_border) {
           ImGui::SameLine();
           PaletteColor(TR("Border Color"), &r.bar_border, false, "");
         }
         const char* dirs[] = {TR("Context"), TR("Left-to-Right"), TR("Right-to-Left")};
         ImGui::SetNextItemWidth(S(140));
-        ImGui::Combo(TR("Bar Direction"), &r.bar_direction, dirs, 3);
+        ui::Combo(TR("Bar Direction"), &r.bar_direction, dirs, 3);
         ImGui::TextUnformatted(TR("Preview:"));
         ImGui::SameLine();
         const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1723,7 +1723,7 @@ void DrawRuleEditor(AppState& s) {
           if (k.style == r.icon_style) cur = k.label;
         }
         ImGui::SetNextItemWidth(S(260));
-        if (ImGui::BeginCombo(TR("Icon Style"), cur)) {
+        if (ui::BeginCombo(TR("Icon Style"), cur)) {
           for (const auto& k : IconPresets()) {
             ImGui::PushID(k.style);
             const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1762,7 +1762,7 @@ void DrawRuleEditor(AppState& s) {
             int g = t.gte ? 0 : 1;
             const char* cmp[] = {">=", ">"};
             ImGui::SetNextItemWidth(S(50));
-            if (ImGui::Combo("##gte", &g, cmp, 2)) t.gte = g == 0;
+            if (ui::Combo("##gte", &g, cmp, 2)) t.gte = g == 0;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(S(110));
             if (t.type == 3) {
@@ -1775,7 +1775,7 @@ void DrawRuleEditor(AppState& s) {
             ImGui::SameLine();
             int ty = std::clamp(t.type, 0, 3);
             ImGui::SetNextItemWidth(S(110));
-            if (ImGui::Combo("##type", &ty, types, 4)) t.type = ty;
+            if (ui::Combo("##type", &ty, types, 4)) t.type = ty;
           }
           ImGui::PopID();
         }
@@ -1788,14 +1788,14 @@ void DrawRuleEditor(AppState& s) {
       int w = r.type == T::TextContains ? 1 : r.type == T::TimePeriod ? 2 : r.type == T::Blanks ? 3 : r.type == T::NoBlanks ? 4 : r.type == T::Errors ? 5 : r.type == T::NoErrors ? 6 : 0;
       ImGui::TextUnformatted(TR("Format only cells with:"));
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo("##what", &w, what, 7);
+      ui::Combo("##what", &w, what, 7);
       r.type = w == 1 ? T::TextContains : w == 2 ? T::TimePeriod : w == 3 ? T::Blanks : w == 4 ? T::NoBlanks : w == 5 ? T::Errors : w == 6 ? T::NoErrors : T::CellValue;
       if (w == 0) {
         static const char* kOps[] = {TR("between"), TR("not between"), TR("equal to"), TR("not equal to"), TR("greater than"), TR("less than"), TR("greater than or equal to"), TR("less than or equal to")};
         int op = std::clamp(static_cast<int>(r.op), 1, 8) - 1;
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(170));
-        if (ImGui::Combo("##op", &op, kOps, 8)) r.op = static_cast<model::CmpOp>(op + 1);
+        if (ui::Combo("##op", &op, kOps, 8)) r.op = static_cast<model::CmpOp>(op + 1);
         const bool two = r.op == model::CmpOp::Between || r.op == model::CmpOp::NotBetween;
         RangeBox(s, "cfe.f1", &u.cfe_f1, two ? S(240) : S(500), RangeBox_Formula | RangeBox_Equals, TR("Value"));
         if (two) {
@@ -1809,7 +1809,7 @@ void DrawRuleEditor(AppState& s) {
         const char* ops[] = {TR("containing"), TR("not containing"), TR("beginning with"), TR("ending with")};
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(140));
-        ImGui::Combo("##textop", &r.text_op, ops, 4);
+        ui::Combo("##textop", &r.text_op, ops, 4);
         ImGui::SameLine();
         char buf[256];
         std::snprintf(buf, sizeof buf, "%s", r.text.c_str());
@@ -1819,7 +1819,7 @@ void DrawRuleEditor(AppState& s) {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(180));
         ui::NoteUiItem("##period", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        if (ImGui::BeginCombo("##period", PeriodName(r.time_period))) {
+        if (ui::BeginCombo("##period", PeriodName(r.time_period))) {
           for (int k : kPeriodOrder) {
             if (ImGui::Selectable(PeriodName(k), r.time_period == k)) r.time_period = k;
           }
@@ -1833,7 +1833,7 @@ void DrawRuleEditor(AppState& s) {
       const char* tb[] = {TR("Top"), TR("Bottom")};
       int b = r.bottom ? 1 : 0;
       ImGui::SetNextItemWidth(S(100));
-      if (ImGui::Combo("##tb", &b, tb, 2)) r.bottom = b == 1;
+      if (ui::Combo("##tb", &b, tb, 2)) r.bottom = b == 1;
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(120));
       ImGui::InputInt("##rank", &r.rank, 1, 10);
@@ -1852,7 +1852,7 @@ void DrawRuleEditor(AppState& s) {
       ImGui::TextUnformatted(TR("Format values that are:"));
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(160));
-      if (ImGui::Combo("##ab", &b, ab, 10)) {
+      if (ui::Combo("##ab", &b, ab, 10)) {
         r.below = b % 2 == 1;
         r.equal_average = b == 2 || b == 3;
         r.std_dev = b >= 4 ? (b - 2) / 2 : 0;
@@ -1868,7 +1868,7 @@ void DrawRuleEditor(AppState& s) {
       ImGui::TextUnformatted(TR("Format all:"));
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(140));
-      if (ImGui::Combo("##du", &d, du, 2)) r.duplicate = d == 0;
+      if (ui::Combo("##du", &d, du, 2)) r.duplicate = d == 0;
       ImGui::SameLine();
       ImGui::TextUnformatted(TR("values in the selected range"));
       break;
@@ -2129,14 +2129,14 @@ void DrawRuleDialogs(AppState& s) {
     auto row = [&](const char* id, int* op, char* v) {
       ImGui::PushID(id);
       ImGui::SetNextItemWidth(S(180));
-      ImGui::Combo("##op", op, kOps, 12);
+      ui::Combo("##op", op, kOps, 12);
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(200));
       // the keyboard starts in the first value box, as in Excel (Begins With..., then type A and Enter)
       if (v == f.v1 && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
       ImGui::InputText("##v", v, 128);
       ImGui::SameLine(0, 0);
-      if (ImGui::BeginCombo("##pick", "", ImGuiComboFlags_NoPreview | ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft)) {
+      if (ui::BeginCombo("##pick", "", ImGuiComboFlags_NoPreview | ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft)) {
         for (size_t k = 0; k < f.values.size(); ++k) {
           const auto& val = f.values[k];
           ImGui::PushID(static_cast<int>(k));
@@ -2195,14 +2195,14 @@ void DrawRuleDialogs(AppState& s) {
     static const char* kTop[] = {TR("Top"), TR("Bottom")};
     static const char* kKind[] = {TR("Items"), TR("Percent")};
     ImGui::SetNextItemWidth(S(90));
-    ImGui::Combo("##top", &f.t_top, kTop, 2);
+    ui::Combo("##top", &f.t_top, kTop, 2);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(90));
     ImGui::InputInt("##n", &f.t_count);
     f.t_count = std::clamp(f.t_count, 1, 500);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(90));
-    ImGui::Combo("##kind", &f.t_pct, kKind, 2);
+    ui::Combo("##kind", &f.t_pct, kKind, 2);
     bool close = false;
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       model::FilterColumn fc;
@@ -2252,14 +2252,14 @@ void DrawRuleDialogs(AppState& s) {
         const char* du[] = {TR("Duplicate"), TR("Unique")};
         ImGui::SetNextItemWidth(S(140));
         ui::NoteUiItem("##dupe", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        ImGui::Combo("##dupe", &u.cf_dupe, du, 2);
+        ui::Combo("##dupe", &u.cf_dupe, du, 2);
         ImGui::SameLine();
         ImGui::TextUnformatted(TR("values with"));
       }
       if (k == 13) {
         ImGui::SetNextItemWidth(S(200));
         ui::NoteUiItem("##period", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        if (ImGui::BeginCombo("##period", PeriodName(u.cf_period))) {
+        if (ui::BeginCombo("##period", PeriodName(u.cf_period))) {
           for (int p : kPeriodOrder) {
             if (ImGui::Selectable(PeriodName(p), u.cf_period == p)) u.cf_period = p;
           }
@@ -2271,7 +2271,7 @@ void DrawRuleDialogs(AppState& s) {
       u.cf_preset = std::clamp(u.cf_preset, 0, static_cast<int>(std::size(kPresets)) - 1);
       bool custom = false;
       ui::NoteUiItem("##preset", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-      if (ImGui::BeginCombo("##preset", kPresets[u.cf_preset].name)) {
+      if (ui::BeginCombo("##preset", kPresets[u.cf_preset].name)) {
         for (int i = 0; i < static_cast<int>(std::size(kPresets)); ++i) {
           if (ImGui::Selectable(kPresets[i].name, u.cf_preset == i)) u.cf_preset = i;
         }
@@ -2384,7 +2384,7 @@ void DrawRuleDialogs(AppState& s) {
         if (const model::Sheet* x = s.snap ? s.snap->Sheet(id) : nullptr) u.cfm_rules = *x->cond_formats;
         std::stable_sort(u.cfm_rules.begin(), u.cfm_rules.end(), [](const model::CfRule& a, const model::CfRule& b) { return a.priority < b.priority; });
       };
-      if (ImGui::BeginCombo("##scope", shown.c_str())) {
+      if (ui::BeginCombo("##scope", shown.c_str())) {
         if (ImGui::Selectable(TR("Current Selection"), u.cfm_sheet == s.focus_sheet && u.cfm_scope == 0)) {
           if (u.cfm_sheet != s.focus_sheet) load(s.focus_sheet);
           u.cfm_scope = 0;
@@ -2562,7 +2562,7 @@ void DrawRuleDialogs(AppState& s) {
         int t = static_cast<int>(d.type);
         ImGui::TextUnformatted(TR("Allow"));
         ImGui::SetNextItemWidth(S(200));
-        if (ImGui::Combo("##type", &t, kTypes, 8)) d.type = static_cast<model::DvType>(t);
+        if (ui::Combo("##type", &t, kTypes, 8)) d.type = static_cast<model::DvType>(t);
         ImGui::SameLine();
         ImGui::BeginDisabled(d.type == model::DvType::Any);
         ImGui::Checkbox(TR("Ignore blank"), &d.ignore_blank);
@@ -2573,7 +2573,7 @@ void DrawRuleDialogs(AppState& s) {
           int op = static_cast<int>(d.op) - 1;
           ImGui::TextUnformatted(TR("Data"));
           ImGui::SetNextItemWidth(S(200));
-          if (ImGui::Combo("##op", &op, kOps, 8)) d.op = static_cast<model::CmpOp>(op + 1);
+          if (ui::Combo("##op", &op, kOps, 8)) d.op = static_cast<model::CmpOp>(op + 1);
           const bool two = d.op == model::CmpOp::Between || d.op == model::CmpOp::NotBetween;
           // Excel's labels follow the type and the operator: Minimum / Maximum, Start date / End date, Length...
           const bool date = d.type == model::DvType::Date, time = d.type == model::DvType::Time, len = d.type == model::DvType::TextLength;
@@ -2624,7 +2624,7 @@ void DrawRuleDialogs(AppState& s) {
         int a = static_cast<int>(d.alert) - 1;
         ImGui::TextUnformatted(TR("Style"));
         ImGui::SetNextItemWidth(S(160));
-        if (ImGui::Combo("##al", &a, kAlerts, 3)) d.alert = static_cast<model::DvAlert>(a + 1);
+        if (ui::Combo("##al", &a, kAlerts, 3)) d.alert = static_cast<model::DvAlert>(a + 1);
         ImGui::TextUnformatted(TR("Title:"));
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##et", u.dv_et, sizeof(u.dv_et));

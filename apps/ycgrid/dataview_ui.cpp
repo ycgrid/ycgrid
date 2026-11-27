@@ -12,6 +12,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cmath>
@@ -391,7 +392,7 @@ void DrawDataViews(AppState& s) {
       ImGui::SetNextItemWidth(S(160));
       std::vector<const char*> names;
       for (const auto& c : v.cols) names.push_back(c.name.c_str());
-      ImGui::Combo("##stat", &v.stats_col, names.data(), static_cast<int>(names.size()));
+      ui::Combo("##stat", &v.stats_col, names.data(), static_cast<int>(names.size()));
       ImGui::SameLine();
       if (ImGui::Button(TR("To Sheet"))) ToSheet(s, v);
       ImGui::SetItemTooltip("%s", TR("Write the shown rows (at most 1,048,575) to a new sheet."));

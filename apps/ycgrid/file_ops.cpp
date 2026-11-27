@@ -973,7 +973,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         ImGui::TextUnformatted(i18n::LanguageLabel());
         const i18n::Lang saved = i18n::SavedLanguage();
         ImGui::SetNextItemWidth(S(220));
-        if (ImGui::BeginCombo("##yc_lang", i18n::LangName(saved))) {
+        if (ui::BeginCombo("##yc_lang", i18n::LangName(saved))) {
           for (i18n::Lang l : {i18n::Lang::En, i18n::Lang::ZhTW}) {
             if (ImGui::Selectable(i18n::LangName(l), l == saved) && l != saved) i18n::SaveLanguage(l);
           }
@@ -1148,7 +1148,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(90));
       const char* dirs[] = {TR("Down"), TR("Right##ctx_dir"), TR("Up"), TR("Left##ctx_dir")};
-      if (ImGui::Combo(TR("Direction"), &cfg.move_after_return_dir, dirs, 4)) changed = true;
+      if (ui::Combo(TR("Direction"), &cfg.move_after_return_dir, dirs, 4)) changed = true;
       ImGui::EndDisabled();
       if (ImGui::Checkbox(TR("Allow editing directly in cells"), &cfg.edit_directly_in_cell)) changed = true;
       if (ImGui::Checkbox(TR("Enable AutoComplete for cell values"), &cfg.enable_autocomplete)) changed = true;

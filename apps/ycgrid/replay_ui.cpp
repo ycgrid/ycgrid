@@ -264,7 +264,7 @@ void DrawReplayFrame(AppState& s) {
     ImGui::SetItemTooltip("%s", playing ? TR("Pause") : TR("Play"));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(72));
-    if (ImGui::BeginCombo("##speed", SpeedText(st.speed).c_str())) {
+    if (ui::BeginCombo("##speed", SpeedText(st.speed).c_str())) {
       for (double sp : kSpeeds) {
         if (ImGui::Selectable(SpeedText(sp).c_str(), sp == st.speed)) s.python->SetReplaySpeed(sp);
       }

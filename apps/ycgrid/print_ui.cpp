@@ -380,7 +380,7 @@ void DrawHfFontPopup(const std::function<void(const std::string&)>& insert) {
   if (!ImGui::BeginPopup("##hffont")) return;
   ImGui::TextUnformatted(TR("Font:"));
   ImGui::SetNextItemWidth(S(220));
-  if (ImGui::BeginCombo("##font", font)) {
+  if (ui::BeginCombo("##font", font)) {
     for (const std::string& f : ui::SystemFontFamilies()) {
       if (ImGui::Selectable(f.c_str(), f == font)) std::snprintf(font, sizeof font, "%s", f.c_str());
     }
@@ -388,7 +388,7 @@ void DrawHfFontPopup(const std::function<void(const std::string&)>& insert) {
   }
   const char* styles[] = {TR("Regular"), TR("Italic"), TR("Bold"), TR("Bold Italic")};
   ImGui::SetNextItemWidth(S(140));
-  ImGui::Combo(TR("Font style:"), &style, styles, 4);
+  ui::Combo(TR("Font style:"), &style, styles, 4);
   ImGui::SetNextItemWidth(S(100));
   if (ImGui::InputInt(TR("Size:"), &size)) size = std::clamp(size, 1, 409);
   ImGui::Checkbox(TR("Underline"), &underline);
@@ -478,7 +478,7 @@ void DrawHeaderFooterTab(AppState& s, PrintUi& u) {
     ImGui::TextUnformatted(part == 0 ? TR("Header:") : TR("Footer:"));
     const int cur = current(base);
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::BeginCombo("##preset", cur >= 0 ? preset_label(presets[static_cast<size_t>(cur)]).c_str() : TR("(custom)"))) {
+    if (ui::BeginCombo("##preset", cur >= 0 ? preset_label(presets[static_cast<size_t>(cur)]).c_str() : TR("(custom)"))) {
       for (size_t k = 0; k < presets.size(); ++k) {
         ImGui::PushID(static_cast<int>(k));
         if (ImGui::Selectable(preset_label(presets[k]).c_str(), cur == static_cast<int>(k))) {
@@ -648,7 +648,7 @@ bool OrientationCombo(model::PageSetup& ps, float w) {
   int v = ps.landscape ? 1 : 0;
   const char* items[] = {TR("Portrait Orientation"), TR("Landscape Orientation")};
   ImGui::SetNextItemWidth(w);
-  if (!ImGui::Combo("##orient", &v, items, 2)) return false;
+  if (!ui::Combo("##orient", &v, items, 2)) return false;
   ps.landscape = v == 1;
   return true;
 }
@@ -671,7 +671,7 @@ bool PaperCombo(model::PageSetup& ps, float w) {
   ui::NoteUiItem("Paper size", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(w, ImGui::GetFrameHeight())));
   ImGui::SetNextItemWidth(w);
   bool changed = false;
-  if (ImGui::BeginCombo("##paper", shown.c_str())) {
+  if (ui::BeginCombo("##paper", shown.c_str())) {
     for (int i = 0; i < static_cast<int>(papers.size()); ++i) {
       ImGui::PushID(i);
       if (ImGui::Selectable(papers[static_cast<size_t>(i)].name.c_str(), i == cur)) {
@@ -727,7 +727,7 @@ bool MarginsCombo(AppState& s, model::PageSetup& ps, float w) {
   const int kind = MarginKind(ps);  // 0-2 presets, 3 custom
   int v = kind == 3 ? static_cast<int>(items.size()) - 1 : kind + (last ? 1 : 0);
   ImGui::SetNextItemWidth(w);
-  if (!ImGui::Combo("##margins", &v, items.data(), static_cast<int>(items.size()))) return false;
+  if (!ui::Combo("##margins", &v, items.data(), static_cast<int>(items.size()))) return false;
   if (v == static_cast<int>(items.size()) - 1) {  // Custom Margins...: Page Setup on its Margins tab, as in Excel
     OpenPageSetup(s, 1);
     return false;
@@ -755,7 +755,7 @@ bool ScaleCombo(AppState& s, model::PageSetup& ps, float w) {
   int v = ScaleKind(ps);
   const char* items[] = {TR("No Scaling"), TR("Fit Sheet on One Page"), TR("Fit All Columns on One Page"), TR("Fit All Rows on One Page"), TR("Custom Scaling")};
   ImGui::SetNextItemWidth(w);
-  if (!ImGui::Combo("##scale", &v, items, 5)) return false;
+  if (!ui::Combo("##scale", &v, items, 5)) return false;
   if (v == 4) {  // Custom Scaling Options...: Page Setup on its Page tab
     OpenPageSetup(s, 0);
     return false;
@@ -790,7 +790,7 @@ void DrawPrintBackstage(AppState& s, const ImRect& area) {
   ImGui::SetNextItemWidth(left_w);
   const std::string cur = u.printer >= 0 && u.printer < static_cast<int>(u.printers.size()) ? ToUtf8(u.printers[static_cast<size_t>(u.printer)]) : TR("(no printer)");
   ui::NoteUiItem("Printer", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(left_w, ImGui::GetFrameHeight())));
-  if (ImGui::BeginCombo("##printer", cur.c_str())) {
+  if (ui::BeginCombo("##printer", cur.c_str())) {
     for (size_t i = 0; i < u.printers.size(); ++i) {
       if (ImGui::Selectable(ToUtf8(u.printers[i]).c_str(), static_cast<int>(i) == u.printer)) u.printer = static_cast<int>(i);
     }
@@ -805,7 +805,7 @@ void DrawPrintBackstage(AppState& s, const ImRect& area) {
     const char* items[] = {chart ? TR("Print Selected Chart") : TR("Print Active Sheets"), TR("Print Entire Workbook"), TR("Print Selection")};
     ui::NoteUiItem("Print what", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(left_w, ImGui::GetFrameHeight())));
     ImGui::SetNextItemWidth(left_w);
-    if (ImGui::Combo("##what", &u.what, items, 3)) u.page = 0;
+    if (ui::Combo("##what", &u.what, items, 3)) u.page = 0;
   }
   ImGui::Checkbox(TR("Ignore Print Area"), &u.ignore_area);
   ImGui::TextUnformatted(TR("Pages:"));
@@ -821,12 +821,12 @@ void DrawPrintBackstage(AppState& s, const ImRect& area) {
     const char* sides[] = {TR("Print One Sided"), TR("Print on Both Sides (flip pages on long edge)"), TR("Print on Both Sides (flip pages on short edge)")};
     ui::NoteUiItem("Sides", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(left_w, ImGui::GetFrameHeight())));
     ImGui::SetNextItemWidth(left_w);
-    ImGui::Combo("##sides", &u.duplex, sides, 3);
+    ui::Combo("##sides", &u.duplex, sides, 3);
     int collate = u.collate ? 0 : 1;
     const char* coll[] = {TR("Collated  1,2,3  1,2,3  1,2,3"), TR("Uncollated  1,1,1  2,2,2  3,3,3")};
     ui::NoteUiItem("Collation", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(left_w, ImGui::GetFrameHeight())));
     ImGui::SetNextItemWidth(left_w);
-    if (ImGui::Combo("##collate", &collate, coll, 2)) u.collate = collate == 0;
+    if (ui::Combo("##collate", &collate, coll, 2)) u.collate = collate == 0;
   }
   if (const model::PageSetup* cps = ActiveSetup(s)) {
     model::PageSetup ps = *cps;
@@ -3537,14 +3537,14 @@ void DrawPageSetupDialog(AppState& s) {
           ImGui::SameLine(S(130));
           ui::NoteUiItem("Comments and notes", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(150), ImGui::GetFrameHeight())));
           ImGui::SetNextItemWidth(S(150));
-          ImGui::Combo("##comments", &ps.print_comments, notes, 3);
+          ui::Combo("##comments", &ps.print_comments, notes, 3);
           const char* errs[] = {TR("displayed"), TR("<blank>"), "--", "#N/A"};
           ImGui::AlignTextToFramePadding();
           ImGui::TextUnformatted(TR("Cell errors as:"));
           ImGui::SameLine(S(130));
           ui::NoteUiItem("Cell errors as", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(150), ImGui::GetFrameHeight())));
           ImGui::SetNextItemWidth(S(150));
-          ImGui::Combo("##errors", &ps.print_errors, errs, 4);
+          ui::Combo("##errors", &ps.print_errors, errs, 4);
         }
         ImGui::EndGroup();
         ImGui::SeparatorText(TR("Page order"));

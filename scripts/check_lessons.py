@@ -78,6 +78,12 @@ RULES = [
          "Ctrl+PgDn and Ctrl+PgUp: each dialog called ImGui::BeginTabBar itself and none of them took the keys.",
          r"\bImGui::BeginTabBar\s*\(",
          files=["apps/**/*.cpp"]),
+    Rule("combo-name",
+         "Combo boxes go through ui::Combo / ui::BeginCombo (yc_ui_items.h), which list them in ui.items by their "
+         "label: ImGui::BeginCombo tells the test hooks none, and most combo boxes (Data Validation's Allow) were "
+         "nameless controls no test could find.",
+         r"\bImGui::(Begin)?Combo\s*\(",
+         files=["apps/**/*.cpp", "src/ui/**/*.cpp", "src/ui/**/*.h"]),
     Rule("py-startfile",
          "Python opens files on the desktop through excel._open_on_desktop, which opens nothing for a script driving a "
          "hidden YCGrid (tests): os.startfile directly opened them on the user's screen.",

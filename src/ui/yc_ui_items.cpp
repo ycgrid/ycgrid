@@ -112,6 +112,15 @@ std::string LiveWindowTitle(const char* name) {
   return name;
 }
 
+void NameUiItem(ImGuiID id, const char* label) {
+  ImGuiContext* g = ImGui::GetCurrentContext();
+  if (!g_on || !g || !label) return;
+  auto it = g_items.find(id);
+  if (it == g_items.end() || it->second.frame != g->FrameCount) return;  // not added this frame (clipped by the window)
+  it->second.label = Visible(label);
+  it->second.raw = label;
+}
+
 namespace {
 bool FallbackShown() {
   for (const ImGuiWindow* w : ImGui::GetCurrentContext()->Windows) {

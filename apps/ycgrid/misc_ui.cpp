@@ -1419,7 +1419,7 @@ void DrawMiscDialogs(AppState& s) {
       if (ImGui::BeginTabItem(TR("Font"))) {
         ImGui::TextUnformatted(TR("Font:"));
         ImGui::SetNextItemWidth(S(240));
-        if (ImGui::BeginCombo("##font", lk.font_name.empty() ? "Tahoma" : lk.font_name.c_str())) {
+        if (ui::BeginCombo("##font", lk.font_name.empty() ? "Tahoma" : lk.font_name.c_str())) {
           for (const std::string& f : ui::SystemFontFamilies()) {
             if (ImGui::Selectable(f.c_str(), f == lk.font_name)) lk.font_name = f;
           }
@@ -1429,7 +1429,7 @@ void DrawMiscDialogs(AppState& s) {
         int st = (lk.bold ? 2 : 0) + (lk.italic ? 1 : 0);
         ImGui::TextUnformatted(TR("Font style:"));
         ImGui::SetNextItemWidth(S(240));
-        if (ImGui::Combo("##style", &st, kStyles, 4)) lk.bold = st >= 2, lk.italic = st == 1 || st == 3;
+        if (ui::Combo("##style", &st, kStyles, 4)) lk.bold = st >= 2, lk.italic = st == 1 || st == 3;
         float size = lk.font_size > 0 ? lk.font_size : 9;
         ImGui::TextUnformatted(TR("Size:"));
         ImGui::SetNextItemWidth(S(240));
@@ -1442,10 +1442,10 @@ void DrawMiscDialogs(AppState& s) {
         const char* kV[] = {TR("Top"), TR("Center"), TR("Bottom")};
         ImGui::TextUnformatted(TR("Horizontal:"));
         ImGui::SetNextItemWidth(S(200));
-        ImGui::Combo("##h", &lk.halign, kH, 3);
+        ui::Combo("##h", &lk.halign, kH, 3);
         ImGui::TextUnformatted(TR("Vertical:"));
         ImGui::SetNextItemWidth(S(200));
-        ImGui::Combo("##v", &lk.valign, kV, 3);
+        ui::Combo("##v", &lk.valign, kV, 3);
         ImGui::EndTabItem();
       }
       if (ImGui::BeginTabItem(TR("Colors and Lines"))) {
@@ -1757,7 +1757,7 @@ void DrawMiscDialogs(AppState& s) {
         const uint32_t c = m.sort_ltr ? r.c0 : r.c0 + static_cast<uint32_t>(l.col);
         ImGui::SetNextItemWidth(c_col);
         ui::NoteUiItem((std::string("##col") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_col, ImGui::GetFrameHeight())));
-        if (ImGui::BeginCombo("##col", names.empty() ? "" : names[static_cast<size_t>(l.col)].c_str())) {
+        if (ui::BeginCombo("##col", names.empty() ? "" : names[static_cast<size_t>(l.col)].c_str())) {
           for (size_t k = 0; k < names.size(); ++k) {
             ImGui::PushID(static_cast<int>(k));
             // the header's text as it is ("C##1" too): an id-only item and the text beside it
@@ -1777,7 +1777,7 @@ void DrawMiscDialogs(AppState& s) {
         static const char* kOn[] = {TR("Cell Values"), TR("Cell Color"), TR("Font Color"), TR("Conditional Formatting Icon")};
         ImGui::SetNextItemWidth(c_on);
         ui::NoteUiItem((std::string("##on") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_on, ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##on", &l.sort_on, kOn, m.sort_ltr ? 3 : 4)) {
+        if (ui::Combo("##on", &l.sort_on, kOn, m.sort_ltr ? 3 : 4)) {
           l.desc = false;
           l.list = -1;
           const auto cols = l.sort_on == 3 ? std::vector<uint32_t>{} : column_colors(c, l.sort_on);
@@ -1803,7 +1803,7 @@ void DrawMiscDialogs(AppState& s) {
           const std::string shown = l.list >= 0 ? list_text(l.list) + (l.desc ? TR(" (reversed)") : "") : (l.desc ? kDesc[kind] : kAsc[kind]);
           ImGui::SetNextItemWidth(c_ord);
           ui::NoteUiItem((std::string("##ord") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord, ImGui::GetFrameHeight())));
-          if (ImGui::BeginCombo("##ord", shown.c_str())) {
+          if (ui::BeginCombo("##ord", shown.c_str())) {
             if (ImGui::Selectable(kAsc[kind], l.list < 0 && !l.desc)) l.list = -1, l.desc = false;
             if (ImGui::Selectable(kDesc[kind], l.list < 0 && l.desc)) l.list = -1, l.desc = true;
             ImGui::SeparatorText(TR("Custom List"));
@@ -1822,7 +1822,7 @@ void DrawMiscDialogs(AppState& s) {
           ui::NoteUiItem((std::string("##icon") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(cw, ImGui::GetFrameHeight())));
           const ImVec2 at = ImGui::GetCursorScreenPos();
           const float ih = ImGui::GetTextLineHeight();
-          if (ImGui::BeginCombo("##icon", " ", ImGuiComboFlags_HeightLarge)) {
+          if (ui::BeginCombo("##icon", " ", ImGuiComboFlags_HeightLarge)) {
             for (size_t k = 0; k < icons.size(); ++k) {
               ImGui::PushID(static_cast<int>(k));
               const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1845,7 +1845,7 @@ void DrawMiscDialogs(AppState& s) {
           static const char* kPos[] = {TR("On Top"), TR("On Bottom")};
           ImGui::SetNextItemWidth(c_ord - cw - ImGui::GetStyle().ItemSpacing.x);
           ui::NoteUiItem((std::string("##ipos") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord - cw, ImGui::GetFrameHeight())));
-          if (ImGui::Combo("##ipos", &pos, kPos, 2)) l.desc = pos == 1;
+          if (ui::Combo("##ipos", &pos, kPos, 2)) l.desc = pos == 1;
         } else {
           // Sort by color: the colors in the column (as swatches), then On Top / On Bottom
           const auto cols = column_colors(c, l.sort_on);
@@ -1853,7 +1853,7 @@ void DrawMiscDialogs(AppState& s) {
           ImGui::SetNextItemWidth(cw);
           ui::NoteUiItem((std::string("##color") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(cw, ImGui::GetFrameHeight())));
           const ImVec2 at = ImGui::GetCursorScreenPos();
-          if (ImGui::BeginCombo("##color", " ", ImGuiComboFlags_HeightLarge)) {
+          if (ui::BeginCombo("##color", " ", ImGuiComboFlags_HeightLarge)) {
             for (size_t k = 0; k < cols.size(); ++k) {
               ImGui::PushID(static_cast<int>(k));
               const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1875,7 +1875,7 @@ void DrawMiscDialogs(AppState& s) {
           static const char* kPos[] = {TR("On Top"), TR("On Bottom")};
           ImGui::SetNextItemWidth(c_ord - cw - ImGui::GetStyle().ItemSpacing.x);
           ui::NoteUiItem((std::string("##pos") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord - cw, ImGui::GetFrameHeight())));
-          if (ImGui::Combo("##pos", &pos, kPos, 2)) l.desc = pos == 1;
+          if (ui::Combo("##pos", &pos, kPos, 2)) l.desc = pos == 1;
         }
         ImGui::PopID();
       }

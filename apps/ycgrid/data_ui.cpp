@@ -997,7 +997,7 @@ void DrawDataDialogs(AppState& s) {
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(90));
       ui::NoteUiItem("##t2c_qual", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(90), ImGui::GetFrameHeight())));
-      ImGui::Combo("##t2c_qual", &d.tc_qual, kQual, 3);
+      ui::Combo("##t2c_qual", &d.tc_qual, kQual, 3);
     } else if (d.tc_step == 1) {
       ImGui::TextWrapped("%s", TR("This screen lets you set field widths (column breaks)."));
       DrawBreakRuler(s, d);
@@ -1027,7 +1027,7 @@ void DrawDataDialogs(AppState& s) {
       int order = (kind == 3 ? t : d.tc_date) - 3;
       ImGui::SetNextItemWidth(S(80));
       ui::NoteUiItem("##t2c_date", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-      if (ImGui::Combo("##t2c_date", &order, kDateOrders, 6)) {
+      if (ui::Combo("##t2c_date", &order, kDateOrders, 6)) {
         d.tc_date = order + 3;
         t = d.tc_date;
       }
@@ -1047,13 +1047,13 @@ void DrawDataDialogs(AppState& s) {
         ImGui::SameLine(S(170));
         ImGui::SetNextItemWidth(S(80));
         ui::NoteUiItem("##t2c_dec", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-        ImGui::Combo("##t2c_dec", &d.tc_dec, kSeps, 4);
+        ui::Combo("##t2c_dec", &d.tc_dec, kSeps, 4);
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(TR("Thousands separator:"));
         ImGui::SameLine(S(170));
         ImGui::SetNextItemWidth(S(80));
         ui::NoteUiItem("##t2c_th", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-        ImGui::Combo("##t2c_th", &d.tc_th, kSeps, 4);
+        ui::Combo("##t2c_th", &d.tc_th, kSeps, 4);
         ImGui::Checkbox(TR("Trailing minus for negative numbers"), &d.tc_trail);
         if (ImGui::Button(TR("Reset"))) {
           d.tc_dec = 0;

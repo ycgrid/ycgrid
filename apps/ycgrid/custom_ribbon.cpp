@@ -20,6 +20,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <pugixml.hpp>
 
@@ -477,7 +478,7 @@ void DrawCustom(AppState& s, const std::string& id, const ImRect& r) {
   ImGui::SetNextItemWidth(box.GetWidth());
   if (c.type == "dropDown") {
     const std::string cur = st.index >= 0 && st.index < static_cast<int>(items.size()) ? items[static_cast<size_t>(st.index)].label : std::string();
-    if (ImGui::BeginCombo("##dd", cur.c_str())) {
+    if (ui::BeginCombo("##dd", cur.c_str())) {
       for (size_t i = 0; i < items.size(); ++i) {
         ImGui::PushID(static_cast<int>(i));
         if (ImGui::Selectable(items[i].label.empty() ? " " : items[i].label.c_str(), static_cast<int>(i) == st.index)) {

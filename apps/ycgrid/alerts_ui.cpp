@@ -12,6 +12,7 @@
 #include "icons/yc_icons.h"
 
 #include "imgui.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -88,7 +89,7 @@ void DrawAlertRules(AppState& s) {
     ImGui::InputTextWithHint("##name", TR("Name"), u.name, sizeof u.name);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(110));
-    ImGui::Combo("##op", &u.op, kOps, IM_ARRAYSIZE(kOps));
+    ui::Combo("##op", &u.op, kOps, IM_ARRAYSIZE(kOps));
     if (u.op != 8) {
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(110));

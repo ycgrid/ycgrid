@@ -397,7 +397,7 @@ void DrawSymbolWindow(AppState& s) {
   ImGui::TextUnformatted(TR("Font:"));
   ImGui::SameLine();
   ImGui::SetNextItemWidth(S(170));
-  if (ImGui::BeginCombo("##symfont", u.symbol_font.empty() ? TR("(normal text)") : u.symbol_font.c_str())) {
+  if (ui::BeginCombo("##symfont", u.symbol_font.empty() ? TR("(normal text)") : u.symbol_font.c_str())) {
     if (ImGui::Selectable(TR("(normal text)"), u.symbol_font.empty())) u.symbol_font.clear();
     for (const std::string& f : ui::SystemFontFamilies()) {
       if (ImGui::Selectable(f.c_str(), u.symbol_font == f)) u.symbol_font = f;
@@ -406,7 +406,7 @@ void DrawSymbolWindow(AppState& s) {
   }
   ImGui::SameLine();
   ImGui::SetNextItemWidth(S(190));
-  if (ImGui::BeginCombo(TR("Subset"), Subsets()[u.symbol_subset].name)) {
+  if (ui::BeginCombo(TR("Subset"), Subsets()[u.symbol_subset].name)) {
     for (int k = 0; k < kSubsetCount; ++k) {
       if (ImGui::Selectable(Subsets()[k].name, k == u.symbol_subset)) u.symbol_subset = k;
     }
@@ -470,7 +470,7 @@ void DrawSymbolWindow(AppState& s) {
     const ImVec2 at = ImGui::GetCursorScreenPos();
     ui::NoteUiItem("##symfrom", ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));
   }
-  if (ImGui::Combo("##symfrom", &u.symbol_from, kFrom, 3)) {
+  if (ui::Combo("##symfrom", &u.symbol_from, kFrom, 3)) {
     if (u.symbol_from != 0 && u.symbol_pick > 0xFF) u.symbol_pick = 0x41;
     SetSymbolCode(u.symbol_pick);
   }

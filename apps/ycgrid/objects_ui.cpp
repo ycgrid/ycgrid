@@ -7199,7 +7199,7 @@ bool EditSeriesFormat(AppState& s, const ChartObj& m, model::ChartSeries& se, co
       if (kTypes[k] == se.type) cur = k;
     }
     ImGui::SetNextItemWidth(S(180));
-    if (ImGui::Combo(TR("Series Chart Type"), &cur, items, 7)) {
+    if (ui::Combo(TR("Series Chart Type"), &cur, items, 7)) {
       se.type = kTypes[cur];
       changed = true;
     }
@@ -7438,7 +7438,7 @@ bool PickFontSize(const char* label, float* size, float default_pt) {
   std::snprintf(now, sizeof now, "%g", cur);
   bool changed = false;
   ImGui::SetNextItemWidth(S(80));
-  if (ImGui::BeginCombo(label, now)) {
+  if (ui::BeginCombo(label, now)) {
     for (float f : kSizes) {
       char b[16];
       std::snprintf(b, sizeof b, "%g", f);
@@ -7461,7 +7461,7 @@ bool EditChartFont(model::ChartFont& f, float default_pt) {
     ImGui::SetNextItemWidth(S(180));
     const ImVec2 at = ImGui::GetCursorScreenPos();
     ui::NoteUiItem(TR("Font"), ImRect(at, at + ImVec2(S(180), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-    if (ImGui::BeginCombo(TR("Font"), now.c_str(), ImGuiComboFlags_HeightLarge)) {
+    if (ui::BeginCombo(TR("Font"), now.c_str(), ImGuiComboFlags_HeightLarge)) {
       if (ImGui::Selectable(TR("(Automatic)"), f.name.empty())) f.name.clear(), changed = true;
       for (const std::string& fam : ui::SystemFontFamilies()) {
         if (ImGui::Selectable(fam.c_str(), fam == f.name)) f.name = fam, changed = true;
@@ -7510,7 +7510,7 @@ bool EditNumberFormat(std::string& code) {
   }
   bool changed = false;
   ImGui::SetNextItemWidth(S(160));
-  if (ImGui::Combo(TR("Category"), &cat, names, kN)) {
+  if (ui::Combo(TR("Category"), &cat, names, kN)) {
     if (kCats[cat].base) code = with_dec(kCats[cat].base, kCats[cat].decimals ? 2 : 0);
     changed = true;
   }
@@ -7596,7 +7596,7 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
       if (a.display_unit == kUnits[k]) ui = k;
     }
     ImGui::SetNextItemWidth(S(140));
-    if (ImGui::Combo(TR("Display units"), &ui, unit_names, 10)) a.display_unit = kUnits[ui], changed = true;
+    if (ui::Combo(TR("Display units"), &ui, unit_names, 10)) a.display_unit = kUnits[ui], changed = true;
     changed |= ImGui::Checkbox(TR("Logarithmic scale"), &a.log);
     if (a.log) {
       ImGui::SameLine();
@@ -7623,15 +7623,15 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
   const char* ticks[] = {TR("None"), TR("Inside"), TR("Outside"), TR("Cross")};
   int mt = a.major_tick < 0 ? 2 : std::clamp(a.major_tick, 0, 3);
   ImGui::SetNextItemWidth(S(140));
-  if (ImGui::Combo(TR("Major type"), &mt, ticks, 4)) a.major_tick = mt, changed = true;
+  if (ui::Combo(TR("Major type"), &mt, ticks, 4)) a.major_tick = mt, changed = true;
   ImGui::SetNextItemWidth(S(140));
   int mn = std::clamp(a.minor_tick, 0, 3);
-  if (ImGui::Combo(TR("Minor type"), &mn, ticks, 4)) a.minor_tick = mn, changed = true;
+  if (ui::Combo(TR("Minor type"), &mn, ticks, 4)) a.minor_tick = mn, changed = true;
   ImGui::SeparatorText(TR("Labels"));
   const char* lpos[] = {TR("Next to Axis"), TR("High"), TR("Low"), TR("None")};
   int lp = std::clamp(a.label_pos, 0, 3);
   ImGui::SetNextItemWidth(S(140));
-  if (ImGui::Combo(TR("Label Position"), &lp, lpos, 4)) a.label_pos = lp, changed = true;
+  if (ui::Combo(TR("Label Position"), &lp, lpos, 4)) a.label_pos = lp, changed = true;
   if (!value_axis) changed |= SpinInt(TR("Distance from axis"), a.label_offset, 0, 1000);
   if (!value_axis) changed |= ImGui::Checkbox(TR("Multi-level Category Labels"), &a.multi_level);
   ImGui::SeparatorText(TR("Number"));
@@ -7749,7 +7749,7 @@ bool PropBool(const char* id, bool& v) {
   ImGui::SetNextItemWidth(-1);
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem((std::string(id + 2) + "=" + kTF[i]).c_str(), ImRect(at, at + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-  if (ImGui::Combo(id, &i, kTF, 2)) {
+  if (ui::Combo(id, &i, kTF, 2)) {
     v = i == 0;
     return true;
   }
@@ -7761,7 +7761,7 @@ bool PropEnum(const char* id, int& v, const EnumItem* items, int n) {
   // the recorder sees the value as a person reads it ("1 - xlMoveAndSize")
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(EnumText(v, items, n).c_str(), ImRect(at, at + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-  if (ImGui::BeginCombo(id, EnumText(v, items, n).c_str())) {
+  if (ui::BeginCombo(id, EnumText(v, items, n).c_str())) {
     for (int i = 0; i < n; ++i) {
       const std::string t = std::to_string(items[i].value) + " - " + items[i].name;
       if (ImGui::Selectable(t.c_str(), items[i].value == v)) v = items[i].value, changed = true;
@@ -7840,7 +7840,7 @@ bool PropFont(const char* id, Control& m) {
     }
     ImGui::TextUnformatted(TR("Font:"));
     ImGui::SetNextItemWidth(S(220));
-    if (ImGui::BeginCombo("##fname", name.c_str())) {
+    if (ui::BeginCombo("##fname", name.c_str())) {
       for (const std::string& f : ui::SystemFontFamilies()) {
         if (ImGui::Selectable(f.c_str(), f == name)) name = f;
       }
@@ -7849,7 +7849,7 @@ bool PropFont(const char* id, Control& m) {
     ImGui::TextUnformatted(TR("Font style:"));
     const char* kStyles[] = {TR("Regular"), TR("Italic"), TR("Bold"), TR("Bold Italic")};
     ImGui::SetNextItemWidth(S(220));
-    ImGui::Combo("##fstyle", &style, kStyles, 4);
+    ui::Combo("##fstyle", &style, kStyles, 4);
     ImGui::TextUnformatted(TR("Size:"));
     ImGui::SetNextItemWidth(S(220));
     ImGui::InputFloat("##fsize", &size, 1, 2, "%.0f");
@@ -8090,9 +8090,9 @@ void DrawFormatControlDialog(AppState& s) {
       const char* kH[] = {TR("Left"), TR("Center"), TR("Right")};
       const char* kV[] = {TR("Top"), TR("Center"), TR("Bottom")};
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo(TR("Horizontal:"), &m.text_halign, kH, 3);
+      ui::Combo(TR("Horizontal:"), &m.text_halign, kH, 3);
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo(TR("Vertical:"), &m.text_valign, kV, 3);
+      ui::Combo(TR("Vertical:"), &m.text_valign, kV, 3);
       ImGui::SeparatorText(TR("Orientation"));
       ImGui::RadioButton(TR("Horizontal##orient"), &m.text_orientation, 0);
       ImGui::SameLine();
@@ -8213,14 +8213,14 @@ bool DrawFormatShape(ShapeObj& m) {
     changed |= SpinFloat(TR("Width (pt)"), m.line_weight, 0.25f, 0.25f, 20.0f, "%.2f");
     const char* dashes[] = {TR("Solid"), TR("Dash"), TR("Round Dot"), TR("Square Dot"), TR("Dash Dot"), TR("Long Dash")};
     ImGui::SetNextItemWidth(S(140));
-    changed |= ImGui::Combo(TR("Dash type"), &m.line_dash, dashes, 6);
+    changed |= ui::Combo(TR("Dash type"), &m.line_dash, dashes, 6);
     if (line_only) {
       const char* heads[] = {TR("None##arrow"), TR("Arrow##head")};
       ImGui::SetNextItemWidth(S(140));
-      changed |= ImGui::Combo(TR("Begin Arrow type"), &m.begin_arrow, heads, 2);
+      changed |= ui::Combo(TR("Begin Arrow type"), &m.begin_arrow, heads, 2);
       int end = m.kind == ShapeKind::Arrow ? 1 : m.end_arrow;
       ImGui::SetNextItemWidth(S(140));
-      if (ImGui::Combo(TR("End Arrow type"), &end, heads, 2)) {
+      if (ui::Combo(TR("End Arrow type"), &end, heads, 2)) {
         m.end_arrow = end;
         if (m.kind == ShapeKind::Arrow && end == 0) m.kind = ShapeKind::Line;
         changed = true;
@@ -8372,7 +8372,7 @@ bool NotedCombo(const char* label, const char* id, int* v, const char* const ite
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(label, ImRect(at, at + ImVec2(w, ImGui::GetFrameHeight())));
   ImGui::SetNextItemWidth(w);
-  return ImGui::Combo(id, v, items, n);
+  return ui::Combo(id, v, items, n);
 }
 
 // Excel's 3-D Rotation presets (Format Chart Area > Effects > 3-D Rotation): X / Y rotation and perspective together
@@ -8392,7 +8392,7 @@ bool Pick3DPreset(ChartObj& m) {
   ui::NoteUiItem(TR("Presets"), ImRect(at, at + ImVec2(S(200), ImGui::GetFrameHeight())));
   ImGui::SetNextItemWidth(S(200));
   bool changed = false;
-  if (ImGui::BeginCombo("##rot_presets", TR("Presets"))) {
+  if (ui::BeginCombo("##rot_presets", TR("Presets"))) {
     for (const Preset& p : kPresets) {
       const bool cur = m.view3d && m.rotation == p.rot && m.elevation == p.elev && m.perspective == p.persp;
       if (ImGui::Selectable(p.name, cur)) {
@@ -8600,7 +8600,7 @@ bool PickDash(const char* label, int* dash) {
   ImGui::SetNextItemWidth(S(150));
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-  if (!ImGui::Combo(label, &d, names, 6)) return false;
+  if (!ui::Combo(label, &d, names, 6)) return false;
   *dash = d;
   return true;
 }
@@ -8679,7 +8679,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
             ImGui::SetNextItemWidth(S(150));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-            if (ImGui::Combo(label, &k, items, n)) *v = k, changed = true;
+            if (ui::Combo(label, &k, items, n)) *v = k, changed = true;
           };
           combo(TR("Alignment"), &se.tile_align, aligns, 9);
           combo(TR("Mirror type"), &se.tile_mirror, mirrors, 4);
@@ -8691,7 +8691,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
         ImGui::SetNextItemWidth(S(180));
         const ImVec2 at = ImGui::GetCursorScreenPos();
         ui::NoteUiItem(TR("Pattern"), ImRect(at, at + ImVec2(S(180), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-        if (ImGui::Combo(TR("Pattern"), &pk, pats, model::kChartPatternCount)) se.pattern = pk, changed = true;
+        if (ui::Combo(TR("Pattern"), &pk, pats, model::kChartPatternCount)) se.pattern = pk, changed = true;
         changed |= PickBgr(TR("Foreground"), &se.color);
         changed |= PickBgr(TR("Background"), &se.pattern_back);
       } else {
@@ -8753,7 +8753,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
         ImGui::SetNextItemWidth(S(150));
         const ImVec2 at = ImGui::GetCursorScreenPos();
         ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-        if (ImGui::Combo(label, &k, items, n)) *v = k, changed = true;
+        if (ui::Combo(label, &k, items, n)) *v = k, changed = true;
       };
       const char* compounds[] = {TR("Single"), TR("Double"), TR("Thick Thin"), TR("Thin Thick"), TR("Triple")};
       combo(TR("Compound type"), &se.compound, compounds, 5);
@@ -8774,7 +8774,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
     ImGui::SetNextItemWidth(S(150));
     const ImVec2 at = ImGui::GetCursorScreenPos();
     ui::NoteUiItem(TR("Marker"), ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-    if (ImGui::Combo(TR("Marker"), &mk, markers, 8)) {
+    if (ui::Combo(TR("Marker"), &mk, markers, 8)) {
       se.marker = mk - 1;
       changed = true;
     }
@@ -8871,7 +8871,7 @@ bool EditDataLabels(AppState& s, const ChartObj& m, model::ChartSeries& se, int 
     if (se.label_sep == kSeps[k]) si = k;
   }
   ImGui::SetNextItemWidth(S(120));
-  if (ImGui::Combo(TR("Separator"), &si, sep_names, 5)) se.label_sep = kSeps[si], changed = true;
+  if (ui::Combo(TR("Separator"), &si, sep_names, 5)) se.label_sep = kSeps[si], changed = true;
   // Label Position: the places this kind of chart offers
   std::vector<std::pair<int, const char*>> places;
   if (engine::IsBarType(st)) {
@@ -9364,7 +9364,7 @@ std::vector<std::pair<model::ChartElem, int>> ChartElemList(const ChartObj& m) {
 void ChartElemCombo(ObjSel o, const ChartObj& m, model::ChartElem el, int es, int ep, const char* id, float width) {
   using E = model::ChartElem;
   ImGui::SetNextItemWidth(width);
-  if (ImGui::BeginCombo(id, ChartElemName(m, el, es, ep).c_str(), ImGuiComboFlags_HeightLarge)) {
+  if (ui::BeginCombo(id, ChartElemName(m, el, es, ep).c_str(), ImGuiComboFlags_HeightLarge)) {
     const auto items = ChartElemList(m);
     for (size_t k = 0; k < items.size(); ++k) {
       ImGui::PushID(static_cast<int>(k));
@@ -9699,7 +9699,7 @@ void DrawPropertiesWindow(AppState& s) {
         int t = static_cast<int>(m.type);
         ImGui::TextUnformatted(TR("Chart Type"));
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::Combo("##type", &t, kNames, model::kChartTypeCount)) {
+        if (ui::Combo("##type", &t, kNames, model::kChartTypeCount)) {
           const ChartType nt = static_cast<ChartType>(t);
           s.engine->PostUser(TR("Change Chart Type"), [o, nt](Document& d) { d.UpdateChart(o.sheet, o.id, [&d, nt](ChartObj& x) { ChangeChartType(d.wb(), x, nt); }); });
         }
@@ -10022,7 +10022,7 @@ void DrawPanel(AppState& s, const model::Panel& p) {
       tmp.list_fill_range = pc.list_fill_range;
       const std::vector<std::string> list = ControlItems(s, s.focus_sheet, tmp);
       ImGui::SetNextItemWidth(-1);
-      if (ImGui::BeginCombo("##c", value.c_str())) {
+      if (ui::BeginCombo("##c", value.c_str())) {
         for (size_t i = 0; i < list.size(); ++i) {
           ImGui::PushID(static_cast<int>(i));
           if (ImGui::Selectable(list[i].empty() ? " " : list[i].c_str(), list[i] == value)) {
@@ -10294,7 +10294,7 @@ void DrawFormBody(AppState& s, const model::Panel& p) {
       };
       if (pc.type == "combobox") {
         ImGui::SetNextItemWidth(w);
-        if (ImGui::BeginCombo("##c", value.c_str())) {
+        if (ui::BeginCombo("##c", value.c_str())) {
           for (size_t i = 0; i < list.size(); ++i) {
             ImGui::PushID(static_cast<int>(i));
             if (ImGui::Selectable(list[i].empty() ? " " : list[i].c_str(), list[i] == value)) pick(i);
@@ -11537,7 +11537,7 @@ void DrawMoveChartDialog(AppState& s) {
   ImGui::SameLine(S(130));
   ImGui::SetNextItemWidth(S(240));
   g_move_target = std::clamp(g_move_target, 0, std::max(0, static_cast<int>(targets.size()) - 1));
-  if (ImGui::BeginCombo("##target", targets.empty() ? "" : targets[static_cast<size_t>(g_move_target)]->name.c_str())) {
+  if (ui::BeginCombo("##target", targets.empty() ? "" : targets[static_cast<size_t>(g_move_target)]->name.c_str())) {
     for (size_t i = 0; i < targets.size(); ++i) {
       if (ImGui::Selectable(targets[i]->name.c_str(), static_cast<int>(i) == g_move_target)) {
         g_move_target = static_cast<int>(i);
@@ -12059,7 +12059,7 @@ void UpdateShapeContext(AppState& s) {
       if (!ch) {
         ImGui::BeginDisabled();
         ImGui::SetNextItemWidth(r.GetWidth());
-        if (ImGui::BeginCombo("##ribbon_chart_elem", "")) ImGui::EndCombo();
+        if (ui::BeginCombo("##ribbon_chart_elem", "")) ImGui::EndCombo();
         ImGui::EndDisabled();
         return;
       }

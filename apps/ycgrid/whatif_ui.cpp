@@ -655,7 +655,7 @@ void DrawWhatIfDialogs(AppState& s) {
     const char* kFuncs[] = {TR("Sum"), TR("Count"), TR("Average"), TR("Max"), TR("Min"), TR("Product"), TR("Count Numbers"), TR("StdDev"), TR("StdDevp"), TR("Var"), TR("Varp")};
     ImGui::TextUnformatted(TR("Function:"));
     ImGui::SetNextItemWidth(S(200));
-    ImGui::Combo("##cofunc", &w.co_func, kFuncs, 11);
+    ui::Combo("##cofunc", &w.co_func, kFuncs, 11);
     RefField(s, TR("Reference:"), w.co_ref, sizeof(w.co_ref), 300, RangeBox_Sheet);
     ImGui::SameLine();
     if (ImGui::Button(TR("Browse..."))) {
@@ -898,7 +898,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(200));
         ui::NoteUiItem("##svmethod", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(200), ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##svmethod", &method, kMethods, 3)) w.sv.method = method + 1;
+        if (ui::Combo("##svmethod", &method, kMethods, 3)) w.sv.method = method + 1;
         ImGui::SameLine();
         if (ImGui::Button(TR("Options"), ImVec2(S(90), 0))) {
           w.sv_opts = w.sv;
@@ -956,7 +956,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::TextUnformatted(" ");
         ImGui::SetNextItemWidth(S(60));
         ui::NoteUiItem("##crel", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(60), ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##crel", &w.sv_crel, kRel, 6)) {
+        if (ui::Combo("##crel", &w.sv_crel, kRel, 6)) {
           static const char* kWords[] = {"", "", "", "integer", "binary", "AllDifferent"};
           if (w.sv_crel >= 3) Copy(w.sv_crhs, sizeof(w.sv_crhs), kWords[w.sv_crel]);  // Excel shows the word in the box
           else if (!std::strcmp(w.sv_crhs, "integer") || !std::strcmp(w.sv_crhs, "binary") || !std::strcmp(w.sv_crhs, "AllDifferent")) w.sv_crhs[0] = 0;

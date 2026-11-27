@@ -633,7 +633,7 @@ void DrawNameDialogs(AppState& s) {
     n.scope_index = std::clamp(n.scope_index, 0, static_cast<int>(scopes.size()) - 1);
     ImGui::SetNextItemWidth(S(200));
     ImGui::BeginDisabled(n.editing || n.table_edit);  // Excel: a name's scope is chosen when it is made
-    const bool scope_open = ImGui::BeginCombo("##scope", scopes[static_cast<size_t>(n.scope_index)].c_str());
+    const bool scope_open = ui::BeginCombo("##scope", scopes[static_cast<size_t>(n.scope_index)].c_str());
     ImGui::EndDisabled();
     if (scope_open) {
       for (size_t i = 0; i < scopes.size(); ++i) {

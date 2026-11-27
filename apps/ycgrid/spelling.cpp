@@ -9,6 +9,7 @@
 #include "frame/frame_context.h"
 #include "icons/yc_icons.h"
 #include "theme/theme.h"
+#include "yc_ui_items.h"
 
 #include "imgui.h"
 
@@ -552,7 +553,7 @@ void DrawSpellingWindow(AppState& s) {
     ImGui::TextUnformatted(TR("Dictionary language:"));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(220));
-    if (ImGui::BeginCombo("##lang", lang_name.c_str())) {
+    if (ui::BeginCombo("##lang", lang_name.c_str())) {
       for (const auto& [tag, name] : kLangs) {
         if (ImGui::Selectable(name, u.lang == tag)) {
           if (!CheckerFor(tag)) {
