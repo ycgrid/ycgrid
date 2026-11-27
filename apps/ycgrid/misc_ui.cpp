@@ -1586,15 +1586,16 @@ void DrawMiscDialogs(AppState& s) {
       } else if (m.gs_kind == 4) areas.push_back(engine::CurrentRegion(sh, view.sel.act_r, view.sel.act_c));
       else if (m.gs_kind == 12 || m.gs_kind == 13) {
         // Row / Column differences: each row (column) against its cell in the active cell's column (row); one cell
-        // selected: its current region, as Excel
+        // selected finds none (Excel 16, measured by Ctrl+\)
         const Rect sel = SelRect(s);
-        const Rect w = sel.IsCell() ? engine::CurrentRegion(sh, view.sel.act_r, view.sel.act_c) : sel;
-        areas = engine::DifferenceCells(sh, w, view.sel.act_r, view.sel.act_c, m.gs_kind == 12);
+        if (!sel.IsCell()) areas = engine::DifferenceCells(sh, sel, view.sel.act_r, view.sel.act_c, m.gs_kind == 12);
       }
       else if (m.gs_kind == 11) {
-        // Current array: the array formula (or spill) the active cell belongs to
+        // Current array: the array formula entered with Ctrl+Shift+Enter the active cell belongs to; a dynamic array's
+        // spill isn't one (Excel 16 finds no cells there, measured by Ctrl+/)
         uint32_t ar = 0, ac = 0;
-        if (const model::SpillRange* sp = sh.spills->empty() ? nullptr : sh.SpillAt(view.sel.act_r, view.sel.act_c, &ar, &ac)) areas.push_back(sp->rect);
+        const model::SpillRange* sp = sh.spills->empty() ? nullptr : sh.SpillAt(view.sel.act_r, view.sel.act_c, &ar, &ac);
+        if (sp && sp->cse) areas.push_back(sp->rect);
       } else if ((m.gs_kind == 7 || m.gs_kind == 8) && m.gs_same) {
         // Same: the cells that share a rule with the active cell
         const uint32_t ar = view.sel.act_r, ac = view.sel.act_c;

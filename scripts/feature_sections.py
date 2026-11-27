@@ -1253,9 +1253,10 @@ def s_formula_parity(app):
     app.run("SelectObstructingCells")
     check("Select Obstructing Cells selects what blocks the spill", app.state()["selection"].replace("$", "") == "E2", app.state()["selection"])
     R(app, "E2").Value = None
-    sel(app, "E2")
+    R(app, "G1:G3").FormulaArray = "=E1:E3*2"
+    sel(app, "G2")
     app.run("SelectCurrentArray")
-    check("Select Current Array (Ctrl+/)", app.state()["selection"].replace("$", "") == "E1:E3", app.state()["selection"])
+    check("Select Current Array (Ctrl+/)", app.state()["selection"].replace("$", "") == "G1:G3", app.state()["selection"])
     h0 = app.excel.Application.FormulaBarHeight
     app.run("ExpandFormulaBar")
     check("Expand Formula Bar (Ctrl+Shift+U)", app.excel.Application.FormulaBarHeight == 3, app.excel.Application.FormulaBarHeight)

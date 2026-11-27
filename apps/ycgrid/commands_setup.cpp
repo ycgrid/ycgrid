@@ -1010,18 +1010,20 @@ void RegisterCommands(AppState& s) {
     Config().formula_bar_lines = Config().formula_bar_lines > 1 ? 1 : 3;
     SaveSettings();
   };
-  // Ctrl+/: the whole array of the active cell (a spill range or an array formula), as in Excel
+  // Ctrl+/: the array formula entered with Ctrl+Shift+Enter the active cell belongs to, its first cell active; a
+  // dynamic array's spill isn't one (Excel 16: "No cells were found.", measured by keys)
   add(Make("SelectCurrentArray", TR("Select Current Array"), nullptr, "Ctrl+/")).execute = [&s](Command&) {
     const model::Sheet* sh = s.FocusSheet();
+    if (!sh || s.edit.active) return;
     auto& v = s.FocusView();
-    const model::SpillRange* sp = sh && !sh->spills->empty() ? sh->SpillAt(v.sel.act_r, v.sel.act_c) : nullptr;
-    if (!sp) {
-      s.SetStatus(TR("The active cell isn't part of an array"));
+    const model::SpillRange* sp = !sh->spills->empty() ? sh->SpillAt(v.sel.act_r, v.sel.act_c) : nullptr;
+    if (!sp || !sp->cse) {
+      s.ShowMessage("YCGrid", TR("No cells were found."));
       return;
     }
-    const uint32_t ar = v.sel.act_r, ac = v.sel.act_c;
     render::SelectRange(v, sp->rect);
-    v.sel.act_r = ar, v.sel.act_c = ac;
+    v.sel.anc_r = v.sel.act_r = sp->rect.r0;
+    v.sel.anc_c = v.sel.act_c = sp->rect.c0;
   };
   // a #SPILL! formula's error button: the cells in the range it wants that hold something
   add(Make("SelectObstructingCells", TR("Select Obstructing Cells"))).execute = [&s](Command&) {

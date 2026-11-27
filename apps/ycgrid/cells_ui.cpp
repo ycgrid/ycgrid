@@ -110,23 +110,25 @@ std::string CellText(const AppState& s, const model::Sheet& sh, uint32_t r, uint
   return engine::DisplayTextOf(v, tbl.NumberFormat(tbl.Get(sh.GetStyle(r, c))));
 }
 
-// Ctrl+\ / Ctrl+Shift+| : Go To Special's Row / Column differences in the selection (one cell: its region), as Excel
+// Ctrl+\ / Ctrl+Shift+| : Go To Special's Row / Column differences in the selection. One cell selected finds none
+// (Excel 16 says "No cells were found." even where the cell's region differs, measured by keys)
 void SelectDifferences(AppState& s, bool rows) {
   const model::Sheet* sh = s.FocusSheet();
   if (!sh) return;
   auto& view = s.FocusView();
-  const Rect sel = SelRect(s);
-  Rect w = sel.IsCell() ? engine::CurrentRegion(*sh, view.sel.act_r, view.sel.act_c) : sel;
+  Rect w = SelRect(s);
   if (sh->has_used) {
     w.r1 = std::min(w.r1, std::max(sh->used.r1, w.r0));
     w.c1 = std::min(w.c1, std::max(sh->used.c1, w.c0));
   }
-  std::vector<Rect> areas = engine::DifferenceCells(*sh, w, view.sel.act_r, view.sel.act_c, rows);
+  std::vector<Rect> areas = w.IsCell() ? std::vector<Rect>{} : engine::DifferenceCells(*sh, w, view.sel.act_r, view.sel.act_c, rows);
   if (areas.empty()) {
     s.ShowMessage("YCGrid", TR("No cells were found."));
     return;
   }
   if (areas.size() > 10000) areas.resize(10000);
+  // the active cell is the first cell found, top to bottom (Excel 16, measured); the active area is the last one
+  std::rotate(areas.begin(), areas.begin() + 1, areas.end());
   view.sel.areas = areas;
   view.sel.anc_r = view.sel.act_r = areas.back().r0;
   view.sel.anc_c = view.sel.act_c = areas.back().c0;

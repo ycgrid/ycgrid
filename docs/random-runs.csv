@@ -12646,3 +12646,25 @@ date,tool,seed,seconds,result,note
 
 2026-11-28,screen_walk,r129,300,found,"Pick From Drop-down List from Alt+Down in a column of Buy / Sell, chosen with Down and Enter, measured in Excel by keys"
 2026-11-28,screen_walk,r130,600,clean,"56 dialogs walked with Tab and Down in the Chinese UI, checked for a part cut off"
+2026-11-28,basics,4938,165,ok,
+2026-11-28,doc_fuzz,2400315,91,ok,
+2026-11-28,calc_fuzz,4651,31,ok,
+2026-11-28,formula_fuzz,5632,0,ok,
+2026-11-28,basics,4939,174,ok,
+2026-11-28,gaps_fuzz,700312,91,ok,
+2026-11-28,chaos,7895,374,ok,
+2026-11-28,doc_fuzz,2400316,93,ok,
+2026-11-28,calc_fuzz,4652,3,ok,
+2026-11-28,formula_fuzz,5633,0,ok,
+2026-11-28,chaos,7896,362,ok,
+2026-11-28,gaps_fuzz,700313,94,ok,
+2026-11-28,basics,4940,160,ok,
+2026-11-28,doc_fuzz,2400317,85,ok,
+2026-11-28,calc_fuzz,4653,16,ok,
+2026-11-28,formula_fuzz,5634,0,ok,
+2026-11-28,basics,4941,157,ok,
+2026-11-28,chaos,7897,361,ok,
+2026-11-28,gaps_fuzz,700314,92,ok,
+
+2026-11-28,screen_walk,r131,900,found,"Ctrl+\, Ctrl+Shift+|, Ctrl+[, Ctrl+Shift+{, Ctrl+], Ctrl+Shift+}, Ctrl+Shift+*, Ctrl+/ and Alt+; on a block of prices, an array formula and a spill, measured in Excel by keys"
+2026-11-28,doc_fuzz,2400318,101,ok,

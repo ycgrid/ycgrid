@@ -160,6 +160,37 @@ class UiOpsRound8Test(unittest.TestCase):
         x0, y0, x1, y1 = hits[0]["rect"]
         return int((x0 + x1) / 2), int((y0 + y1) / 2)
 
+    def test_row_and_column_differences_and_current_array_by_keys(self):
+        from yc import excel
+
+        self.ws.Range("B2:E6").Value = [[1, 1, 2, 1], [2, 3, 2, 2], [5, 5, 5, 6], [7, 8, 7, 7], [9, 9, 9, 9]]
+        self.ws.Range("J2:K3").FormulaArray = "=B2:C3*2"
+        self.ws.Range("M2").Formula = "=SEQUENCE(3,2)"
+
+        def found(sel, act, key):
+            self.ws.Range(sel).Select()
+            self.ws.Range(act).Activate()
+            self.keys(f"k:{key}|w:5")
+            return excel.Selection.Address, excel.ActiveCell.Address
+
+        def no_cells(sel, act, key):
+            n = len(yc.ui.errors())
+            self.assertEqual(found(sel, act, key), (self.ws.Range(sel).Address, self.ws.Range(act).Address), (sel, key))
+            self.assertTrue(any(str(e.get("text")).startswith("No cells were found.") for e in yc.ui.errors()[n:]), (sel, key))
+
+        # the active cell is the first cell found, top to bottom (Excel 16, measured by keys posted to its sheet window)
+        self.assertEqual(found("B2:E6", "B2", "c-Backslash")[1], "$D$2")
+        self.assertEqual(found("B2:E6", "E6", "c-Backslash")[1], "$D$2")
+        self.assertEqual(found("B2:E6", "B2", "c-s-Backslash")[1], "$B$3")
+        self.assertEqual(found("B2:E6", "C4", "c-s-Backslash")[1], "$B$2")
+        # one cell selected finds none, though its region differs
+        no_cells("C3", "C3", "c-Backslash")
+        no_cells("C3", "C3", "c-s-Backslash")
+        # Ctrl+/: an array entered with Ctrl+Shift+Enter, its first cell active; a dynamic array's spill finds none
+        self.assertEqual(found("K3", "K3", "c-Slash"), ("$J$2:$K$3", "$J$2"))
+        no_cells("N3", "N3", "c-Slash")
+        no_cells("B2", "B2", "c-Slash")
+
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
         x, y = self.tab(self.other)
         self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")

@@ -91,6 +91,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - Ctrl+PgDn and Ctrl+PgUp no longer page the sheet they leave a screen down; Alt+Enter, Ctrl+Enter and Alt+Home
   outside an entry leave the active cell where it is, as in Excel.
 - Customize Status Bar names Minimum and Maximum in full, as Excel's menu.
+- Alt+Down, Down, Enter on a cell takes the first entry of its pick list: the Down of Alt+Down moved it one further.
+- Ctrl+\ and Ctrl+Shift+| (Row and Column Differences) make the first cell found active, and find none with
+  one cell selected, as in Excel; Ctrl+/ selects an array entered with Ctrl+Shift+Enter from its first cell and says
+  "No cells were found." on a dynamic array's spill, as in Excel.
 
 ## 0.10.3 (2026-11-25)
 
