@@ -25,6 +25,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   the cell menu's Insert and Delete offer them (Shift+F10, I, A adds a row above), and Ctrl+- and Ctrl+Shift+= act on
   the table's rows (its columns for a selection taller than wide) without a dialog, moving only the table's cells, as
   in Excel.
+- Use table names in formulas (File > Options > Formulas, `Application.GenerateTableRefs`, on by default): pointing at
+  a table's cells while typing a formula writes structured references, as in Excel: `=[@Px]*[@Qty]` in the table,
+  `Table1[Px]` for a column's data, `Table1[#All]`, `Table1[[#Headers],[Qty]]`; part of a column or another row stays
+  cells.
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
@@ -106,6 +110,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   table, then the sheet, as in Excel.
 - Ctrl+Enter over a column beside a table, its header cell included, types the data cells as entered: they were
   all the header's text.
+- A formula in a table keeps its table's name in references other than one column's (`Table1[[#Headers],[Qty]]`,
+  `Table1[[Qty]:[Px]]`), as Excel writes them.
 
 ## 0.10.3 (2026-11-25)
 

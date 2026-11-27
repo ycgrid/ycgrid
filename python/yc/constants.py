@@ -580,6 +580,9 @@ xlNormal = -4143
 # reference styles
 xlA1 = 1
 xlR1C1 = -4150
+# Application.GenerateTableRefs
+xlGenerateTableRefsA1 = 0
+xlGenerateTableRefsStruct = 1
 # document properties
 msoPropertyTypeNumber = 1
 msoPropertyTypeBoolean = 2

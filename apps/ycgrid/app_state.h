@@ -1072,6 +1072,9 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
 // Use GetPivotData functions: GETPIVOTDATA("Sum of Sales",$A$3,"Region","East") for a PivotTable's value cell
 // pointed at while typing a formula ("" for any other cell, or with the option off)
 std::string GetPivotDataFor(AppState& s, uint32_t sheet, uint32_t r, uint32_t c);
+// Use table names in formulas: Table1[Px], Table1[@Qty]... for the part of a table pointed at while typing a formula
+// ("" for cells that are no such part, or with the option off)
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& r);
 void DrawCellTips(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
 void DrawMiscWindows(AppState& s);
 void DrawMiscDialogs(AppState& s);

@@ -327,6 +327,44 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_pointing_at_a_tables_parts_writes_structured_references(self):
+        from yc import excel
+
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        name = self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1).Name
+
+        def point(cell, keys):
+            self.ws.Range(cell).ClearContents()
+            self.keys(f"m:2,2|g:{cell}|w:3|t:=|w:2|" + "|w:2|".join(keys.split("|")) + "|w:2|k:Enter|w:6")
+            return str(self.ws.Range(cell).Formula).replace(name, "T")
+
+        L3, SD, SL = "k:LeftArrow|k:LeftArrow|k:LeftArrow", "k:s-DownArrow", "k:s-LeftArrow"
+        # Excel 16 with "Use table names in formulas" (its default), measured by keys posted to its sheet window
+        self.assertEqual(point("G3", L3), "=T[@Px]")
+        self.assertEqual(point("G3", f"{L3}|{SD}|{SD}|{SD}"), "=T[Px]")
+        self.assertEqual(point("G3", f"{L3}|{SD}|{SD}|{SD}|{SL}"), "=T[[Qty]:[Px]]")
+        self.assertEqual(point("G3", f"{L3}|k:UpArrow|{SD}|{SD}|{SD}|{SD}"), "=T[[#All],[Px]]")
+        self.assertEqual(point("G3", f"{L3}|k:UpArrow|{SD}|{SD}|{SD}|{SD}|{SL}|{SL}"), "=T[#All]")
+        self.assertEqual(point("G3", f"{L3}|{SD}|{SD}|{SD}|{SL}|{SL}"), "=T")
+        self.assertEqual(point("G3", f"{L3}|{SL}"), "=T[@[Qty]:[Px]]")
+        self.assertEqual(point("G3", f"{L3}|{SL}|{SL}"), "=T[@]")
+        self.assertEqual(point("G3", f"{L3}|k:DownArrow"), "=D4")  # another row: the cell
+        self.assertEqual(point("G3", f"{L3}|{SD}|{SD}"), "=D3:D5")  # part of a column: the cells
+        # in the table, or a column it grows into: one column without the name, the header with it
+        self.assertEqual(point("D3", "k:LeftArrow"), "=[@Qty]")
+        self.assertEqual(point("C3", "k:UpArrow"), "=T[[#Headers],[Qty]]")
+        self.assertEqual(point("E3", "k:LeftArrow|t:*|k:LeftArrow|k:LeftArrow"), "=[@Px]*[@Qty]")
+        self.assertEqual(str(self.ws.Range("E5").Formula), "=[@Px]*[@Qty]")  # a calculated column
+        # the option off (Application.GenerateTableRefs = xlGenerateTableRefsA1): the cells' address
+        excel.Application.GenerateTableRefs = 0
+        try:
+            self.assertEqual(excel.Application.GenerateTableRefs, 0)
+            self.assertEqual(point("G3", L3), "=D3")
+        finally:
+            excel.Application.GenerateTableRefs = 1
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

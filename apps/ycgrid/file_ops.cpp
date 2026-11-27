@@ -1107,6 +1107,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       }
       if (ImGui::Checkbox(TR("R1C1 reference style"), &cfg.r1c1)) changed = true;
       if (ImGui::Checkbox(TR("Formula AutoComplete"), &cfg.formula_autocomplete)) changed = true;
+      if (ImGui::Checkbox(TR("Use table names in formulas"), &cfg.generate_table_refs)) changed = true;
       if (ImGui::Checkbox(TR("Use GetPivotData functions for PivotTable references"), &cfg.generate_getpivotdata)) changed = true;
       // Error Checking and its rules (Application.ErrorCheckingOptions)
       ImGui::SeparatorText(TR("Error Checking"));
@@ -1270,7 +1271,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         YC_OPT(show_gridlines) YC_OPT(show_headings) YC_OPT(show_formula_bar)
         YC_OPT(large_operation_alert) YC_OPT(large_operation_thousands) YC_OPT(show_chart_tip_names) YC_OPT(show_chart_tip_values)
         YC_OPT(calculate_before_save) YC_OPT(format_stale_values) YC_OPT(multi_threaded_calc) YC_OPT(calc_thread_count)
-        YC_OPT(generate_getpivotdata)
+        YC_OPT(generate_getpivotdata) YC_OPT(generate_table_refs)
         YC_OPT(show_quick_analysis) YC_OPT(standard_font) YC_OPT(standard_font_size) YC_OPT(sheets_in_new_workbook) YC_OPT(show_paste_options)
         YC_OPT(show_insert_options) YC_OPT(alert_before_overwriting) YC_OPT(spell_ignore_upper) YC_OPT(spell_ignore_numbers)
         YC_OPT(spell_ignore_internet) YC_OPT(spell_repeated) YC_OPT(autocorrect_replace)

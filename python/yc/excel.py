@@ -1256,6 +1256,17 @@ class _Application:
         self._edit_options(generate_getpivotdata=bool(v))
 
     @property
+    def GenerateTableRefs(self):  # noqa: N802
+        """File > Options > Formulas > Use table names in formulas: pointing at a table's column, row or header while
+        typing a formula writes Table1[Px], Table1[@Qty]... instead of the cells' address. xlGenerateTableRefsStruct (1)
+        when on, xlGenerateTableRefsA1 (0) when off, as Excel's."""
+        return 1 if self._edit_options()["generate_table_refs"] else 0
+
+    @GenerateTableRefs.setter
+    def GenerateTableRefs(self, v):  # noqa: N802
+        self._edit_options(generate_table_refs=bool(v))
+
+    @property
     def AlertBeforeOverwriting(self):  # noqa: N802
         """Ask before cells dragged onto others replace what they hold (File > Options > Advanced)."""
         return bool(self._edit_options()["alert_before_overwriting"])

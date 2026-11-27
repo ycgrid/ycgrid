@@ -291,7 +291,7 @@ struct GridOptions {
   std::function<std::string(const Rect& src, const Rect& dest, bool ctrl)> fill_tip;
   // what pointing at one cell writes in a formula instead of its address ("": the address): a PivotTable's value
   // cell writes GETPIVOTDATA(...) (File > Options > Formulas > Use GetPivotData functions)
-  std::function<std::string(uint32_t sheet, uint32_t r, uint32_t c)> point_text;
+  std::function<std::string(uint32_t sheet, const Rect& r)> point_text;
   bool show_outline = true;  // Ctrl+8 / Window.DisplayOutline: the outline's bars and level buttons
   bool scroll_lock = false;  // Scroll Lock is on: the arrow keys scroll the window, the active cell stays (Excel)
 };

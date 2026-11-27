@@ -305,7 +305,7 @@ members = [
 priority = "medium"
 what = "File > Options items (Formulas, Advanced, Save, Data)"
 members = [
-  "Application.GenerateTableRefs", "Application.ExtendList", "Application.DefaultFilePath",
+  "Application.ExtendList", "Application.DefaultFilePath",
   "Application.DisplayRecentFiles", "Application.RecentFiles", "Application.DisplayNoteIndicator",
   "Application.DisplayScrollBars", "Application.CopyObjectsWithCells", "Application.ShowToolTips",
   "Application.ChartDataPointTrack", "Application.MeasurementUnit", "Application.RollZoom",

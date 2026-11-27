@@ -2609,8 +2609,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       ref = rr.IsCell() ? core::CellA1(rr.r0, rr.c0, ra0, ca0) : core::CellA1(rr.r0, rr.c0, ra0, ca0) + ":" + core::CellA1(rr.r1, rr.c1, ra1, ca1);
     }
     if (sheet.id != edit.sheet) ref = core::QuoteSheetName(sheet.name) + "!" + ref;
-    if (r0 == r1 && c0 == c1 && whole == 0 && opt.point_text) {
-      if (std::string t = opt.point_text(sheet.id, r0, c0); !t.empty()) ref = std::move(t);
+    // a PivotTable's value (GETPIVOTDATA), a table's part (Table1[Px]): the app's text for what is pointed at; a box
+    // dragged keeps its kind of reference
+    if (whole == 0 && !edit.box_drag && opt.point_text) {
+      if (std::string t = opt.point_text(sheet.id, rr); !t.empty()) ref = std::move(t);
     }
     // Ctrl+click's comma: the edit box writes back its own text the frame the click takes its focus, dropping the
     // comma (and the reference) put in that frame; the drag goes on from the text with the comma again

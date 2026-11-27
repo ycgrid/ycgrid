@@ -661,3 +661,20 @@ TEST_CASE("Round8: typing beside a table grows it only over a line that holds no
     CHECK(t.d.TableById(t.sheet(), id)->range.c1 == 2);
   }
 }
+
+TEST_CASE("A formula in a table drops its own name only from one-column references", "[table][round8]") {
+  // Excel 16, measured by keys posted to its sheet window: in a table, Table1[@Qty] reads [@Qty] and Table1[Qty]
+  // reads [Qty]; Table1[@[Name]:[Qty]], Table1[[Qty]:[Price]] and Table1[[#Headers],[Qty]] keep the name
+  yctest::Doc t;
+  SalesTable(t);
+  t.Set("C2", "=Table1[@Qty]*2");
+  CHECK(t.F("C2") == "=[@Qty]*2");
+  t.Set("C3", "=SUM(Table1[Qty])");
+  CHECK(t.F("C3") == "=SUM([Qty])");
+  t.Set("C2", "=Table1[[#Headers],[Qty]]");
+  CHECK(t.F("C2") == "=Table1[[#Headers],[Qty]]");
+  t.Set("C3", "=COUNTA(Table1[@[Name]:[Qty]])");
+  CHECK(t.F("C3") == "=COUNTA(Table1[@[Name]:[Qty]])");
+  t.Set("C4", "=SUM(Table1[[Name]:[Qty]])");
+  CHECK(t.F("C4") == "=SUM(Table1[[Name]:[Qty]])");
+}

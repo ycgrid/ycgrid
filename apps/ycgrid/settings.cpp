@@ -174,6 +174,7 @@ void LoadSettings() {
   Read(j, "calculation", "threads", &g_settings.calc_thread_count);
   g_settings.calc_thread_count = std::clamp(g_settings.calc_thread_count, 0, 1024);
   Read(j, "formulas", "generate_getpivotdata", &g_settings.generate_getpivotdata);
+  Read(j, "formulas", "generate_table_refs", &g_settings.generate_table_refs);
   Read(j, "status_bar", "caps_lock", &g_settings.status_caps_lock);
   Read(j, "status_bar", "num_lock", &g_settings.status_num_lock);
   Read(j, "status_bar", "scroll_lock", &g_settings.status_scroll_lock);
@@ -353,6 +354,7 @@ bool SaveSettings() {
   section("calculation")["multi_threaded"] = g_settings.multi_threaded_calc;
   section("calculation")["threads"] = g_settings.calc_thread_count;
   section("formulas")["generate_getpivotdata"] = g_settings.generate_getpivotdata;
+  section("formulas")["generate_table_refs"] = g_settings.generate_table_refs;
   section("status_bar")["caps_lock"] = g_settings.status_caps_lock;
   section("status_bar")["num_lock"] = g_settings.status_num_lock;
   section("status_bar")["scroll_lock"] = g_settings.status_scroll_lock;

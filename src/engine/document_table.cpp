@@ -932,8 +932,9 @@ void Document::GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_
   if (any) NoteTouched();
 }
 
-// a formula typed into a table names that table without its name, as Excel writes it (=Table1[@Qty] there is
-// =[@Qty]); typed into an empty table column it fills the whole column (a calculated column), and typed over a
+// a formula typed into a table names one of that table's columns without its name, as Excel writes it
+// (=Table1[@Qty] there is =[@Qty], Table1[Qty] is [Qty]); the other forms keep it: Table1[@[Sym]:[Qty]],
+// Table1[[Qty]:[Px]], Table1[[#Headers],[Qty]] (Excel 16, measured by keys); typed into an empty table column it fills the whole column (a calculated column), and typed over a
 // calculated column it replaces the column's formula in every row (Excel's default)
 void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
   const Table* t = TableAt(sheet, r, c);
@@ -944,7 +945,9 @@ void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
     formula::Node root = f->root;
     bool changed = false;
     ForEachStructRef(root, [&](formula::Node& n) {
-      if (!n.str.empty() && IEq(n.str, own)) {
+      const uint8_t items = static_cast<uint8_t>(n.op);
+      const bool one_column = n.kids.size() >= 2 && !n.kids[0].str.empty() && n.kids[1].str.empty() && (items == 0 || items == 16);
+      if (one_column && !n.str.empty() && IEq(n.str, own)) {
         n.str.clear();
         changed = true;
       }

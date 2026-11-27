@@ -663,7 +663,12 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
     opt.show_headings = false;
   }
   opt.image_for = [](const std::string& url, ImVec2* size) { return g_images ? g_images->Get(url, size) : ImTextureID{}; };
-  opt.point_text = [](uint32_t sheet, uint32_t r, uint32_t c) { return app::GetPivotDataFor(g_app, sheet, r, c); };
+  opt.point_text = [](uint32_t sheet, const core::Rect& r) {
+    if (r.IsCell()) {
+      if (std::string t = app::GetPivotDataFor(g_app, sheet, r.r0, r.c0); !t.empty()) return t;
+    }
+    return app::TableRefFor(g_app, sheet, r);
+  };
   opt.background = app::SheetBackgroundTexture(g_app, id, &opt.background_size);  // Page Layout > Background
   opt.overlay = [id](const render::OverlayGeom& g) {
     app::DrawFocusCell(g_app, id, g);
@@ -3047,7 +3052,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     c.show_chart_tip_names = c.show_chart_tip_values = c.calculate_before_save = true;
     // no question over a large paste or fill: tests and agents send keys over whole sheets (a test of the alert turns it on)
     c.large_operation_alert = false;
-    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = true;
+    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = c.generate_table_refs = true;
     c.large_operation_thousands = 33554;
     c.calc_thread_count = 0;
   }

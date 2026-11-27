@@ -70,6 +70,8 @@ struct Settings {
   bool multi_threaded_calc = true;
   int calc_thread_count = 0;
   bool generate_getpivotdata = true;
+  // pointing at a table's column, row or header while typing a formula writes Table1[Px] (Application.GenerateTableRefs)
+  bool generate_table_refs = true;
   // calculation
   bool auto_calc = true;
   bool auto_data_tables = true;  // false: Automatic except for data tables (with auto_calc)

@@ -268,6 +268,7 @@ reads it), see events-and-controls.md.
 | `EnableLargeOperationAlert`, `LargeOperationCellThousandCount` | the question before a person's paste or Fill Down / Right over more than that many thousand cells (33554, Excel's default; scripts are never asked; off in a hidden instance) |
 | `ShowChartTipNames`, `ShowChartTipValues` | the tip over a chart: the element's name, a point's value |
 | `GenerateGetPivotData` | pointing at a PivotTable value while typing a formula writes `GETPIVOTDATA(...)` |
+| `GenerateTableRefs` | pointing at a table's column, row or header while typing a formula writes `Table1[Px]`, `Table1[@Qty]` (1, `xlGenerateTableRefsStruct`; 0 for plain cells) |
 | `International(Index)` | the separators and orders YCGrid reads and writes (US Excel's: `"."`, `","`, month first), by Excel's `xlApplicationInternational` indexes 1 to 45 |
 | `FileDialog(Type)` | `msoFileDialogOpen`, `SaveAs`, `FilePicker`, `FolderPicker`: `Title`, `InitialFileName`, `AllowMultiSelect`, `Filters.Add`, `ButtonName`; `Show()` returns -1 when chosen (`SelectedItems`), 0 when cancelled; `Execute()` opens or saves the choice |
 | `MacroOptions(Macro, Description, Category, ArgumentDescriptions, HasShortcutKey, ShortcutKey)` | an @udf's description, category and argument descriptions in Insert Function and the argument hints (without it: the signature, the docstring's first line, User Defined); a shortcut runs the macro as `OnKey` |

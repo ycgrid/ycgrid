@@ -790,6 +790,75 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
   }
 }
 
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& rr) {
+  if (!Config().generate_table_refs || !s.snap || !s.edit.active) return {};
+  const model::Sheet* sh = s.snap->Sheet(sheet);
+  if (!sh || sh->tables->empty() || s.edit.sheet != sheet) return {};  // (another sheet's: not measured, cells as before)
+  const model::Table* t = nullptr;
+  for (const model::Table& x : *sh->tables) {
+    if (x.range.Contains(rr.r0, rr.c0) && x.range.Contains(rr.r1, rr.c1)) t = &x;
+  }
+  if (!t) return {};
+  const Rect d = t->Data();
+  const uint32_t hr = t->range.r0, tr = t->range.r1;
+  // the rows: the table's header, data and totals rows, or the formula's own row of its data ([@...])
+  bool at = false;
+  std::vector<const char*> parts;
+  if (rr.r0 == t->range.r0 && rr.r1 == t->range.r1 && (t->header || t->totals)) {
+    parts.push_back("#All");
+  } else if (d.r0 <= d.r1 && rr.r0 == d.r0 && rr.r1 == d.r1) {
+    // the data rows: no item
+  } else if (t->header && rr.r0 == hr && rr.r1 == hr) {
+    parts.push_back("#Headers");
+  } else if (t->totals && rr.r0 == tr && rr.r1 == tr) {
+    parts.push_back("#Totals");
+  } else if (t->header && t->totals && d.r0 <= d.r1 && rr.r0 == hr && rr.r1 == d.r1) {
+    parts = {"#Headers", "#Data"};
+  } else if (t->header && t->totals && d.r0 <= d.r1 && rr.r0 == d.r0 && rr.r1 == tr) {
+    parts = {"#Data", "#Totals"};
+  } else if (rr.r0 == rr.r1 && rr.r0 >= d.r0 && rr.r0 <= d.r1 && s.edit.r == rr.r0) {
+    at = true;  // the formula's own row
+  } else {
+    return {};  // part of a column, another row: the cells (Excel 16, measured)
+  }
+  auto name_of = [&](uint32_t c) {
+    const uint32_t j = c - t->range.c0;
+    if (j < t->columns.size() && !t->columns[j].name.empty()) return t->columns[j].name;
+    return std::string();
+  };
+  auto esc = [](const std::string& n) {
+    std::string o;
+    for (char ch : n) {
+      if (ch == '[' || ch == ']' || ch == '#' || ch == '\'') o += '\'';
+      o += ch;
+    }
+    return "[" + o + "]";
+  };
+  const bool all_cols = rr.c0 == t->range.c0 && rr.c1 == t->range.c1;
+  std::string cols;
+  if (!all_cols) {
+    const std::string a = name_of(rr.c0), b = name_of(rr.c1);
+    if (a.empty() || b.empty()) return {};
+    cols = rr.c0 == rr.c1 ? esc(a) : esc(a) + ":" + esc(b);
+  }
+  // Excel's forms: Table1[Px], Table1[[Qty]:[Px]], Table1, Table1[[#All],[Px]], Table1[#All], Table1[[#Headers],[Qty]],
+  // Table1[@Px], Table1[@[Qty]:[Px]], Table1[@] (measured by keys posted to its sheet window; inside the table the
+  // formula reads back as [@Px], [Px])
+  std::string body;
+  if (at) {
+    body = cols.empty() ? "@" : "@" + cols;
+  } else if (parts.empty()) {
+    if (cols.empty()) return t->name;
+    body = cols;
+  } else if (cols.empty() && parts.size() == 1) {
+    body = parts[0];
+  } else {
+    for (size_t i = 0; i < parts.size(); ++i) body += std::string(i ? "," : "") + "[" + parts[i] + "]";
+    if (!cols.empty()) body += "," + cols;
+  }
+  return t->name + "[" + body + "]";
+}
+
 std::string GetPivotDataFor(AppState& s, uint32_t sheet, uint32_t r, uint32_t c) {
   if (!Config().generate_getpivotdata || !s.snap) return {};
   const model::Sheet* sh = s.snap->Sheet(sheet);
