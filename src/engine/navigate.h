@@ -18,6 +18,11 @@ uint32_t CtrlJump(const model::Sheet& s, uint32_t r, uint32_t c, bool vertical, 
 
 // current region (Ctrl+Shift+*): grow from (r,c) until surrounded by blank rows and columns
 core::Rect CurrentRegion(const model::Sheet& s, uint32_t r, uint32_t c);
+// Create Table's and ListObjects.Add(xlGuess)'s guess that the range's first row is its header (Excel 16, measured
+// on 13 layouts, the dialog and the object model alike): no blank in the first two rows, and some column whose first
+// cell is text over a number below it (or a number over text), or a first row formatted apart from the second (bold,
+// italic, a fill, a font color)
+bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r);
 
 // Ctrl+End: bottom-right corner of the used range
 core::CellPos LastCell(const model::Sheet& s);

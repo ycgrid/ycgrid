@@ -8,9 +8,11 @@
 
 #include "test_helpers.h"
 
+#include "engine/navigate.h"
 #include "io/content_dump.h"
 
 #include <string>
+#include <vector>
 
 using yc::core::Rect;
 
@@ -708,4 +710,46 @@ TEST_CASE("A table's growth after typing beside it is an Undo step of its own", 
   t.d.GrowDeferredTables();
   CHECK(TableOf(t, id).range.c1 == 3);
   CHECK(t.d.UndoDepth() == 1);
+}
+
+TEST_CASE("Create Table guesses a header row as Excel does", "[table][round8]") {
+  // Excel 16, measured on each layout through its Create Table dialog (the check box read through UI Automation) and
+  // ListObjects.Add(xlGuess), which agree: B2:D6, the first row B2:D2
+  struct Layout {
+    const char* what;
+    std::vector<std::vector<const char*>> rows;  // B..D, rows 2..6; "" blank, "=..." a formula, "#bold" the row bold
+    bool header;
+  };
+  const std::vector<Layout> layouts = {
+      {"text over numbers", {{"Sym", "Qty", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, true},
+      {"all numbers", {{"4", "6", "8"}, {"6", "9", "12"}, {"8", "12", "16"}, {"10", "15", "20"}, {"12", "18", "24"}}, false},
+      {"all text", {{"a", "b", "c"}, {"d", "e", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, false},
+      {"a year among the headers", {{"Sym", "2024", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, true},
+      {"one number under text", {{"a", "b", "c"}, {"d", "5", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"a number three rows down", {{"a", "b", "c"}, {"d", "e", "f"}, {"g", "5", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"a number over text", {{"a", "5", "c"}, {"d", "e", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"text over dates", {{"Sym", "Day", "Px"}, {"S3", "=DATE(2026,1,3)", "p"}, {"S4", "=DATE(2026,1,4)", "p"}, {"S5", "=DATE(2026,1,5)", "p"}, {"S6", "=DATE(2026,1,6)", "p"}}, true},
+      {"a blank header", {{"Sym", "", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, false},
+      {"blanks in the second row", {{"Sym", "Qty", "Px"}, {"x", "", ""}, {"4", "4", "8"}, {"5", "5", "10"}, {"6", "6", "12"}}, false},
+  };
+  for (const Layout& l : layouts) {
+    yctest::Doc t;
+    for (size_t i = 0; i < l.rows.size(); ++i) {
+      for (size_t j = 0; j < l.rows[i].size(); ++j) {
+        if (!*l.rows[i][j]) continue;
+        const std::string a = std::string(1, static_cast<char>('B' + j)) + std::to_string(i + 2);
+        t.Set(a.c_str(), l.rows[i][j]);
+      }
+    }
+    t.d.Recalc();
+    INFO(l.what);
+    CHECK(yc::engine::GuessHeaderRow(*t.d.wb().styles, *t.d.S(t.sheet()), Rect{1, 1, 5, 3}) == l.header);
+  }
+  // all text, the first row bold: a header
+  yctest::Doc t;
+  for (int r = 2; r <= 6; ++r) {
+    for (char c = 'B'; c <= 'D'; ++c) t.Set((std::string(1, c) + std::to_string(r)).c_str(), std::string(1, c) + std::to_string(r));
+  }
+  t.d.ModifyStyle(t.sheet(), Rect{1, 1, 1, 3}, [](yc::model::Style& x) { x.bold = true; });
+  CHECK(yc::engine::GuessHeaderRow(*t.d.wb().styles, *t.d.S(t.sheet()), Rect{1, 1, 5, 3}));
 }

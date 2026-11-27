@@ -383,6 +383,35 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("k:Escape|w:4")
         self.assertEqual(self.ws.Range("A1").Value, 3)
 
+    def test_create_table_guesses_the_header_row_as_excel(self):
+        from yc import excel
+
+        excel.Application.DisplayAlerts = False
+
+        def made(rows, by_keys):
+            while excel.Worksheets.Count > 1:
+                excel.Worksheets(excel.Worksheets.Count).Delete()
+            ws = excel.Worksheets.Add(After=excel.Worksheets(1))
+            ws.Activate()
+            ws.Range(f"B2:D{len(rows) + 1}").Value = rows
+            if by_keys:
+                self.keys("m:2,2|g:C4|w:3|k:c-T|w:6|k:Enter|w:6")
+            else:
+                ws.ListObjects.Add(1, ws.Range("B2:D6"))  # xlGuess
+            return ws.ListObjects(1).Range.Address
+
+        # Excel 16, measured through its dialog and ListObjects.Add(xlGuess): text over numbers is a header, all text
+        # or a header with a blank is not (a header row is added), a year among text headers still is
+        text_nums = [["Sym", "Qty", "Px"]] + [[f"S{r}", r, r * 2] for r in range(3, 7)]
+        all_text = [[f"t{r}{c}" for c in range(3)] for r in range(5)]
+        blank = [["Sym", None, "Px"]] + [[f"S{r}", r, r * 2] for r in range(3, 7)]
+        year = [["Sym", 2024, "Px"]] + [[f"S{r}", r, r * 2] for r in range(3, 7)]
+        for by_keys in (True, False):
+            self.assertEqual(made(text_nums, by_keys), "$B$2:$D$6", by_keys)
+            self.assertEqual(made(all_text, by_keys), "$B$2:$D$7", by_keys)
+            self.assertEqual(made(blank, by_keys), "$B$2:$D$7", by_keys)
+            self.assertEqual(made(year, by_keys), "$B$2:$D$6", by_keys)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

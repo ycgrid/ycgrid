@@ -143,6 +143,27 @@ core::Rect CurrentRegion(const model::Sheet& sh, uint32_t r, uint32_t c) {
   return a;
 }
 
+bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r) {
+  if (r.r1 <= r.r0) return false;
+  const uint32_t c1 = std::min<uint32_t>(r.c1, r.c0 + 16383), last = std::min<uint32_t>(r.r1, r.r0 + 1000);
+  auto filled = [&](uint32_t rr, uint32_t cc) { return s.GetFormula(rr, cc) != 0 || !s.GetValue(rr, cc).IsEmpty(); };
+  // text (a string) or not: a formula counts by its value, a date is a number
+  auto text = [&](uint32_t rr, uint32_t cc) { return s.GetValue(rr, cc).IsString(); };
+  for (uint32_t c = r.c0; c <= c1; ++c) {
+    if (!filled(r.r0, c) || !filled(r.r0 + 1, c)) return false;
+  }
+  for (uint32_t c = r.c0; c <= c1; ++c) {
+    const bool head = text(r.r0, c);
+    for (uint32_t rr = r.r0 + 1; rr <= last; ++rr) {
+      if (filled(rr, c) && text(rr, c) != head) return true;
+    }
+    const model::Style& a = styles.Get(s.GetStyle(r.r0, c));
+    const model::Style& b = styles.Get(s.GetStyle(r.r0 + 1, c));
+    if (a.bold != b.bold || a.italic != b.italic || a.fill_color != b.fill_color || a.font_color != b.font_color) return true;
+  }
+  return false;
+}
+
 core::CellPos LastCell(const model::Sheet& s) {
   if (!s.has_used) return core::CellPos{0, 0};
   return core::CellPos{s.used.r1, s.used.c1};

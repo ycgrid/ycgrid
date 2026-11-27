@@ -4389,7 +4389,10 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // the headers become the text their cells show: formulas this connection just wrote have their values first
         // (=SUM(B2:B5) became "0" and the next formulas "02", "03"; Excel 16 makes them "70", "2.69", measured)
         if (areas.size() == 1) Settle(d);
-        const uint32_t nid = areas.size() != 1 ? 0 : d.AddTable(sheet, areas[0], p.GetBool("headers", true), p.Has("style") ? p.GetStr("style") : model::DefaultTableStyle(*d.wb().store), &error);
+        // xlGuess: Excel's guess of a header row, the Create Table dialog's (engine::GuessHeaderRow)
+        const bool headers = p.GetBool("guess", false) && areas.size() == 1 && d.S(sheet) ? engine::GuessHeaderRow(*d.wb().styles, *d.S(sheet), areas[0])
+                                                                                            : p.GetBool("headers", true);
+        const uint32_t nid = areas.size() != 1 ? 0 : d.AddTable(sheet, areas[0], headers, p.Has("style") ? p.GetStr("style") : model::DefaultTableStyle(*d.wb().store), &error);
         if (nid && p.Get("name") && !p.GetStr("name").empty()) d.RenameTable(sheet, nid, p.GetStr("name"), &error);
         r = nid ? table_mv(*d.TableById(sheet, nid)) : MV();
       } else if (m == "table.update") {

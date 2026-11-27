@@ -6742,11 +6742,10 @@ class _ListObjects:
         if a[0] == a[2] and a[1] == a[3]:
             a = rng.CurrentRegion._a
         headers = XlListObjectHasHeaders != xlNo
-        if XlListObjectHasHeaders == xlGuess:
-            first = Range._from(self._sheet, [(a[0], a[1], a[0], a[3])]).Value
-            row = first[0] if isinstance(first, VArray) else [first]
-            headers = all(isinstance(v, str) for v in row if v is not None)
-        t = _rq("table.add", sheet=self._sheet, rect=list(a), headers=headers, **({} if TableStyleName is None else {"style": str(getattr(TableStyleName, "Name", TableStyleName))}))
+        # xlGuess: YCGrid guesses as Excel does (the Create Table dialog's guess: a blank in the first two rows says no
+        # header; text over a number below, or a first row formatted apart, says one)
+        guess = {"guess": True} if XlListObjectHasHeaders == xlGuess else {}
+        t = _rq("table.add", sheet=self._sheet, rect=list(a), headers=headers, **guess, **({} if TableStyleName is None else {"style": str(getattr(TableStyleName, "Name", TableStyleName))}))
         if not t:
             raise ApplicationDefinedError("A table can't be created here")
         return ListObject(self._sheet, t["id"])

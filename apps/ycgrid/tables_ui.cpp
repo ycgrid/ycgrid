@@ -109,12 +109,8 @@ void OpenCreate(AppState& s, const std::string& style) {
   if (r.IsCell()) r = engine::CurrentRegion(*sh, r.r0, r.c0);
   TablesUi& u = T();
   std::snprintf(u.range, sizeof(u.range), "%s", RangeText(r).c_str());
-  // a first row of text is the header (like Excel's guess)
-  u.headers = true;
-  for (uint32_t c = r.c0; c <= r.c1; ++c) {
-    const auto& v = sh->GetValue(r.r0, c);
-    if (!v.IsEmpty() && !v.IsString()) u.headers = false;
-  }
+  // Excel's guess of a header row (engine::GuessHeaderRow, as ListObjects.Add's xlGuess)
+  u.headers = engine::GuessHeaderRow(*s.snap->wb.styles, *sh, r);
   u.style = style;
   s.OpenDialog(Dialog::CreateTable);
 }

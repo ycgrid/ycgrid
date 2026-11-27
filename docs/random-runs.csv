@@ -12853,3 +12853,12 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4682,3,ok,
 2026-11-28,formula_fuzz,5663,1,ok,
 2026-11-28,gaps_fuzz,700343,97,ok,
+2026-11-28,chaos,7926,361,ok,
+2026-11-28,basics,4970,160,ok,
+2026-11-28,doc_fuzz,2400347,88,ok,
+
+2026-11-28,screen_walk,r139,600,clean,"A table's header cells: Delete, F2 and Backspace, a name another header has, a number, a formula, Undo, measured in Excel by keys"
+2026-11-28,chaos,7927,361,ok,
+2026-11-28,chaos,7928,361,ok,
+
+2026-11-28,screen_walk,r140,1200,found,"Ctrl+T on 13 layouts (text over numbers, all text, all numbers, a year in the headers, blanks, bold or filled headers, dates), My table has headers and OK, measured in Excel through UI Automation and ListObjects.Add(xlGuess)"
