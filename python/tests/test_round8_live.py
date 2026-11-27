@@ -532,6 +532,36 @@ class DialogsRound8Test(unittest.TestCase):
         self.keys("k:Escape|w:3")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_name_manager_keeps_close_in_view_and_answers_its_question_by_keys(self):
+        # a row selected (Refers to) and Delete's question pushed Close, Yes and No under the dialog's edge (it
+        # scrolled), and Enter didn't answer the question; Escape answers No and leaves the Name Manager open, as
+        # Excel's question box does
+        wb = yc.excel.ActiveWorkbook
+        wb.Names.Add("PxA", "=" + self.ws.Name + "!$A$1:$A$3")
+        wb.Names.Add("PxB", "=" + self.ws.Name + "!$B$1")
+        self.keys("g:C1|w:2|k:c-F3|w:8")
+        self.click(self.item("PxA")["rect"])
+        self.click(self.item("Delete")["rect"])
+        self.keys("w:4")
+        self.assertIn("Yes", [i["label"] for i in yc.ui.items("")])
+        self.assertEqual(yc.ui.state()["clipped_windows"], [])
+        self.keys("k:Escape|w:4")  # No: the name stays, the Name Manager too
+        self.assertIn("Close", [i["label"] for i in yc.ui.items("")])
+        self.assertIn("PxA", [n.Name for n in wb.Names])
+        self.click(self.item("Delete")["rect"])
+        self.keys("w:4|k:Enter|w:6")  # Yes
+        self.assertNotIn("PxA", [n.Name for n in wb.Names])
+        self.keys("k:Escape|w:4")
+        wb.Names("PxB").Delete()
+        # Insert Function: a function chosen showed its syntax and description and pushed OK and Cancel out of view
+        self.keys("g:C2|w:2|k:s-F3|w:8")
+        self.click(self.item("SUM")["rect"])
+        self.keys("w:4")
+        self.assertIn("OK", [i["label"] for i in yc.ui.items("")])
+        self.assertNotIn("Insert Function", yc.ui.state()["clipped_windows"])
+        self.keys("k:Escape|w:3|k:Escape|w:3")
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):
         # Shift+F10 with whole rows selected opened the cell's menu (no Row Height, Hide, Unhide); Excel 16 opens the
         # row menu, and the column menu for whole columns (read through UI Automation), each with its letters

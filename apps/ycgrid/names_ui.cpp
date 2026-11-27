@@ -442,6 +442,11 @@ void RegisterNameCommands(AppState& s) {
 void DrawNameDialogs(AppState& s) {
   NamesUi& n = N();
   // Name Manager
+  // Escape while the deletion is asked answers No, as Excel's question box: the Name Manager stays (BeginDlg would close it)
+  if (s.dialog == Dialog::NameManager && n.confirm_delete && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+    n.confirm_delete = false;
+    ImGui::SetKeyOwner(ImGuiKey_Escape, ImHashStr("yc.names.confirm"), ImGuiInputFlags_LockThisFrame);
+  }
   if (BeginDlg(s, Dialog::NameManager, TR("Name Manager###yc_dlg_names"), 700, 0)) {
     if (ImGui::Button(TR("New..."))) OpenDefine(s, nullptr);
     ImGui::SameLine();
@@ -460,7 +465,8 @@ void DrawNameDialogs(AppState& s) {
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(!sel);
-    if (ImGui::Button(TR("Delete")) && sel) n.confirm_delete = true;  // Excel asks first
+    static int asked_frame = -1;  // the Enter that pressed Delete doesn't also answer its question
+    if (ImGui::Button(TR("Delete")) && sel) n.confirm_delete = true, asked_frame = ImGui::GetFrameCount();  // Excel asks first
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(200));
@@ -563,9 +569,16 @@ void DrawNameDialogs(AppState& s) {
       }
       ImGui::EndTable();
     }
+    // the part under the list changes (nothing, Refers to, the question with its buttons): it keeps the tallest's
+    // height, or the window, sized when it opened, scrolled and hid Close and the question's Yes and No
+    const float part_top = ImGui::GetCursorPosY();
+    const float part_h = ImGui::GetTextLineHeightWithSpacing() + ImGui::GetFrameHeightWithSpacing();
     if (sel && n.confirm_delete) {
       ImGui::TextColored(ImVec4(0.75f, 0.35f, 0.0f, 1), "%s", (TR("Are you sure you want to delete the name ") + sel->name + "?").c_str());
-      if (ImGui::Button(TR("Yes"), ImVec2(S(80), 0))) {
+      // Enter answers Yes, as the default button of Excel's question
+      const bool enter = ImGui::GetFrameCount() > asked_frame + 1 &&
+                         (ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false));
+      if (ImGui::Button(TR("Yes"), ImVec2(S(80), 0)) || enter) {
         const std::string nm = sel->name;
         const int32_t sc = sel->sheet_scope;
         s.engine->PostUser(TR("Delete Name"), [nm, sc](Document& d) { d.DeleteName(nm, sc); });
@@ -618,6 +631,7 @@ void DrawNameDialogs(AppState& s) {
       if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", TR("Cancel the change"));
       ImGui::EndDisabled();
     }
+    if (const float used = ImGui::GetCursorPosY() - part_top; used < part_h) ImGui::Dummy(ImVec2(1, part_h - used));
     const bool close = ImGui::Button(TR("Close"), ImVec2(S(80), 0));
     EndDlg(s, close);
   }

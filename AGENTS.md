@@ -401,7 +401,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   choice (Data Validation's Allow) keeps one height: pad the changing part to its tallest, measured from that part's
   top, never from the window's height (that grows the window frame after frame). A resizable dialog (`BeginDialog`)
   gets its height from its contents when it opens (`ImVec2(w, 0)`), with lists of a fixed height inside: a height
-  guessed in pixels left empty space under the buttons. Review dialogs by their pictures:
+  guessed in pixels left empty space under the buttons. A part of it that appears later (Name Manager's Refers to
+  and its question, Insert Function's description) keeps one height too, or the dialog scrolls and hides its
+  buttons; `clipped_windows` names a resizable dialog that shows a scroll bar. Review dialogs by their pictures:
   `YCGRID_DIALOG_SHOTS=<folder>` makes feature_check save one of every dialog it opens.
 - `SameLine(x)` inside `BeginGroup` counts from the group's start, not the window's: label / box rows that must line
   up are laid out without groups.

@@ -2632,6 +2632,14 @@ void RenderFrame() {
       if (w->Active && !(w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip)))
         g_app.window_rects.push_back({w->Name, w->Pos.x, w->Pos.y, w->SizeFull.x, w->SizeFull.y,
                                       (w->Flags & ImGuiWindowFlags_AlwaysAutoResize) != 0, (w->Flags & ImGuiWindowFlags_Popup) != 0});
+      // a dialog sized once (resizable, BeginDlg) that grows a scroll bar has contents taller than it: the Name
+      // Manager's question pushed Close and Yes / No under its edge, and the right-edge check below never saw it
+      if (w->Active && (w->Flags & ImGuiWindowFlags_Modal) && !(w->Flags & ImGuiWindowFlags_AlwaysAutoResize)) {
+        static std::unordered_map<ImGuiID, int> tall_run;
+        int& tr = tall_run[w->ID];
+        tr = !w->Appearing && w->ScrollbarY ? tr + 1 : 0;
+        if (tr >= 3) g_app.clipped_windows.insert(w->Name);
+      }
       if (!w->Active || !(w->Flags & ImGuiWindowFlags_AlwaysAutoResize) || (w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip))) continue;
       auto& [last, run] = widths[w->ID];
       run = w->SizeFull.x < last - 0.25f ? run + 1 : 0;

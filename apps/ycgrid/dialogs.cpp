@@ -3268,6 +3268,9 @@ void DrawInsertFunction(AppState& s) {
   }
   if (list.empty()) ImGui::TextDisabled(TR("No matching functions"));
   ImGui::EndChild();
+  // the chosen function's syntax, description and help link in a part of one height, as Excel's: grown with them,
+  // the dialog (sized when it opened) scrolled and hid OK and Cancel under its edge
+  ImGui::BeginChild("##fnhelp", ImVec2(0, ImGui::GetTextLineHeightWithSpacing() * 6), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
   if (const formula::FuncHelp* h = chosen.empty() ? nullptr : formula::FindFuncHelp(chosen)) {
     ImGui::Text("%s(%s)", h->name, h->args);
     ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x);
@@ -3278,6 +3281,7 @@ void DrawInsertFunction(AppState& s) {
   static bool help = false;
   if (ImGui::IsWindowAppearing()) help = false;
   if (!chosen.empty()) FunctionHelpLink(chosen, &help);
+  ImGui::EndChild();
   bool ok = false;
   const bool close = OkCancel(&ok) || accept;
   if (close && !((ok || accept) && !chosen.empty()) && g_fx_edit) {  // Cancel: the "=" fx put in the cell goes
