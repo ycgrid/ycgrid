@@ -439,6 +439,19 @@ class LayoutTest(unittest.TestCase):
         self.keys("k:Escape|w:4")
         self.assertNotIn("Header & Footer", ui.state()["ribbon"]["tabs"], "the tab goes when the header is done")
 
+    def test_cell_rect_follows_page_layout_view(self):
+        # ui.cell_rect gave the grid's place in Page Layout view, so a click there selected another cell (D8 -> B1)
+        from yc import ui
+
+        self.ws.Range("A1").Value = 1
+        self.assertTrue(ui.command("ViewPageLayout"))
+        self.keys("g:A1|m:2,2|w:12")
+        for cell in ("D8", "B3", "F12"):
+            x0, y0, x1, y1 = ui.cell_rect(cell)
+            self.keys(f"m:{int((x0 + x1) / 2)},{int((y0 + y1) / 2)}|w:3|c:{int((x0 + x1) / 2)},{int((y0 + y1) / 2)}|w:5")
+            self.assertEqual(ui.state()["active_cell"], cell)
+        self.assertTrue(ui.command("ViewNormal"))
+
     def test_header_picture_and_format_text_codes(self):
         ws = self.ws
         ws.Range("A1").Value = 1

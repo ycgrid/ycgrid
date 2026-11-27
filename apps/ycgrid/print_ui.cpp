@@ -1492,6 +1492,8 @@ struct ShownPage {
   ImVec2 p0;
   PageCellMap map;
 };
+// the pages Page Layout view drew last, per sheet, and their scale: ui.cell_rect finds a cell where it shows on them
+std::map<uint32_t, std::pair<std::vector<ShownPage>, float>> g_shown_last;
 
 // the cell under a screen point (false: none)
 bool CellUnder(const std::vector<ShownPage>& pages, float px_per_pt, ImVec2 at, uint32_t* r, uint32_t* c) {
@@ -1913,6 +1915,7 @@ void DrawPageLayoutView(AppState& s, const model::Sheet& sh, render::GridView& v
       }
     }
   }
+  g_shown_last[sh.id] = {shown, px_per_pt};
   // the fill handle or the selection's border being dragged: the outline of where the cells go, done on release
   if (u.drag != 0) {
     uint32_t r = 0, c = 0;
@@ -1996,6 +1999,22 @@ void DrawPageLayoutView(AppState& s, const model::Sheet& sh, render::GridView& v
 }
 
 }  // namespace
+
+bool PageLayoutRangeRect(uint32_t sheet, const Rect& a, ImRect* out) {
+  const auto it = g_shown_last.find(sheet);
+  if (it == g_shown_last.end()) return false;
+  for (const ShownPage& p : it->second.first) {  // the page its first cell is on
+    ImVec2 q0, q1;
+    if (p.map.rows.empty() || p.map.cols.empty() || a.r0 < p.map.rows.front().index || a.r0 > p.map.rows.back().index ||
+        a.c0 < p.map.cols.front().index || a.c0 > p.map.cols.back().index)
+      continue;
+    if (RangeOnPage(p, it->second.second, a, &q0, &q1)) {
+      *out = ImRect(q0, q1);
+      return true;
+    }
+  }
+  return false;
+}
 
 void OpenPageSetupTab(AppState& s, int tab) { OpenPageSetup(s, tab); }
 

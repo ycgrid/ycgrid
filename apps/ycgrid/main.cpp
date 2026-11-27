@@ -2925,8 +2925,13 @@ bool RangeWindowRect(const std::string& addr, float out[4]) {
   Rect r;
   if (!sh || !core::ParseRectA1(addr, &r)) return false;
   auto& v = g_app.FocusView();
-  render::EnsureVisible(*sh, v, r.r0, r.c0);
-  const ImRect rc = RangeScreenRect(*sh, v, r);
+  ImRect rc;
+  // Page Layout view draws the cells on its pages, not where the grid would: a click at the grid's place selected
+  // another cell (ui.cell_rect("D8") clicked B1)
+  if (!(v.page_view == 2 && PageLayoutRangeRect(g_app.focus_sheet, r, &rc))) {
+    render::EnsureVisible(*sh, v, r.r0, r.c0);
+    rc = RangeScreenRect(*sh, v, r);
+  }
   const ImVec2 o = ImGui::GetMainViewport()->Pos;
   out[0] = rc.Min.x - o.x;
   out[1] = rc.Min.y - o.y;

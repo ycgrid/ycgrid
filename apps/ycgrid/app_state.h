@@ -1257,6 +1257,8 @@ std::string QueueUiScript(const std::string& script);  // "" or why the script w
 bool UiScriptBusy();
 // [YC] ui.cell_rect: a range of the active sheet in the window pixels ui.input takes (scrolled into view first)
 bool RangeWindowRect(const std::string& addr, float out[4]);
+// where Page Layout view drew the range last frame (its first cell's page); false: not on a page shown
+bool PageLayoutRangeRect(uint32_t sheet, const Rect& a, ImRect* out);
 // a Windows message box on the UI thread - except in a hidden instance or while an agent's input / macro runs with
 // automatic dialogs, where nobody could answer it: then the text goes to the Immediate window and the Error Log and
 // auto_answer (IDOK, IDYES, IDCANCEL...) is returned at once
