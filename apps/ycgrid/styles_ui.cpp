@@ -121,16 +121,22 @@ void ApplyNamed(AppState& s, const std::string& name) {
   const auto areas = SelAreas(s);
   const uint32_t sheet = s.focus_sheet;
   // rows that size themselves grow with a bigger font (Title, Heading 1), as Excel's do
-  std::vector<std::pair<uint32_t, int32_t>> fit;
+  std::vector<std::pair<uint32_t, int32_t>> fit, widen;
   for (const auto& ns : AllStyles(s)) {
     if (ns.name != name) continue;
     const model::NamedStyle look = ns;
     fit = FitRowsForStyle(s, sheet, areas, [look](model::Style& x) { model::ApplyNamedStyle(x, look, 0); });
+    // a number style (Comma, Currency, Percent) widens a column nobody sized, as the number formats do (Excel 16)
+    if (!look.number_format.empty() && look.number_format != "General") {
+      widen = ColumnsToWidenForFormat(s, sheet, areas, look.number_format);
+      for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+    }
     break;
   }
-  s.engine->PostUser(TR("Cell style: ") + StyleLabel(name), [areas, sheet, name, fit](Document& d) {
+  s.engine->PostUser(TR("Cell style: ") + StyleLabel(name), [areas, sheet, name, fit, widen](Document& d) {
     for (const Rect& a : areas) d.ApplyCellStyle(sheet, a, name);
     for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+    for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
   });
 }
 

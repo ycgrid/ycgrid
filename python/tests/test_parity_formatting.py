@@ -384,6 +384,12 @@ class FormattingParityTest(unittest.TestCase):
         self.click("OK")
         self.assertEqual(self.ws.Range("I1").NumberFormat, "#,##0.00")
         self.assertGreater(self.ws.Columns("I").ColumnWidth, 10)
+        # a number cell style from Cell Styles (Currency) too
+        self.ws.Range("K1").Value = 1234567.891
+        self.keys("g:K1|w:3")
+        self.run_cmd("CellStyleCurrency")
+        self.keys("w:4")
+        self.assertGreater(self.ws.Columns("K").ColumnWidth, 10)
 
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
