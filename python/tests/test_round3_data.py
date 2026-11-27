@@ -243,6 +243,20 @@ class DataRound3Test(unittest.TestCase):
         self.assertEqual(self.dialog(), 0)
         self.assertEqual([self.ws.Range("B1").Value, self.ws.Range("B2").Value], [1, 1], "the original values")
 
+    def test_esc_in_the_scenario_manager_goes_back_a_page(self):
+        from yc import ui
+
+        self.keys("g:B2|w:2")
+        ui.command("ScenarioManager")
+        self.keys("w:6")
+        self.click("Add...", wait=6)
+        self.assertNotIn("Close", self.labels(), "Add Scenario")
+        self.keys("k:Escape|w:6")
+        self.assertTrue(self.dialog(), "Esc on Add Scenario goes back to the Scenario Manager")
+        self.assertIn("Close", self.labels())
+        self.keys("k:Escape|w:6")
+        self.assertEqual(self.dialog(), 0)
+
     def test_solver_load_save_model(self):
         from yc import excel
 

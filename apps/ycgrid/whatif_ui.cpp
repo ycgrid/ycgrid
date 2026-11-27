@@ -407,7 +407,8 @@ void DrawWhatIfDialogs(AppState& s) {
   }
 
   // Scenario Manager
-  if (BeginDlg(s, Dialog::ScenarioManager, TR("Scenario Manager###yc_scenarios"), 460)) {
+  bool sc_cancel = false;  // Esc: the page's Cancel (back to the list), or Close on the list, as in Excel
+  if (BeginDlg(s, Dialog::ScenarioManager, TR("Scenario Manager###yc_scenarios"), 460, &sc_cancel)) {
     bool close = false;
     const uint32_t sheet = s.focus_sheet;
     const model::Sheet* sh = s.FocusSheet();
@@ -485,7 +486,7 @@ void DrawWhatIfDialogs(AppState& s) {
       }
       ImGui::EndDisabled();
       ImGui::SameLine();
-      if (ImGui::Button(TR("Close"), ImVec2(S(80), 0))) close = true;
+      if (ImGui::Button(TR("Close"), ImVec2(S(80), 0)) || sc_cancel) close = true;
     } else if (w.sc_mode == 1) {
       TextField(TR("Scenario name:"), w.sc_name, sizeof(w.sc_name));
       RefField(s, TR("Changing cells:"), w.sc_cells, sizeof(w.sc_cells), 380);
@@ -529,7 +530,7 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     } else if (w.sc_mode == 2) {
       ImGui::TextUnformatted(TR("Enter values for each of the changing cells."));
       for (size_t i = 0; i < w.sc_cell_list.size(); ++i) {
@@ -547,7 +548,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::BeginGroup();
         const bool ok = DlgOkButton(TR("OK"), ImVec2(S(80), 0));
         ImGui::SameLine();
-        const bool cancel = ImGui::Button(TR("Cancel"), ImVec2(S(80), 0));
+        const bool cancel = ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel;
         ImGui::SameLine();
         const bool add = ImGui::Button(TR("Add"), ImVec2(S(80), 0));
         ImGui::EndGroup();
@@ -613,7 +614,7 @@ void DrawWhatIfDialogs(AppState& s) {
       }
       ImGui::EndDisabled();
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     } else {
       ImGui::SeparatorText(TR("Report type"));
       ImGui::RadioButton(TR("Scenario summary"), &w.sc_report, 0);
@@ -643,7 +644,7 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     }
     EndDlg(s, close);
   }
