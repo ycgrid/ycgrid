@@ -700,6 +700,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - What only one path does goes where that path is, not where every path meets: a formula entered on a sheet whose
   calculation is off shows 0, and that 0 set in `RegisterFormulaCell` (Undo, moves, copies and inserts register
   formulas too) made Undo there show 0 (doc_fuzz --gaps 700022). Ask which paths reach the shared code first.
+- The other way round, a rule measured for every path is not patched onto one: Python's Ungroup put back the hidden
+  rows `Document::GroupOutline` had shown (the bridge's `HideAgain`), so Alt+Shift+Left kept showing them, and the
+  same patch made Python's Clear Outline keep rows hidden that Excel shows. Measure the rule through the UI and the
+  object model both, and change the Document.
 - A calculation that stops part way (an interrupt) leaves nothing taken out half done: the cells a cycle set aside
   (`cycle_aborted_`, out of the pending set) wait again, or the calculation that goes on finds no circular reference
   (doc_fuzz --gaps 763382). A new early return from `Recalc` puts back what the pass took out.
