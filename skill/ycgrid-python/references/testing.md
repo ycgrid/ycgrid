@@ -175,7 +175,7 @@ is none of those below is a key (`k:` by convention). `--keys "..."` on the comm
 - Check a lock both ways: the drag works unlocked, then does nothing locked (a test that only checks "didn't move"
   passes when the drag missed).
 - **Click what a person clicks, found by name**: `ui.ribbon_items()` lists the ribbon buttons, open menu entries
-  (submenus too), gallery tiles and Backstage entries on the screen now, as `{cmd, where, rect}`; `where` is
+  (submenus too), gallery tiles and Backstage entries on the screen now, as `{cmd, where, label, rect}` (label: the text shown); `where` is
   `"ribbon"`, `"dropdown"` (click near its right edge or bottom to open its menu), `"combo"`, `"menu"`, `"submenu"`
   (hover it to open), `"tile"` or `"backstage"`. Click a tab first (positions in `ui.state()["ribbon"]["tabs"]`).
   `ui.items(window="")` lists the controls drawn in the last frame, `{label, id, window, rect, disabled}`, and

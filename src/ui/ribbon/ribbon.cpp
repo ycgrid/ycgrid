@@ -81,9 +81,13 @@ bool g_peek_opened = false;  // the temporary ribbon's popup was opened (it open
 
 Command* Cmd(const std::string& id) { return Commands().Find(id); }
 
+// the label a person sees: an ImGui id after "##" (Group##spark, which keeps two commands' labels apart) is never
+// drawn, as ImGui's own widgets hide it (the Sparkline tab showed "Group##spark")
 std::string LabelOf(const std::string& id) {
   Command* c = Cmd(id);
-  return c ? c->label : id;
+  std::string label = c ? c->label : id;
+  if (const size_t at = label.find("##"); at != std::string::npos) label.resize(at);
+  return label;
 }
 
 const char* IconOf(const Item& it, bool large) {
@@ -149,7 +153,10 @@ std::string FirstLine(const std::string& s) {
 }
 
 // joining a two-line label into one line: CJK characters join directly, otherwise a space is inserted
-std::string OneLine(const std::string& s) {
+// a label as a person sees it on one line: an ImGui id after "##" is never drawn (ImGui's widgets hide it; the ribbon
+// draws its labels itself, and the Sparkline tab showed "Group##spark", its Axis menu "...Sparkline##min")
+std::string OneLine(const std::string& s_in) {
+  const std::string_view s = std::string_view(s_in).substr(0, s_in.find("##"));
   std::string out;
   out.reserve(s.size());
   for (size_t i = 0; i < s.size(); ++i) {
@@ -1975,7 +1982,7 @@ std::vector<ItemRect> VisibleItems() {
   std::vector<ItemRect> out;
   const int now = ImGui::GetFrameCount();
   for (const auto& [key, s] : g_seen) {
-    if (now - s.frame <= 2) out.push_back(ItemRect{s.cmd, s.rect, s.where});
+    if (now - s.frame <= 2) out.push_back(ItemRect{s.cmd, s.rect, s.where, OneLine(LabelOf(s.cmd))});
   }
   return out;
 }
@@ -3067,8 +3074,11 @@ void BuildDefaultTabs(bool* show_gridlines, bool* show_headings, bool* show_form
     t.groups.push_back({TR("Group##ctx_spark"), icon::SparkLine,
                         {large({btn("SparkAxisMenu", K::Menu)}), stack({btn("SparkGroup"), btn("SparkUngroup"), split("SparkClear", {"SparkClear", "SparkClearGroups"})})},
                         ""});
-    t.groups.back().blocks[0].items[0].menu = {"SparkAxisGeneral", "SparkAxisDate", "SparkAxis", "SparkRightToLeft", "-", "SparkMinAuto", "SparkMinSame",
-                                               "SparkMinCustom", "-", "SparkMaxAuto", "SparkMaxSame", "SparkMaxCustom"};
+    // Excel's headings over the three parts: the two Automatic / Same / Custom sets looked the same without them
+    t.groups.back().blocks[0].items[0].menu = {std::string("~") + TR("Horizontal Axis Options"), "SparkAxisGeneral", "SparkAxisDate", "SparkAxis",
+                                               "SparkRightToLeft", std::string("~") + TR("Vertical Axis Minimum Value Options"), "SparkMinAuto",
+                                               "SparkMinSame", "SparkMinCustom", std::string("~") + TR("Vertical Axis Maximum Value Options"),
+                                               "SparkMaxAuto", "SparkMaxSame", "SparkMaxCustom"};
     g_tabs.push_back(std::move(t));
   }
   {

@@ -119,8 +119,9 @@ def items(window: str = "") -> list:
 
 def ribbon_items() -> list:
     """[YC] Tests: the ribbon buttons, open menu entries, gallery tiles and Backstage entries on the screen now, as
-    dicts {cmd, where, rect [x0, y0, x1, y1] in window pixels}: where is "ribbon" (a button), "dropdown" (opens a menu
-    or gallery: click its arrow), "combo", "menu" (an entry of the open menu), "tile" or "backstage". Click them
+    dicts {cmd, where, label, rect [x0, y0, x1, y1] in window pixels}: where is "ribbon" (a button), "dropdown" (opens
+    a menu or gallery: click its arrow), "combo", "menu" (an entry of the open menu), "tile" or "backstage"; label is
+    the text shown for it, on one line. Click them
     with ui.input "c:x,y" as a person does. Only what the last frames drew: switch to a tab or open a menu first."""
     return list(_rq("ui.ribbon_items"))
 

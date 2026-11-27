@@ -507,6 +507,31 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Worksheets.Count, n + 1)
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_ribbon_shows_no_imgui_ids(self):
+        # the Sparkline tab showed "Group##spark" and "Ungroup##spark", its Axis menu "...Sparkline##min" twice
+        # without the headings that tell them apart: the ribbon draws its labels itself and never cut the id off
+        self.ws.Range("A1:C2").Value = [[1, 3, 2], [3, 1, 2]]
+        yc.excel.ActiveSheet.Range("D1:D2").SparklineGroups.Add(1, "A1:C2")
+        self.keys("g:D1|w:6")
+        tx, ty = (int(v) for v in yc.ui.state()["ribbon"]["tabs"]["Sparkline"])  # its tab shows; Excel doesn't switch
+        self.keys(f"m:{tx},{ty}|w:2|c:{tx},{ty}|w:6")
+        shown = yc.ui.ribbon_items()
+        self.assertIn("Group", [i["label"] for i in shown if i["cmd"] == "SparkGroup"])
+        axis = [i for i in shown if i["cmd"] == "SparkAxisMenu"][0]["rect"]
+        x, y = int((axis[0] + axis[2]) / 2), int((axis[1] + axis[3]) / 2)
+        self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:6")
+        shown = yc.ui.ribbon_items()
+        self.assertIn("Automatic for Each Sparkline", [i["label"] for i in shown if i["cmd"] == "SparkMinAuto"])
+        self.assertEqual([i["label"] for i in shown if "##" in i["label"]], [])
+        self.keys("k:Escape|w:3|k:Escape|w:3")
+        for name, (tx, ty) in yc.ui.state()["ribbon"]["tabs"].items():  # every tab's buttons
+            if name == "File":
+                continue
+            self.keys(f"m:{int(tx)},{int(ty)}|w:2|c:{int(tx)},{int(ty)}|w:4")
+            self.assertEqual([i["label"] for i in yc.ui.ribbon_items() if "##" in i["label"]], [], name)
+        self.keys("k:Escape|w:3")
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):
         # Shift+F10 with whole rows selected opened the cell's menu (no Row Height, Hide, Unhide); Excel 16 opens the
         # row menu, and the column menu for whole columns (read through UI Automation), each with its letters

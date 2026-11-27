@@ -12078,3 +12078,23 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5543,0,ok,
 
 2026-11-27,screen_walk,r110,300,clean,"A company name wrapped with Alt, H, W, the row AutoFit back from Alt, H, O, A and by a double-click on its border, wrap turned off"
+2026-11-27,chaos,7803,361,ok,
+2026-11-27,gaps_fuzz,700223,92,ok,
+2026-11-27,basics,4850,160,ok,
+2026-11-27,doc_fuzz,2400224,148,ok,
+2026-11-27,calc_fuzz,4563,15,ok,
+2026-11-27,formula_fuzz,5544,0,ok,
+2026-11-27,chaos,7804,361,ok,
+2026-11-27,basics,4851,165,ok,
+2026-11-27,gaps_fuzz,700224,86,ok,
+2026-11-27,doc_fuzz,2400225,98,ok,
+2026-11-27,calc_fuzz,4564,29,ok,
+2026-11-27,formula_fuzz,5545,0,ok,
+2026-11-27,chaos,7805,361,ok,
+2026-11-27,gaps_fuzz,700225,106,ok,
+2026-11-27,basics,4852,171,ok,
+2026-11-27,doc_fuzz,2400226,104,ok,
+2026-11-27,calc_fuzz,4565,2,ok,
+2026-11-27,formula_fuzz,5546,0,ok,
+
+2026-11-27,screen_walk,r111,300,found,"Line sparklines from Alt, N, S, N with the data range typed, then the Sparkline tab and its Axis menu"

@@ -349,6 +349,7 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         MV x = MV::Map();
         x.Set("cmd", MV::Str(it.cmd));
         x.Set("where", MV::Str(it.where));
+        x.Set("label", MV::Str(it.label));
         MV r = MV::Array();
         for (float v : {it.rect.Min.x, it.rect.Min.y, it.rect.Max.x, it.rect.Max.y}) r.Push(MV::Double(v));
         x.Set("rect", std::move(r));

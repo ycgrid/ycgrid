@@ -228,6 +228,7 @@ struct ItemRect {
   std::string cmd;
   ImRect rect;
   const char* where;  // "ribbon" (a button), "dropdown" (opens a menu or gallery), "combo", "menu", "tile", "backstage"
+  std::string label;  // the text shown for it, on one line (its command's label)
 };
 std::vector<ItemRect> VisibleItems();
 // tabs or groups were added / removed after BuildDefaultTabs (RibbonX): drop the cached layout
