@@ -384,6 +384,30 @@ TEST_CASE("Round7: typed full-width numbers, Chinese dates and times, and the ti
   CHECK(formula::ParseInput("1/2").format == "m\"月\"d\"日\"");
 }
 
+TEST_CASE("Round7: a formula typed with a full-width = is a formula, its full-width marks outside quotes half-width") {
+  // a Chinese IME in full-width mode types ＝ and full-width letters, digits and marks: Excel 16 (measured) enters
+  // =A1*2, =SUM(1,2), ="x"&"ｙ" (the quoted text as typed); a full-width + or - stays text
+  yctest::Doc t;
+  t.Set("A1", "7");
+  t.Set("C1", "＝Ａ１＊２");
+  CHECK(t.F("C1") == "=A1*2");
+  CHECK(t.N("C1") == 14);
+  t.Set("C2", "＝SUM（1，2）");
+  CHECK(t.F("C2") == "=SUM(1,2)");
+  CHECK(t.N("C2") == 3);
+  t.Set("C3", "＝\"x\"＆\"ｙ\"");
+  CHECK(t.F("C3") == "=\"x\"&\"ｙ\"");
+  CHECK(t.V("C3").str() == "xｙ");
+  t.Set("C4", "＝\"ＡＢ\"");
+  CHECK(t.V("C4").str() == "ＡＢ");
+  t.Set("C5", "＝A1＞0");
+  CHECK(t.F("C5") == "=A1>0");
+  t.Set("C6", "＋１＋２");
+  CHECK(t.V("C6").IsString());
+  CHECK(t.V("C6").str() == "＋１＋２");
+  CHECK(formula::FoldFullWidthFormula("ＡＢ") == "ＡＢ");
+}
+
 TEST_CASE("Round7: a fill (*x) is placed where the code puts it, and TEXT leaves it out") {
   auto r = formula::FormatValue(Value::Number(1), "_($* #,##0.00_);_($* (#,##0.00);_($* \"-\"??_);_(@_)");
   CHECK(r.text == " $1.00 ");

@@ -920,6 +920,12 @@ bool Document::SetInput(uint32_t sheet, uint32_t r, uint32_t c, std::string_view
     SetValue(sheet, r, c, Value::String(text), src);
     return true;
   }
+  // a formula typed with a full-width = (an IME in full-width mode) is the formula in half-width (Excel 16, measured)
+  std::string folded;
+  if (text.size() > 3 && static_cast<unsigned char>(text[0]) == 0xEF) {
+    folded = formula::FoldFullWidthFormula(text);
+    text = folded;
+  }
   // typing (or code writing) next to a table grows it; a formula in an empty table column fills the column
   const bool table_rules = PolicyFor(src).table_rules;
   if (table_rules) AutoExpandTable(sheet, r, c);

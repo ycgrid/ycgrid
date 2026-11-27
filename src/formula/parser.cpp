@@ -1804,6 +1804,34 @@ std::vector<RefSpan> FindRefSpans(std::string_view text, CellPos origin, const S
   return out;
 }
 
+std::string FoldFullWidthFormula(std::string_view text) {
+  if (text.size() < 3 || text.substr(0, 3) != "\xEF\xBC\x9D") return std::string(text);  // U+FF1D
+  std::string out;
+  out.reserve(text.size());
+  bool quoted = false;
+  for (size_t i = 0; i < text.size(); ++i) {
+    const unsigned char b0 = static_cast<unsigned char>(text[i]);
+    if (!quoted && b0 == 0xEF && i + 2 < text.size()) {
+      const uint32_t cp = ((b0 & 0x0Fu) << 12) | ((static_cast<unsigned char>(text[i + 1]) & 0x3Fu) << 6) | (static_cast<unsigned char>(text[i + 2]) & 0x3Fu);
+      if (cp >= 0xFF01 && cp <= 0xFF5E) {
+        const char half = static_cast<char>(cp - 0xFEE0);
+        out += half;
+        if (half == '"') quoted = true;
+        i += 2;
+        continue;
+      }
+    }
+    if (!quoted && b0 == 0xE3 && i + 2 < text.size() && text[i + 1] == '\x80' && text[i + 2] == '\x80') {  // ideographic space
+      out += ' ';
+      i += 2;
+      continue;
+    }
+    if (text[i] == '"') quoted = !quoted;
+    out += text[i];
+  }
+  return out;
+}
+
 bool LooksLikeFormula(std::string_view text) {
   if (text.empty()) return false;
   if (text[0] == '=') return true;

@@ -140,6 +140,9 @@ YCGrid follows US Excel (en-US format codes, US date order). An Excel on a Windo
 things its own way; comparing with it, these are the region, not YCGrid bugs. Don't list them again (measured on
 Excel 16 with Taiwan's regional settings and the Traditional Chinese UI):
 
+- A time typed with the region's AM / PM word after it (`9:30 上午`) is a time in Taiwan's Excel, which takes Windows'
+  own designators there; YCGrid takes US Excel's `AM` / `PM` / `a` / `p` (measured 2026-11-27). The word before the
+  time (`上午 9:30`, as Taiwan's Excel shows times) is text in both.
 - `Application.International` reads what YCGrid reads and writes, US Excel's separators and order (country 1, `.`
   and `,`, month first, currency `$`), where Excel reads the machine's (Taiwan's: 886, year first, General in the UI's language;
   measured 2026-11-22).
