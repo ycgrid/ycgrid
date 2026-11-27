@@ -12012,3 +12012,25 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5534,0,ok,
 
 2026-11-27,screen_walk,r103,300,found,"The filter menu from the keyboard on a volume column: Alt+Down, F, T (Top 10), F, A (Above Average), and Text Filters' Contains; Excel's letters read through UI Automation"
+2026-11-27,chaos,7794,361,ok,
+2026-11-27,gaps_fuzz,700214,87,ok,
+2026-11-27,basics,4841,161,ok,
+2026-11-27,doc_fuzz,2400215,88,ok,
+2026-11-27,calc_fuzz,4554,15,ok,
+2026-11-27,formula_fuzz,5535,0,ok,
+2026-11-27,chaos,7795,361,ok,
+2026-11-27,basics,4842,167,ok,
+2026-11-27,gaps_fuzz,700215,115,ok,
+2026-11-27,chaos,7796,361,ok,
+2026-11-27,basics,4843,156,ok,
+2026-11-27,formula_fuzz,5536,0,ok,
+2026-11-27,doc_fuzz,2400216,190,ok,
+2026-11-27,calc_fuzz,4555,29,ok,
+2026-11-27,gaps_fuzz,700216,91,ok,
+2026-11-27,doc_fuzz,2400217,95,ok,
+2026-11-27,calc_fuzz,4556,2,ok,
+2026-11-27,formula_fuzz,5537,0,ok,
+2026-11-27,chaos,7797,361,ok,
+2026-11-27,gaps_fuzz,700217,88,ok,
+
+2026-11-27,screen_walk,r104,300,found,"Row and column menus from the keyboard: Shift+Space or Ctrl+Space, Shift+F10, then R, H, U, I, D, W; Excel's menus read through UI Automation"

@@ -1488,7 +1488,7 @@ void Shortcuts() {
     const ImRect rc = RangeScreenRect(*g_app.FocusSheet(), v, Rect::Cell(v.sel.act_r, v.sel.act_c));
     // a cell scrolled out of view would put the menu off the grid (an OS window elsewhere with viewports on)
     const ImVec2 at(ImClamp(rc.Min.x + rc.GetWidth() * 0.5f, v.cells_rect.Min.x, v.cells_rect.Max.x), ImClamp(rc.Max.y, v.cells_rect.Min.y, v.cells_rect.Max.y));
-    app::OpenCellContextMenuAt(at);
+    app::OpenCellContextMenuAt(at, v.sel.mode == render::SelectMode::Rows ? 1 : v.sel.mode == render::SelectMode::Cols ? 2 : 0);
   }
   // Ctrl+Y and F4: Redo after an Undo, otherwise Repeat (Excel)
   if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || (!on_object && ImGui::IsKeyChordPressed(ImGuiKey_F4))) app::RedoOrRepeat(g_app);

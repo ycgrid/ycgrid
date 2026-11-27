@@ -420,6 +420,8 @@ OPS = {
     "table_create": "k:c-T|w:8|k:Enter|w:3",
     "note": "k:s-F2|w:4|t:check this|k:Escape",
     "replace_all": "k:c-H|w:8|t:MSFT|k:Tab|t:IBM|k:a-A|w:6|k:Enter|w:3|k:Escape",
+    # Shift+F10 and a letter: the cell's, row's or column's menu by what is selected (T, Cut, in all three)
+    "menu_key_cut": "k:s-F10|w:6|k:T|w:4|k:Escape",
     "paste_special_dialog": "k:c-C|g:J2|k:c-a-V|w:6|k:Enter",
     "f4_in_edit": "t:=E9|k:F4|k:Enter",  # E9 is the active cell only after a Ctrl+drag copy (ALLOWED: its circular warning)
     "undo3": "k:c-Z|k:c-Z|k:c-Z",

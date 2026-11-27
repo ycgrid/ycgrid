@@ -3690,8 +3690,8 @@ struct MiniMenu {
   }
 };
 }  // namespace
-void OpenCellContextMenuAt(ImVec2 pos) {
-  g_open_cell_menu = true;
+void OpenCellContextMenuAt(ImVec2 pos, int kind) {
+  (kind == 1 ? g_open_row_menu : kind == 2 ? g_open_col_menu : g_open_cell_menu) = true;
   g_cell_menu_at = true;
   g_cell_menu_pos = pos;
 }
@@ -3815,12 +3815,17 @@ void DrawContextMenus(AppState& s) {
   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(S(8), S(7)));
   if (g_open_cell_menu) ImGui::OpenPopup("##cellmenu");
   static int kbd_frames = 0;  // opened from the keyboard: show where the keyboard is (the first item) for its first frames
-  if (g_cell_menu_at && ImGui::IsPopupOpen("##cellmenu")) {
+  // the menu Shift+F10 opened (the cell's, the row's or the column's), placed at the active cell before its Begin
+  static const char* kbd_menu = nullptr;
+  if (g_cell_menu_at) kbd_menu = g_open_row_menu ? "##rowmenu" : g_open_col_menu ? "##colmenu" : "##cellmenu";
+  auto kbd_place = [&](const char* id) {
+    if (!kbd_menu || std::strcmp(kbd_menu, id) != 0 || !ImGui::IsPopupOpen(id)) return;
     ImGui::SetNextWindowPos(g_cell_menu_pos);
     kbd_frames = 2;
-  }
+    kbd_menu = nullptr;
+  };
   // the mini toolbar comes with a menu the mouse opened (Excel: not with Shift+F10 or the Menu key)
-  if (g_open_cell_menu || g_open_col_menu || g_open_row_menu) g_menu_mini = !(g_open_cell_menu && g_cell_menu_at);
+  if (g_open_cell_menu || g_open_col_menu || g_open_row_menu) g_menu_mini = !g_cell_menu_at;
   g_cell_menu_at = false;
   if (g_open_col_menu) ImGui::OpenPopup("##colmenu");
   if (g_open_row_menu) ImGui::OpenPopup("##rowmenu");
@@ -3850,7 +3855,8 @@ void DrawContextMenus(AppState& s) {
     MenuCmd("ScreenshotSelection", TR("Screenshot of Selection"));
     ImGui::Separator();
   };
-  if (!ImGui::IsPopupOpen("##cellmenu")) kbd_frames = 0;  // closed in its first frame: the next menu starts plain
+  if (!ImGui::IsPopupOpen("##cellmenu") && !ImGui::IsPopupOpen("##rowmenu") && !ImGui::IsPopupOpen("##colmenu") && !kbd_menu)
+    kbd_frames = 0;  // closed in its first frame: the next menu starts plain
   // with the mini toolbar: no window background (the toolbar and the menu draw their own boxes), the menu at the mouse
   // and the toolbar above it
   auto mini_style = [&](const char* id) {
@@ -3889,6 +3895,7 @@ void DrawContextMenus(AppState& s) {
       }
     }
   };
+  kbd_place("##cellmenu");
   const bool cell_mini = mini_style("##cellmenu");
   const bool cell_open = ImGui::BeginPopup("##cellmenu");
   mini_pop(cell_mini);
@@ -3903,7 +3910,8 @@ void DrawContextMenus(AppState& s) {
       MenuCmd("FormatCellsDialog", TR("Format Cells..."));
     } else {
     if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
-    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_F, "FormatCellsDialog"},
+             {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
             {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
     clip_items();
     // a #SPILL! formula: what is in its way can be selected (Excel's error button)
@@ -3969,14 +3977,20 @@ void DrawContextMenus(AppState& s) {
     mm.End();
     ImGui::EndPopup();
   }
+  // the row and column menus' letters are Excel 16's (UI Automation's AccessKey of its menus): Cut T, Copy C, Paste P,
+  // Paste Special S, Insert I, Delete D, Clear Contents N, Format Cells F, Row Height R / Column Width W, Hide H,
+  // Unhide U
+  kbd_place("##colmenu");
   const bool col_mini = mini_style("##colmenu");
   const bool col_open = ImGui::BeginPopup("##colmenu");
   mini_pop(col_mini);
   if (col_open) {
     MiniMenu mm;
     mm.Begin(col_mini);
-    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertColumns"}, {ImGuiKey_D, "DeleteColumns"}, {ImGuiKey_N, "ClearContents"}, {ImGuiKey_W, "ColumnWidth"},
-             {ImGuiKey_H, "HideColumns"}, {ImGuiKey_U, "UnhideColumns"}},
+    if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_S, "PasteSpecial"}, {ImGuiKey_I, "InsertColumns"}, {ImGuiKey_D, "DeleteColumns"},
+             {ImGuiKey_N, "ClearContents"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_W, "ColumnWidth"}, {ImGuiKey_H, "HideColumns"},
+             {ImGuiKey_U, "UnhideColumns"}},
             {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
     clip_items();
     MenuCmd("InsertColumns", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
@@ -3991,15 +4005,18 @@ void DrawContextMenus(AppState& s) {
     mm.End();
     ImGui::EndPopup();
   }
+  kbd_place("##rowmenu");
   const bool row_mini = mini_style("##rowmenu");
   const bool row_open = ImGui::BeginPopup("##rowmenu");
   mini_pop(row_mini);
   if (row_open) {
     MiniMenu mm;
     mm.Begin(row_mini);
-    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertRows"}, {ImGuiKey_D, "DeleteRows"}, {ImGuiKey_N, "ClearContents"}, {ImGuiKey_H, "HideRows"},
+    if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_S, "PasteSpecial"}, {ImGuiKey_I, "InsertRows"}, {ImGuiKey_D, "DeleteRows"},
+             {ImGuiKey_N, "ClearContents"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_R, "RowHeight"}, {ImGuiKey_H, "HideRows"},
              {ImGuiKey_U, "UnhideRows"}},
-            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}});  // R is Row Height's here too
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}});  // R is Row Height's here, not the Formatting picture's
     clip_items();
     MenuCmd("InsertRows", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
     MenuCmd("DeleteRows", TR("Delete"));

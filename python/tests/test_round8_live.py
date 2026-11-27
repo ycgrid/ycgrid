@@ -464,6 +464,27 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("B2:B4").Value], ["Buy", "Buy", "Sell"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):
+        # Shift+F10 with whole rows selected opened the cell's menu (no Row Height, Hide, Unhide); Excel 16 opens the
+        # row menu, and the column menu for whole columns (read through UI Automation), each with its letters
+        self.ws.Range("A1:A5").Value = [[1], [2], [3], [4], [5]]
+        self.keys("g:A3|w:2|k:s-Space|w:2|k:s-F10|w:6|k:R|w:6")
+        self.assertIn("Row Height", [i["label"] for i in yc.ui.items("")])
+        self.keys("k:c-A|t:30|k:Enter|w:6")
+        self.assertEqual(self.ws.Rows(3).RowHeight, 30)
+        self.keys("g:A3|w:2|k:s-Space|w:2|k:s-F10|w:6|k:H|w:6")
+        self.assertTrue(self.ws.Rows(3).Hidden)
+        self.keys("g:A2:A4|w:2|k:s-Space|w:2|k:s-F10|w:6|k:U|w:6")
+        self.assertFalse(self.ws.Rows(3).Hidden)
+        self.keys("g:B1|w:2|k:c-Space|w:2|k:s-F10|w:6|k:W|w:6|k:c-A|t:20|k:Enter|w:6")
+        self.assertEqual(self.ws.Columns(2).ColumnWidth, 20)
+        self.keys("g:B2|w:2|k:s-F10|w:6")  # one cell: the cell's menu, its Pick From Drop-down List
+        self.assertIn("Pick From Drop-down List...", [i["label"] for i in yc.ui.items("")])
+        self.keys("k:Escape|w:3")
+        self.ws.Rows(3).RowHeight = 15
+        self.ws.Columns(2).ColumnWidth = 8.43
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_the_filter_submenus_take_excels_letters(self):
         # F (Number / Text / Date Filters) did nothing, nor the submenus' letters (Excel 16's AccessKey, read through
         # UI Automation): Alt+Down, F, T is Top 10, F, A Above Average; in Text Filters A is Contains

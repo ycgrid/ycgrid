@@ -720,7 +720,9 @@ bool NumberFormatPicker(std::string& code);
 bool PaletteColor(const char* label, uint32_t* argb, bool allow_auto, const char* auto_label);  // fx on a cell whose formula is one call (=SUM(A1:A9)): its arguments
 void DrawContextMenus(AppState& s);
 void OpenCellContextMenu();
-void OpenCellContextMenuAt(ImVec2 pos);  // Shift+F10 / the Menu key: at the active cell
+// Shift+F10 / the Menu key: at the active cell; whole rows or columns selected open the row or column menu, as Excel's
+// (kind 1 rows, 2 columns)
+void OpenCellContextMenuAt(ImVec2 pos, int kind = 0);
 bool ContextMenuOpen();                   // a cell, header or sheet tab menu is open
 void OpenColHeaderContextMenu();
 void OpenRowHeaderContextMenu();
