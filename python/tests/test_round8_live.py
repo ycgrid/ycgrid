@@ -492,7 +492,9 @@ class DialogsRound8Test(unittest.TestCase):
         self.ws.Range("A1:B3").Value = [["Sym", "Qty"], ["A", 1], ["B", 2]]
         self.keys("g:A1|w:2|k:c-T|w:8|k:a-M|w:4")
         self.assertEqual(checked("My table has headers"), [False])
-        self.keys("k:Escape|w:4|x:ZoomDialog|w:8|k:7|w:3|k:Enter|w:6")
+        self.keys("k:Escape|w:4|x:ZoomDialog|w:8|k:7|w:3")
+        self.assertEqual(checked("75%") + checked("100%"), [True, False])  # option buttons tell ui.items which is on
+        self.keys("k:Enter|w:6")
         self.assertEqual(yc.excel.ActiveWindow.Zoom, 75)
         yc.excel.ActiveWindow.Zoom = 100
         self.keys("g:A1|w:2|x:Subtotal|w:8")

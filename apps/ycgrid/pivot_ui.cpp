@@ -2487,8 +2487,8 @@ void DrawPivotDialogs(AppState& s) {
     RangeBox(s, "pivot.source", u.source, sizeof(u.source), S(300), RangeBox_Sheet, TR("Table/Range:"));
     ImGui::Separator();
     ImGui::TextUnformatted(u.with_chart ? TR("Choose where you want the PivotChart to be placed") : TR("Choose where you want the PivotTable report to be placed"));
-    ImGui::RadioButton(TR("New Worksheet"), &u.dest_new, 1);
-    ImGui::RadioButton(TR("Existing Worksheet"), &u.dest_new, 0);
+    ui::RadioButton(TR("New Worksheet"), &u.dest_new, 1);
+    ui::RadioButton(TR("Existing Worksheet"), &u.dest_new, 0);
     ImGui::BeginDisabled(u.dest_new == 1);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(TR("Location:"));
@@ -2611,8 +2611,8 @@ void DrawPivotDialogs(AppState& s) {
   }
   if (BeginDlg(s, Dialog::PivotMove, TR("Move PivotTable###yc_dlg_pivotmove"), 380)) {
     ImGui::TextUnformatted(TR("Choose where you want the PivotTable to be placed"));
-    ImGui::RadioButton(TR("New Worksheet"), &u.move_new, 1);
-    ImGui::RadioButton(TR("Existing Worksheet"), &u.move_new, 0);
+    ui::RadioButton(TR("New Worksheet"), &u.move_new, 1);
+    ui::RadioButton(TR("Existing Worksheet"), &u.move_new, 0);
     ImGui::BeginDisabled(u.move_new == 1);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(TR("Location:"));
@@ -2705,8 +2705,8 @@ void DrawPivotDialogs(AppState& s) {
     if (!x.timeline) {
       ImGui::SeparatorText(TR("Item Sorting and Filtering"));
       int sort = x.descending ? 1 : 0;
-      ImGui::RadioButton(TR("Ascending (A to Z)"), &sort, 0);
-      ImGui::RadioButton(TR("Descending (Z to A)"), &sort, 1);
+      ui::RadioButton(TR("Ascending (A to Z)"), &sort, 0);
+      ui::RadioButton(TR("Descending (Z to A)"), &sort, 1);
       x.descending = sort == 1;
       ImGui::Checkbox(TR("Hide items with no data"), &x.hide_no_data);
       ImGui::BeginDisabled(x.hide_no_data);
@@ -3492,9 +3492,9 @@ void DrawPivotDialogs(AppState& s) {
       ImGui::InputText(TR("Custom Name"), u.fs_caption, sizeof(u.fs_caption));
       if (BeginDlgTabBar("##fstabs")) {
         if (ImGui::BeginTabItem(TR("Subtotals & Filters"))) {
-          ImGui::RadioButton(TR("Automatic"), &u.fs_sub, 0);
-          ImGui::RadioButton(TR("None"), &u.fs_sub, 1);
-          ImGui::RadioButton(TR("Custom"), &u.fs_sub, 2);
+          ui::RadioButton(TR("Automatic"), &u.fs_sub, 0);
+          ui::RadioButton(TR("None"), &u.fs_sub, 1);
+          ui::RadioButton(TR("Custom"), &u.fs_sub, 2);
           ImGui::BeginDisabled(u.fs_sub != 2);
           if (ImGui::BeginListBox("##funcs", ImVec2(S(220), S(150)))) {
             for (int i = 0; i < model::kPivotFuncs - 1; ++i) {  // Excel's eleven (no Distinct Count)
@@ -3512,14 +3512,14 @@ void DrawPivotDialogs(AppState& s) {
         }
         if (ImGui::BeginTabItem(TR("Layout & Print"))) {
           ImGui::SeparatorText(TR("Layout"));
-          ImGui::RadioButton(TR("Show item labels in outline form"), &u.fs_form, 1);
+          ui::RadioButton(TR("Show item labels in outline form"), &u.fs_form, 1);
           ImGui::Indent();
           ImGui::BeginDisabled(u.fs_form != 1);
           ImGui::Checkbox(TR("Display labels from the next field in the same column (compact form)"), &u.fs_compact);
           ImGui::Checkbox(TR("Display subtotals at the top of each group"), &u.fs_top);
           ImGui::EndDisabled();
           ImGui::Unindent();
-          ImGui::RadioButton(TR("Show item labels in tabular form"), &u.fs_form, 2);
+          ui::RadioButton(TR("Show item labels in tabular form"), &u.fs_form, 2);
           ImGui::Checkbox(TR("Repeat item labels"), &u.fs_repeat);
           ImGui::Checkbox(TR("Insert blank line after each item label"), &u.fs_blank);
           ImGui::Checkbox(TR("Show items with no data"), &u.fs_all);
@@ -3601,8 +3601,8 @@ void DrawPivotDialogs(AppState& s) {
         ImGui::Checkbox(TR("Show expand/collapse buttons"), &o.show_buttons);
         ImGui::Checkbox(TR("Display field captions and filter drop downs"), &o.field_captions);
         ImGui::TextUnformatted(TR("Field List"));
-        ImGui::RadioButton(TR("Sort A to Z"), &o.field_list_order, 1);
-        ImGui::RadioButton(TR("Sort in data source order"), &o.field_list_order, 0);
+        ui::RadioButton(TR("Sort A to Z"), &o.field_list_order, 1);
+        ui::RadioButton(TR("Sort in data source order"), &o.field_list_order, 0);
         ImGui::EndTabItem();
       }
       if (ImGui::BeginTabItem(TR("Data"))) {
@@ -3651,9 +3651,9 @@ void DrawPivotDialogs(AppState& s) {
       const int field = axis && static_cast<size_t>(u.so_pos) < axis->size() ? (*axis)[static_cast<size_t>(u.so_pos)].field : -1;
       ImGui::TextDisabled("%s", FieldName(*p, field).c_str());
       ImGui::SeparatorText(TR("Sort options"));
-      ImGui::RadioButton(TR("Manual (you can drag items to rearrange them)"), &u.so_mode, 0);
-      ImGui::RadioButton(TR("Ascending (A to Z) by:"), &u.so_mode, 1);
-      ImGui::RadioButton(TR("Descending (Z to A) by:"), &u.so_mode, 2);
+      ui::RadioButton(TR("Manual (you can drag items to rearrange them)"), &u.so_mode, 0);
+      ui::RadioButton(TR("Ascending (A to Z) by:"), &u.so_mode, 1);
+      ui::RadioButton(TR("Descending (Z to A) by:"), &u.so_mode, 2);
       ImGui::BeginDisabled(u.so_mode == 0);
       ImGui::SetNextItemWidth(S(260));
       const Cached& c = CacheFor(s, *p);

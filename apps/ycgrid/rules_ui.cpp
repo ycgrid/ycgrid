@@ -2184,9 +2184,9 @@ void DrawRuleDialogs(AppState& s) {
       ImGui::PopID();
     };
     row("a", &f.op1, f.v1);
-    if (ImGui::RadioButton(TR("And"), !f.or_op)) f.or_op = false;
+    if (ui::RadioButton(TR("And"), !f.or_op)) f.or_op = false;
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Or"), f.or_op)) f.or_op = true;
+    if (ui::RadioButton(TR("Or"), f.or_op)) f.or_op = true;
     row("b", &f.op2, f.v2);
     ImGui::TextDisabled("%s", TR("Use ? to represent any single character. Use * to represent any series of characters."));
     bool close = false;

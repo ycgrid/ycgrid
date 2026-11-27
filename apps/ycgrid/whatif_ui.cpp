@@ -617,8 +617,8 @@ void DrawWhatIfDialogs(AppState& s) {
       if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     } else {
       ImGui::SeparatorText(TR("Report type"));
-      ImGui::RadioButton(TR("Scenario summary"), &w.sc_report, 0);
-      ImGui::RadioButton(TR("Scenario PivotTable report"), &w.sc_report, 1);
+      ui::RadioButton(TR("Scenario summary"), &w.sc_report, 0);
+      ui::RadioButton(TR("Scenario PivotTable report"), &w.sc_report, 1);
       RefField(s, TR("Result cells:"), w.sc_results, sizeof(w.sc_results), 380);
       if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
         std::vector<std::pair<uint32_t, Rect>> refs;
@@ -751,8 +751,8 @@ void DrawWhatIfDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::AdvancedFilter, TR("Advanced Filter###yc_advfilter"), 360)) {
     bool close = false;
     ImGui::TextUnformatted(TR("Action"));
-    ImGui::RadioButton(TR("Filter the list, in-place"), &w.af_action, 0);
-    ImGui::RadioButton(TR("Copy to another location"), &w.af_action, 1);
+    ui::RadioButton(TR("Filter the list, in-place"), &w.af_action, 0);
+    ui::RadioButton(TR("Copy to another location"), &w.af_action, 1);
     RefField(s, TR("List range:"), w.af_list, sizeof(w.af_list));
     RefField(s, TR("Criteria range:"), w.af_crit, sizeof(w.af_crit));
     ImGui::BeginDisabled(w.af_action == 0);
@@ -821,11 +821,11 @@ void DrawWhatIfDialogs(AppState& s) {
         RefField(s, TR("Set Objective:"), w.sv_obj, sizeof(w.sv_obj), 260, RangeBox_Cell);
         ImGui::TextUnformatted(TR("To:"));
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Max"), &w.sv.goal, 1);
+        ui::RadioButton(TR("Max"), &w.sv.goal, 1);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Min"), &w.sv.goal, 2);
+        ui::RadioButton(TR("Min"), &w.sv.goal, 2);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Value Of:"), &w.sv.goal, 3);
+        ui::RadioButton(TR("Value Of:"), &w.sv.goal, 3);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(90));
         ImGui::BeginDisabled(w.sv.goal != 3);  // Value Of only counts with its option
@@ -1032,9 +1032,9 @@ void DrawWhatIfDialogs(AppState& s) {
           if (ImGui::BeginTabItem(TR("GRG Nonlinear"), nullptr, w.sv_opt_tab == 1 && w.sv_opt_set ? ImGuiTabItemFlags_SetSelected : 0)) {
             num(TR("Convergence:"), "##o_conv", &o.convergence, "%g");
             ImGui::SeparatorText(TR("Derivatives"));
-            ImGui::RadioButton(TR("Forward"), &o.derivatives, 1);
+            ui::RadioButton(TR("Forward"), &o.derivatives, 1);
             ImGui::SameLine();
-            ImGui::RadioButton(TR("Central"), &o.derivatives, 2);
+            ui::RadioButton(TR("Central"), &o.derivatives, 2);
             ImGui::SeparatorText(TR("Multistart"));
             ImGui::Checkbox(TR("Use Multistart"), &o.multistart);
             inum(TR("Population Size:"), "##o_pop", &o.population, false);
@@ -1140,9 +1140,9 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::TextUnformatted(w.sv_result.message.c_str());
         ImGui::PopTextWrapPos();
         ImGui::BeginGroup();
-        ImGui::RadioButton(TR("Keep Solver Solution"), w.sv_keep);
+        ui::RadioButton(TR("Keep Solver Solution"), w.sv_keep);
         if (ImGui::IsItemClicked()) w.sv_keep = true;
-        ImGui::RadioButton(TR("Restore Original Values"), !w.sv_keep);
+        ui::RadioButton(TR("Restore Original Values"), !w.sv_keep);
         if (ImGui::IsItemClicked()) w.sv_keep = false;
         ImGui::Dummy(ImVec2(1, S(8)));
         ImGui::Checkbox(TR("Return to Solver Parameters Dialog"), &w.sv_return);

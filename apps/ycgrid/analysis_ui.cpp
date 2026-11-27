@@ -336,9 +336,9 @@ void ToolOptions(AppState& s) {
     ImGui::TextUnformatted(TR("Grouped By:"));
     ImGui::SameLine(S(190));
     int g = a.by_rows ? 1 : 0;
-    ImGui::RadioButton(TR("Columns"), &g, 0);
+    ui::RadioButton(TR("Columns"), &g, 0);
     ImGui::SameLine();
-    ImGui::RadioButton(TR("Rows"), &g, 1);
+    ui::RadioButton(TR("Rows"), &g, 1);
     a.by_rows = g == 1;
   }
   if (t == Tool::Histogram) Field(s, TR("Bin Range:"), a.bins, sizeof(a.bins));
@@ -399,18 +399,18 @@ void ToolOptions(AppState& s) {
     }
   }
   ImGui::SeparatorText(TR("Output options"));
-  ImGui::RadioButton(TR("Output Range:"), &a.out_kind, 0);
+  ui::RadioButton(TR("Output Range:"), &a.out_kind, 0);
   ImGui::SameLine(S(190));
   {
     const std::string before = a.out;
     RangeBox(s, "analysis.out", a.out, sizeof(a.out), S(250), RangeBox_Cell, TR("Output Range:"));
     if (before != a.out) a.out_kind = 0;
   }
-  ImGui::RadioButton(TR("New Worksheet Ply:"), &a.out_kind, 1);
+  ui::RadioButton(TR("New Worksheet Ply:"), &a.out_kind, 1);
   ImGui::SameLine(S(190));
   ImGui::SetNextItemWidth(S(220));
   if (ImGui::InputText("##ply", a.sheet_name, sizeof(a.sheet_name))) a.out_kind = 1;
-  ImGui::RadioButton(TR("New Workbook"), &a.out_kind, 2);
+  ui::RadioButton(TR("New Workbook"), &a.out_kind, 2);
   switch (t) {
     case Tool::Descriptive:
       ImGui::Checkbox(TR("Summary statistics"), &a.summary);
@@ -449,10 +449,10 @@ void ToolOptions(AppState& s) {
       break;
     case Tool::Sampling:
       ImGui::SeparatorText(TR("Sampling Method"));
-      ImGui::RadioButton(TR("Periodic"), &a.sample_method, 0);
+      ui::RadioButton(TR("Periodic"), &a.sample_method, 0);
       ImGui::SameLine(S(190));
       if (a.sample_method == 0) IntField(TR("Period:"), &a.period);
-      ImGui::RadioButton(TR("Random"), &a.sample_method, 1);
+      ui::RadioButton(TR("Random"), &a.sample_method, 1);
       if (a.sample_method == 1) {
         ImGui::SameLine(S(190));
         IntField(TR("Number of Samples:"), &a.count);

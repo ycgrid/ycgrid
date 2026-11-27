@@ -3467,7 +3467,7 @@ void DrawPageSetupDialog(AppState& s) {
         OrientationCombo(ps, w);
         ImGui::SeparatorText(TR("Scaling"));
         bool fit = ps.zoom == 0;
-        if (ImGui::RadioButton(TR("Adjust to:"), !fit)) {
+        if (ui::RadioButton(TR("Adjust to:"), !fit)) {
           if (fit) ps.zoom = 100;
           fit = false;
         }
@@ -3477,7 +3477,7 @@ void DrawPageSetupDialog(AppState& s) {
         ImGui::BeginDisabled(fit);
         if (ImGui::InputInt(TR("% normal size"), &zoom, 5, 10)) ps.zoom = std::clamp(zoom, 10, 400);
         ImGui::EndDisabled();
-        if (ImGui::RadioButton(TR("Fit to:"), fit)) ps.zoom = 0;
+        if (ui::RadioButton(TR("Fit to:"), fit)) ps.zoom = 0;
         ImGui::SameLine();
         ImGui::BeginDisabled(!fit);
         ImGui::SetNextItemWidth(S(80));
@@ -3549,9 +3549,9 @@ void DrawPageSetupDialog(AppState& s) {
         ImGui::EndGroup();
         ImGui::SeparatorText(TR("Page order"));
         int order = ps.over_then_down ? 1 : 0;
-        ImGui::RadioButton(TR("Down, then over"), &order, 0);
+        ui::RadioButton(TR("Down, then over"), &order, 0);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Over, then down"), &order, 1);
+        ui::RadioButton(TR("Over, then down"), &order, 1);
         ps.over_then_down = order == 1;
       }
       ImGui::EndTabItem();

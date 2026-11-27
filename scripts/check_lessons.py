@@ -84,6 +84,11 @@ RULES = [
          "nameless controls no test could find.",
          r"\bImGui::(Begin)?Combo\s*\(",
          files=["apps/**/*.cpp", "src/ui/**/*.cpp", "src/ui/**/*.h"]),
+    Rule("radio-state",
+         "Option buttons go through ui::RadioButton (yc_ui_items.h), which tells ui.items which one is chosen "
+         "(checked): ImGui::RadioButton tells the test hooks nothing, and no test could read a dialog's option.",
+         r"\bImGui::RadioButton\s*\(",
+         files=["apps/**/*.cpp", "src/ui/**/*.cpp", "src/ui/**/*.h"]),
     Rule("py-startfile",
          "Python opens files on the desktop through excel._open_on_desktop, which opens nothing for a script driving a "
          "hidden YCGrid (tests): os.startfile directly opened them on the user's screen.",

@@ -12,6 +12,7 @@
 
 #include "imgui.h"
 #include "implot.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cmath>
@@ -90,7 +91,7 @@ void DrawChartWindow(AppState& s) {
   ImGui::PushFont(ui::F().ui, ui::F().ui_size);
   for (int i = 0; i < 4; ++i) {
     if (i) ImGui::SameLine();
-    ImGui::RadioButton(kTypes[i], &s.chart_type, i);
+    ui::RadioButton(kTypes[i], &s.chart_type, i);
   }
   int submitted = 0;
   if (s.chart_type == 1) {

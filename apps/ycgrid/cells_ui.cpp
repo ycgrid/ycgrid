@@ -447,9 +447,9 @@ void DrawFillAcrossDialog(AppState& s) {
   }
   bool close = !open || ImGui::IsKeyPressed(ImGuiKey_Escape);
   ImGui::SeparatorText(TR("Fill"));
-  ImGui::RadioButton(TR("All"), &u.across, 0);
-  ImGui::RadioButton(TR("Contents"), &u.across, 1);
-  ImGui::RadioButton(TR("Formats"), &u.across, 2);
+  ui::RadioButton(TR("All"), &u.across, 0);
+  ui::RadioButton(TR("Contents"), &u.across, 1);
+  ui::RadioButton(TR("Formats"), &u.across, 2);
   if (DlgOkButton(TR("OK"), ImVec2(S(90), 0))) {
     FillAcross(s, GroupTargets(s, s.focus_sheet), s.focus_sheet, SelAreas(s), u.across);
     close = true;

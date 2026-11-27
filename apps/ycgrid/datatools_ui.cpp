@@ -470,9 +470,9 @@ void DrawForecast(AppState& s) {
   ForecastPreview(s);
   // the chart types (line, column) at the top right
   ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - S(150));
-  if (ImGui::RadioButton(TR("Line"), !u.fc_column)) u.fc_column = false;
+  if (ui::RadioButton(TR("Line"), !u.fc_column)) u.fc_column = false;
   ImGui::SameLine();
-  if (ImGui::RadioButton(TR("Column"), u.fc_column)) u.fc_column = true;
+  if (ui::RadioButton(TR("Column"), u.fc_column)) u.fc_column = true;
   DrawForecastChart(ImVec2(S(620), S(260)));
   ImGui::AlignTextToFramePadding();
   ImGui::TextUnformatted(TR("Forecast End"));
@@ -498,8 +498,8 @@ void DrawForecast(AppState& s) {
     u.fc_conf = std::clamp(u.fc_conf, 1.0f, 99.0f);
     ImGui::EndDisabled();
     ImGui::TextUnformatted(TR("Seasonality"));
-    ImGui::RadioButton(TR("Detect Automatically"), &u.fc_season_mode, 0);
-    ImGui::RadioButton(TR("Set Manually"), &u.fc_season_mode, 1);
+    ui::RadioButton(TR("Detect Automatically"), &u.fc_season_mode, 0);
+    ui::RadioButton(TR("Set Manually"), &u.fc_season_mode, 1);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(80));
     ImGui::BeginDisabled(u.fc_season_mode == 0);
@@ -848,20 +848,20 @@ void DrawImportData(AppState& s) {
   if (!BeginDlg(s, Dialog::ImportData, TR("Import Data###yc_dlg_importdata"), 360)) return;
   bool close = false;
   ImGui::TextUnformatted(TR("Select how you want to view this data in your workbook."));
-  ImGui::RadioButton(TR("Table"), &u.id_view, 0);
+  ui::RadioButton(TR("Table"), &u.id_view, 0);
   ImGui::BeginDisabled();  // these show a query's connection: YCGrid has no Power Query connections
-  ImGui::RadioButton(TR("PivotTable Report"), &u.id_view, 1);
-  ImGui::RadioButton(TR("PivotChart"), &u.id_view, 2);
-  ImGui::RadioButton(TR("Only Create Connection"), &u.id_view, 3);
+  ui::RadioButton(TR("PivotTable Report"), &u.id_view, 1);
+  ui::RadioButton(TR("PivotChart"), &u.id_view, 2);
+  ui::RadioButton(TR("Only Create Connection"), &u.id_view, 3);
   ImGui::EndDisabled();
   ImGui::TextUnformatted(TR("Where do you want to put the data?"));
-  ImGui::RadioButton(TR("Existing worksheet:"), &u.id_where, 0);
+  ui::RadioButton(TR("Existing worksheet:"), &u.id_where, 0);
   ImGui::Indent();
   ImGui::BeginDisabled(u.id_where != 0);
   RangeBox(s, "importdata.cell", u.id_cell, sizeof(u.id_cell), S(260), RangeBox_Cell | RangeBox_Equals, TR("Existing worksheet:"));
   ImGui::EndDisabled();
   ImGui::Unindent();
-  ImGui::RadioButton(TR("New worksheet"), &u.id_where, 1);
+  ui::RadioButton(TR("New worksheet"), &u.id_where, 1);
   ImGui::Separator();
   if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
     if (u.id_where == 1) {

@@ -858,8 +858,8 @@ void DrawDataDialogs(AppState& s) {
                                               : TR("YCGrid found data next to your selection. Since you have not selected this data, it will not be sorted."));
     ImGui::PopTextWrapPos();
     ImGui::TextUnformatted(TR("What do you want to do?"));
-    ImGui::RadioButton(TR("Expand the selection"), &d.sw_choice, 0);
-    ImGui::RadioButton(TR("Continue with the current selection"), &d.sw_choice, 1);
+    ui::RadioButton(TR("Expand the selection"), &d.sw_choice, 0);
+    ui::RadioButton(TR("Continue with the current selection"), &d.sw_choice, 1);
     // Up / Down choose between the two, as in Excel's option group
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
       if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) d.sw_choice = 1;
@@ -968,10 +968,10 @@ void DrawDataDialogs(AppState& s) {
       ImGui::TextUnformatted(TR("Choose the file type that best describes your data:"));
       if (DlgKey(ImGuiKey_D)) d.tc_kind = 0;  // Excel's letters: (D)elimited, Fixed (W)idth
       if (DlgKey(ImGuiKey_W)) d.tc_kind = 1;
-      ImGui::RadioButton(TR("Delimited"), &d.tc_kind, 0);
+      ui::RadioButton(TR("Delimited"), &d.tc_kind, 0);
       ImGui::SameLine(S(150));
       ImGui::TextDisabled("%s", TR("- Characters such as commas or tabs separate each field."));
-      ImGui::RadioButton(TR("Fixed width"), &d.tc_kind, 1);
+      ui::RadioButton(TR("Fixed width"), &d.tc_kind, 1);
       ImGui::SameLine(S(150));
       ImGui::TextDisabled("%s", TR("- Fields are aligned in columns with spaces between each field."));
       ImGui::SeparatorText(TR("Preview of selected data:"));
@@ -1031,9 +1031,9 @@ void DrawDataDialogs(AppState& s) {
       int& t = d.tc_types[static_cast<size_t>(d.tc_col)];
       int kind = t >= 3 && t <= 8 ? 3 : (t == 2 ? 2 : (t == 1 ? 1 : 0));  // the option buttons' order: General, Text, Date, skip
       ImGui::BeginGroup();
-      if (ImGui::RadioButton(TR("General"), kind == 0)) t = 0;
-      if (ImGui::RadioButton(TR("Text"), kind == 1)) t = 1;
-      if (ImGui::RadioButton(TR("Date:"), kind == 3)) t = d.tc_date;
+      if (ui::RadioButton(TR("General"), kind == 0)) t = 0;
+      if (ui::RadioButton(TR("Text"), kind == 1)) t = 1;
+      if (ui::RadioButton(TR("Date:"), kind == 3)) t = d.tc_date;
       ImGui::SameLine();
       int order = (kind == 3 ? t : d.tc_date) - 3;
       ImGui::SetNextItemWidth(S(80));
@@ -1042,7 +1042,7 @@ void DrawDataDialogs(AppState& s) {
         d.tc_date = order + 3;
         t = d.tc_date;
       }
-      if (ImGui::RadioButton(TR("Do not import column (skip)"), kind == 2)) t = 2;
+      if (ui::RadioButton(TR("Do not import column (skip)"), kind == 2)) t = 2;
       ImGui::EndGroup();
       ImGui::SameLine(S(300));
       ImGui::BeginGroup();
@@ -1194,8 +1194,8 @@ void DrawDataDialogs(AppState& s) {
   }
   // Group / Ungroup when cells (not whole rows or columns) are selected
   if (BeginDlg(s, Dialog::GroupOutline, d.grp_group ? TR("Group###yc_dlg_group") : TR("Ungroup###yc_dlg_group"), 240)) {
-    ImGui::RadioButton(TR("Rows"), &d.grp_rows, 0);
-    ImGui::RadioButton(TR("Columns"), &d.grp_rows, 1);
+    ui::RadioButton(TR("Rows"), &d.grp_rows, 0);
+    ui::RadioButton(TR("Columns"), &d.grp_rows, 1);
     bool close = false;
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       const Rect r = SelRect(s);

@@ -1055,9 +1055,9 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         // Workbook Calculation, as Excel's three choices (Formulas > Calculation Options)
         ImGui::TextUnformatted(TR("Workbook Calculation"));
         int mode = !cfg.auto_calc ? 2 : (cfg.auto_data_tables ? 0 : 1);
-        bool mc = ImGui::RadioButton(TR("Automatic"), &mode, 0);
-        mc = ImGui::RadioButton(TR("Automatic except for data tables"), &mode, 1) || mc;
-        mc = ImGui::RadioButton(TR("Manual"), &mode, 2) || mc;
+        bool mc = ui::RadioButton(TR("Automatic"), &mode, 0);
+        mc = ui::RadioButton(TR("Automatic except for data tables"), &mode, 1) || mc;
+        mc = ui::RadioButton(TR("Manual"), &mode, 2) || mc;
         if (mc) {
           cfg.auto_calc = mode != 2;
           cfg.auto_data_tables = mode == 0;
@@ -1077,8 +1077,8 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         const int all = static_cast<int>(core::PoolSize());
         char lab[96];
         std::snprintf(lab, sizeof lab, TR("Use all processors on this computer: %d"), all);
-        if (ImGui::RadioButton(lab, &mode, 0)) cfg.calc_thread_count = 0, changed = true;
-        if (ImGui::RadioButton(TR("Manual##threads"), &mode, 1) && cfg.calc_thread_count == 0) cfg.calc_thread_count = all, changed = true;
+        if (ui::RadioButton(lab, &mode, 0)) cfg.calc_thread_count = 0, changed = true;
+        if (ui::RadioButton(TR("Manual##threads"), &mode, 1) && cfg.calc_thread_count == 0) cfg.calc_thread_count = all, changed = true;
         ImGui::SameLine();
         ImGui::BeginDisabled(mode == 0);
         ImGui::SetNextItemWidth(S(90));

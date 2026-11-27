@@ -973,9 +973,9 @@ void DrawIllustrationDialogs(AppState& s) {
   if (BeginModal(TR("Hidden and Empty Cell Settings###yc_spark_hidden"), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
     bool close = ImGui::IsKeyPressed(ImGuiKey_Escape);
     ImGui::TextUnformatted(TR("Show empty cells as:"));
-    ImGui::RadioButton(TR("Gaps"), &u.hidden_blanks, 1);
-    ImGui::RadioButton(TR("Zero"), &u.hidden_blanks, 2);
-    ImGui::RadioButton(TR("Connect data points with line"), &u.hidden_blanks, 3);
+    ui::RadioButton(TR("Gaps"), &u.hidden_blanks, 1);
+    ui::RadioButton(TR("Zero"), &u.hidden_blanks, 2);
+    ui::RadioButton(TR("Connect data points with line"), &u.hidden_blanks, 3);
     ImGui::Checkbox(TR("Show data in hidden rows and columns"), &u.hidden_show);
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       const uint32_t sheet = s.focus_sheet, id = u.spark_group;

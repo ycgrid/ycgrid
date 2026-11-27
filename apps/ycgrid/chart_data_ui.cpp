@@ -19,6 +19,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cctype>
@@ -895,9 +896,9 @@ void DrawSelectDataWindow(AppState& s) {
       ImGui::TextUnformatted(TR("Hidden and Empty Cell Settings"));
       ImGui::Separator();
       ImGui::TextUnformatted(TR("Show empty cells as:"));
-      if (ImGui::RadioButton(TR("Gaps"), d.work.display_blanks == 1)) d.work.display_blanks = 1;
-      if (ImGui::RadioButton(TR("Zero"), d.work.display_blanks == 2)) d.work.display_blanks = 2;
-      if (ImGui::RadioButton(TR("Connect data points with line"), d.work.display_blanks == 3)) d.work.display_blanks = 3;
+      if (ui::RadioButton(TR("Gaps"), d.work.display_blanks == 1)) d.work.display_blanks = 1;
+      if (ui::RadioButton(TR("Zero"), d.work.display_blanks == 2)) d.work.display_blanks = 2;
+      if (ui::RadioButton(TR("Connect data points with line"), d.work.display_blanks == 3)) d.work.display_blanks = 3;
       ImGui::Checkbox(TR("Show #N/A as an empty cell"), &d.work.na_as_blank);
       bool hidden = !d.work.plot_visible_only;
       if (ImGui::Checkbox(TR("Show data in hidden rows and columns"), &hidden)) d.work.plot_visible_only = !hidden;

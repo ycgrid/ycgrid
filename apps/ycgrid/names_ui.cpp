@@ -770,9 +770,9 @@ void DrawNameDialogs(AppState& s) {
       ImGui::Checkbox(TR("Omit row name if same row"), &n.apply_omit_row);
       ImGui::TextUnformatted(TR("Name order"));
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Row Column"), &n.apply_order, 0);
+      ui::RadioButton(TR("Row Column"), &n.apply_order, 0);
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Column Row"), &n.apply_order, 1);
+      ui::RadioButton(TR("Column Row"), &n.apply_order, 1);
       ImGui::EndDisabled();
     }
     bool close = false;

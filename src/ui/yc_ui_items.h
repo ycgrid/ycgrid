@@ -37,6 +37,8 @@ std::string LiveWindowTitle(const char* name);
 void NoteWindowTitle(const std::string& title);
 // the label of an item ImGui added without reporting one (a combo box: BeginCombo reports none), by its id
 void NameUiItem(ImGuiID id, const char* label);
+// whether an item ImGui added without saying it can be checked (an option button) is chosen, by its id
+void NoteItemChecked(ImGuiID id, bool checked);
 
 // ImGui's combo boxes, listed in ui.items by their label ("##type" by its id): ImGui::BeginCombo tells the test hooks
 // no label, and the Data Validation dialog's Allow box, like most others, was a nameless control tests couldn't find.
@@ -53,6 +55,23 @@ inline bool BeginCombo(const char* label, const char* preview, ImGuiComboFlags f
   const bool open = ImGui::BeginCombo(label, preview, flags);  // lesson-ok: combo-name the wrapper itself
   NameUiItem(id, label);
   return open;
+}
+
+// ImGui's option buttons, listed in ui.items with checked (True for the one chosen): ImGui::RadioButton tells the test
+// hooks nothing about its state, so no test could read which option a dialog had. Every option button goes through
+// these (check_lessons.py's radio-state)
+inline bool RadioButton(const char* label, bool active) {
+  const ImGuiID id = ImGui::GetID(label);
+  const bool pressed = ImGui::RadioButton(label, active);  // lesson-ok: radio-state the wrapper itself
+  NoteItemChecked(id, active);
+  return pressed;
+}
+inline bool RadioButton(const char* label, int* v, int v_button) {
+  const ImGuiID id = ImGui::GetID(label);
+  const bool on = *v == v_button;
+  const bool pressed = ImGui::RadioButton(label, v, v_button);  // lesson-ok: radio-state the wrapper itself
+  NoteItemChecked(id, on);
+  return pressed;
 }
 
 }  // namespace yc::ui

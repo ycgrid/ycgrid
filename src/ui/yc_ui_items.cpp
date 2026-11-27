@@ -112,6 +112,14 @@ std::string LiveWindowTitle(const char* name) {
   return name;
 }
 
+void NoteItemChecked(ImGuiID id, bool checked) {
+  ImGuiContext* g = ImGui::GetCurrentContext();
+  if (!g_on || !g) return;
+  auto it = g_items.find(id);
+  if (it == g_items.end() || it->second.frame != g->FrameCount) return;  // not added this frame (clipped by the window)
+  it->second.checked = checked ? 1 : 0;
+}
+
 void NameUiItem(ImGuiID id, const char* label) {
   ImGuiContext* g = ImGui::GetCurrentContext();
   if (!g_on || !g || !label) return;

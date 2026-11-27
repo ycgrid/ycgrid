@@ -2327,12 +2327,12 @@ void DrawInsDel(AppState& s, bool insert) {
   if (DlgKey(insert ? ImGuiKey_D : ImGuiKey_U)) g_ins_choice = 3;
   if (!paste_in && DlgKey(ImGuiKey_R)) g_ins_choice = 1;
   if (!paste_in && DlgKey(ImGuiKey_C)) g_ins_choice = 2;
-  ImGui::RadioButton(insert ? TR("Shift cells right") : TR("Shift cells left"), &g_ins_choice, 4);
-  ImGui::RadioButton(insert ? TR("Shift cells down") : TR("Shift cells up"), &g_ins_choice, 3);
+  ui::RadioButton(insert ? TR("Shift cells right") : TR("Shift cells left"), &g_ins_choice, 4);
+  ui::RadioButton(insert ? TR("Shift cells down") : TR("Shift cells up"), &g_ins_choice, 3);
   if (paste_in && g_ins_choice != 3 && g_ins_choice != 4) g_ins_choice = 3;
   if (!paste_in) {
-    ImGui::RadioButton(TR("Entire row"), &g_ins_choice, 1);
-    ImGui::RadioButton(TR("Entire column"), &g_ins_choice, 2);
+    ui::RadioButton(TR("Entire row"), &g_ins_choice, 1);
+    ui::RadioButton(TR("Entire column"), &g_ins_choice, 2);
   }
   bool ok = false;
   const bool close = OkCancel(&ok);
@@ -2442,7 +2442,7 @@ void DrawPasteSpecialText(AppState& s) {
   if (ImGui::IsWindowAppearing()) as = 0;
   ImGui::TextUnformatted(TR("Source: text from another program"));
   ImGui::Spacing();
-  ImGui::RadioButton(TR("Paste"), true);
+  ui::RadioButton(TR("Paste"), true);
   ImGui::Spacing();
   ImGui::TextUnformatted(TR("As:"));
   const char* kinds[] = {TR("Unicode Text"), TR("Text")};
@@ -2513,7 +2513,7 @@ void DrawPasteSpecial(AppState& s) {
       for (int col = 0; col < 2; ++col) {
         ImGui::TableNextColumn();
         const int i = col * (kCount / 2) + row;
-        ImGui::RadioButton(kChoices[i].label, &g_ps_mode, i);
+        ui::RadioButton(kChoices[i].label, &g_ps_mode, i);
       }
     }
     ImGui::EndTable();
@@ -2526,7 +2526,7 @@ void DrawPasteSpecial(AppState& s) {
     for (int k : kOrder) {
       ImGui::TableNextColumn();
       ImGui::PushID(100 + k);
-      ImGui::RadioButton(ops[k], &g_ps_op, k);
+      ui::RadioButton(ops[k], &g_ps_op, k);
       ImGui::PopID();
     }
     ImGui::EndTable();
@@ -2594,9 +2594,9 @@ void DrawZoom(AppState& s) {
   for (const auto& [z, key] : kZooms) {
     char label[16];
     std::snprintf(label, sizeof(label), "%d%%", z);
-    if (ImGui::RadioButton(label, !fit && pct == z) || DlgKey(key)) pct = z, fit = false;
+    if (ui::RadioButton(label, !fit && pct == z) || DlgKey(key)) pct = z, fit = false;
   }
-  if (ImGui::RadioButton(TR("Fit selection"), fit) || DlgKey(ImGuiKey_F)) fit = true;
+  if (ui::RadioButton(TR("Fit selection"), fit) || DlgKey(ImGuiKey_F)) fit = true;
   if (DlgKey(ImGuiKey_C)) ImGui::SetKeyboardFocusHere();
   ImGui::SetNextItemWidth(S(100));
   if (ImGui::InputInt(TR("Custom %"), &pct)) fit = false;

@@ -1266,11 +1266,11 @@ void DrawMiscDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::HyperlinkEdit, m.link_existing ? TR("Edit Hyperlink###yc_dlg_link") : TR("Insert Hyperlink###yc_dlg_link"), 520)) {
     // Link to: as Excel's buttons on the left
     ImGui::TextUnformatted(TR("Link to:"));
-    ImGui::RadioButton(TR("Existing File or Web Page"), &m.link_kind, 0);
+    ui::RadioButton(TR("Existing File or Web Page"), &m.link_kind, 0);
     ImGui::SameLine();
-    ImGui::RadioButton(TR("Place in This Document"), &m.link_kind, 1);
+    ui::RadioButton(TR("Place in This Document"), &m.link_kind, 1);
     ImGui::SameLine();
-    ImGui::RadioButton(TR("E-mail Address"), &m.link_kind, 2);
+    ui::RadioButton(TR("E-mail Address"), &m.link_kind, 2);
     ImGui::Separator();
     ImGui::TextUnformatted(TR("Text to display:"));
     ImGui::SetNextItemWidth(-1);
@@ -1304,9 +1304,9 @@ void DrawMiscDialogs(AppState& s) {
       }
       // Excel's Look in lists: the workbook's own folder (Current Folder) and Recent Files; a click puts the file in Address
       static int look_in = 0;
-      ImGui::RadioButton(TR("Current Folder"), &look_in, 0);
+      ui::RadioButton(TR("Current Folder"), &look_in, 0);
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Recent Files"), &look_in, 1);
+      ui::RadioButton(TR("Recent Files"), &look_in, 1);
       ImGui::BeginChild("##recent_links", ImVec2(-1, S(110)), ImGuiChildFlags_Borders);
       std::vector<std::wstring> files;
       if (look_in == 1) {
@@ -1517,22 +1517,22 @@ void DrawMiscDialogs(AppState& s) {
         ImGui::BeginGroup();
         continue;
       }
-      ImGui::RadioButton(kKinds[i], &m.gs_kind, i);
+      ui::RadioButton(kKinds[i], &m.gs_kind, i);
       if ((i == 9 || i == 10) && m.gs_kind == i) {
         ImGui::Indent();
         int lv = m.gs_all_levels ? 1 : 0;
-        ImGui::RadioButton(TR("Direct only"), &lv, 0);
+        ui::RadioButton(TR("Direct only"), &lv, 0);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("All levels"), &lv, 1);
+        ui::RadioButton(TR("All levels"), &lv, 1);
         m.gs_all_levels = lv == 1;
         ImGui::Unindent();
       }
       if ((i == 7 || i == 8) && m.gs_kind == i) {
         ImGui::Indent();
         int same = m.gs_same ? 1 : 0;
-        ImGui::RadioButton(TR("All##gs_rules"), &same, 0);
+        ui::RadioButton(TR("All##gs_rules"), &same, 0);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Same##gs_rules"), &same, 1);
+        ui::RadioButton(TR("Same##gs_rules"), &same, 1);
         m.gs_same = same == 1;
         ImGui::Unindent();
       }
@@ -1957,7 +1957,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::Checkbox(TR("Case sensitive"), &m.sort_case_edit);
     ImGui::SeparatorText(TR("Orientation"));
     int o = m.sort_ltr_edit ? 1 : 0;
-    if (ImGui::RadioButton(TR("Sort top to bottom"), &o, 0) || ImGui::RadioButton(TR("Sort left to right"), &o, 1)) m.sort_ltr_edit = o == 1;
+    if (ui::RadioButton(TR("Sort top to bottom"), &o, 0) || ui::RadioButton(TR("Sort left to right"), &o, 1)) m.sort_ltr_edit = o == 1;
     ImGui::Separator();
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       if (m.sort_ltr_edit != m.sort_ltr) {
@@ -1978,25 +1978,25 @@ void DrawMiscDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::FillSeries, TR("Series###yc_dlg_series"), 420)) {
     ImGui::BeginGroup();
     ImGui::TextUnformatted(TR("Series in"));
-    ImGui::RadioButton(TR("Rows"), &m.fs_dir, 0);
-    ImGui::RadioButton(TR("Columns"), &m.fs_dir, 1);
+    ui::RadioButton(TR("Rows"), &m.fs_dir, 0);
+    ui::RadioButton(TR("Columns"), &m.fs_dir, 1);
     ImGui::EndGroup();
     ImGui::SameLine(S(130));
     ImGui::BeginGroup();
     ImGui::TextUnformatted(TR("Type"));
-    ImGui::RadioButton(TR("Linear"), &m.fs_type, 0);
-    ImGui::RadioButton(TR("Growth"), &m.fs_type, 1);
-    ImGui::RadioButton(TR("Date"), &m.fs_type, 2);
-    ImGui::RadioButton(TR("AutoFill"), &m.fs_type, 3);
+    ui::RadioButton(TR("Linear"), &m.fs_type, 0);
+    ui::RadioButton(TR("Growth"), &m.fs_type, 1);
+    ui::RadioButton(TR("Date"), &m.fs_type, 2);
+    ui::RadioButton(TR("AutoFill"), &m.fs_type, 3);
     ImGui::EndGroup();
     ImGui::SameLine(S(260));
     ImGui::BeginGroup();
     ImGui::BeginDisabled(m.fs_type != 2);  // the units only mean something for dates, as in Excel
     ImGui::TextUnformatted(TR("Date unit"));
-    ImGui::RadioButton(TR("Day"), &m.fs_unit, 0);
-    ImGui::RadioButton(TR("Weekday"), &m.fs_unit, 1);
-    ImGui::RadioButton(TR("Month"), &m.fs_unit, 2);
-    ImGui::RadioButton(TR("Year"), &m.fs_unit, 3);
+    ui::RadioButton(TR("Day"), &m.fs_unit, 0);
+    ui::RadioButton(TR("Weekday"), &m.fs_unit, 1);
+    ui::RadioButton(TR("Month"), &m.fs_unit, 2);
+    ui::RadioButton(TR("Year"), &m.fs_unit, 3);
     ImGui::EndDisabled();
     ImGui::EndGroup();
     ImGui::BeginDisabled(m.fs_type >= 2);

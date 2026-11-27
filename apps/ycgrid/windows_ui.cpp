@@ -21,6 +21,7 @@
 
 #include "io/msgpack.h"
 #include "io/msgvalue.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <atomic>
@@ -347,10 +348,10 @@ void DrawArrangeDialog(AppState& s) {
   }
   bool close = !open || ImGui::IsKeyPressed(ImGuiKey_Escape);
   ImGui::TextUnformatted(TR("Arrange"));
-  ImGui::RadioButton(TR("Tiled"), &mode, 0);
-  ImGui::RadioButton(TR("Horizontal"), &mode, 1);
-  ImGui::RadioButton(TR("Vertical"), &mode, 2);
-  ImGui::RadioButton(TR("Cascade"), &mode, 3);
+  ui::RadioButton(TR("Tiled"), &mode, 0);
+  ui::RadioButton(TR("Horizontal"), &mode, 1);
+  ui::RadioButton(TR("Vertical"), &mode, 2);
+  ui::RadioButton(TR("Cascade"), &mode, 3);
   ImGui::Checkbox(TR("Windows of active workbook"), &active_only);
   ImGui::Separator();
   if (DlgOkButton(TR("OK"), ImVec2(ui::S(80), 0))) {
