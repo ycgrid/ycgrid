@@ -1770,7 +1770,9 @@ static float DrawSheetTabs(TabBarIO* tabs, const ImRect& bottom, GridActions& ac
       else if (io.KeyShift && !io.KeyCtrl) tabs->group_extend = tb.id;  // Shift+click: the sheets from the active one to here
       else tabs->activate = tb.id;
       act.clicked = true;
-      if (!io.KeyCtrl && !io.KeyShift) drag_tab = tb.id;
+      // Ctrl held from the press is Excel's way to copy a sheet (hold Ctrl, drag the tab); a Ctrl+click that doesn't move
+      // only groups it
+      if (!io.KeyShift) drag_tab = tb.id;
     }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
       // a grouped tab keeps the group (its menu offers Ungroup Sheets)

@@ -733,6 +733,14 @@ class ExcelParityTest(unittest.TestCase):
         copy = excel.Worksheets(at)  # the copy went just before the tab it was dropped on
         self.assertEqual(copy.Range("A1").Value, "copied")
         self.assertNotEqual(copy.Name, self.ws.Name)
+        # Ctrl held before the press, as Excel's help says it (hold Ctrl, drag the tab): only Ctrl at the drop copied
+        self.ws.Activate()
+        self.keys("w:4")
+        x0, y0 = self._tab(self.ws.Name)
+        x1, y1 = self._tab(first)
+        self.keys(f"H:ctrl|m:{x0},{y0}|w:2|p:{x0},{y0}|w:2|m:{x0 - 20},{y0}|w:2|m:{x1},{y1}|w:3|u:|w:2|h:|w:4|m:2,2|w:2")
+        self.assertEqual(excel.Worksheets.Count, n + 2)
+        self.assertEqual([s.Name for s in excel.ActiveWindow.SelectedSheets], [excel.ActiveSheet.Name], "the copy alone is selected")
 
     def test_undo_list_undoes_several_actions(self):
         # Excel: the arrow beside Undo lists the actions; choosing the third undoes the last three
