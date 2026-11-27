@@ -11907,3 +11907,16 @@ date,tool,seed,seconds,result,note
 2026-11-27,screen_walk,r93,300,clean,"Keys over panes frozen at B2 on a price list: Ctrl+Home, Home, Ctrl+Shift+Home, Ctrl+Up, PageUp"
 2026-11-27,screen_walk,r94,300,clean,"The Undo list on the title bar: three entries chosen by hovering, Undo 3 Actions, then Ctrl+Y"
 2026-11-27,screen_walk,r95,300,clean,"Paste Special from the keyboard: Ctrl+Alt+V with E (transpose), M (multiply by a copied 2), V (values), B (skip blanks)"
+2026-11-27,gaps_fuzz,700199,93,ok,
+2026-11-27,basics,4826,163,fail,basics_4826.txt
+2026-11-27,chaos,7778,361,ok,
+2026-11-27,doc_fuzz,2400199,110,ok,
+2026-11-27,calc_fuzz,4539,16,ok,
+2026-11-27,formula_fuzz,5520,0,ok,
+2026-11-27,chaos,7779,361,ok,
+2026-11-27,basics,4827,167,fail,basics_4827.txt
+2026-11-27,gaps_fuzz,700200,97,ok,
+
+2026-11-27,screen_walk,r96,300,clean,"Format Painter double-clicked (locked) over three cells, Escape, then a single click painting once, and Undo"
+2026-11-27,screen_walk,r97,300,clean,"Ctrl+T, Ctrl+Shift+T and a totals cell switched to Average from Alt+Down on a trade list"
+2026-11-27,screen_walk,r98,300,found,"Customize Status Bar: Minimum, Maximum and Numerical Count switched on over a column with text"

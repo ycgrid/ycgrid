@@ -1268,7 +1268,9 @@ void DrawStatusBar(const ImRect& r, double last_frame_ms) {
     entry(TR("Error Log"), unseen.c_str(), &c.status_error_log);
     ImGui::Separator();
     bool* flags[6] = {&c.status_average, &c.status_count, &c.status_numerical_count, &c.status_min, &c.status_max, &c.status_sum};
-    for (int i = 0; i < 6; ++i) entry(stat_names[i], stat_text[i].c_str(), flags[i]);
+    // the menu names them in full, the bar in short (Excel: Minimum in the menu, Min: 1 on the bar)
+    const char* menu_names[6] = {TR("Average"), TR("Count"), TR("Numerical Count"), TR("Minimum"), TR("Maximum"), TR("Sum")};
+    for (int i = 0; i < 6; ++i) entry(menu_names[i], stat_text[i].c_str(), flags[i]);
     ImGui::Separator();
     entry(TR("View Shortcuts"), "", &c.status_view_shortcuts);
     entry(TR("Zoom Slider"), "", &c.status_zoom_slider);

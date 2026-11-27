@@ -564,10 +564,10 @@ class ExcelParityTest(unittest.TestCase):
         r = self._status_bar()
         x, y = int(r[0] + (r[2] - r[0]) * 0.5), int((r[1] + r[3]) / 2)
         self.keys(f"m:{x},{y}|w:2|r:|w:4")
-        self.click("Max")
+        self.click("Maximum")  # the menu names it in full, the bar in short, as Excel's
         self.assertIn("Max: 9", ui.state()["status_stats"])
         self.keys(f"m:{x},{y}|w:2|r:|w:4")
-        self.click("Max")  # and off again (the next tests see the default)
+        self.click("Maximum")  # and off again (the next tests see the default)
         self.assertNotIn("Max", ui.state()["status_stats"])
 
     def test_status_bar_zoom_slider(self):
