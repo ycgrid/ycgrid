@@ -3763,6 +3763,28 @@ void DrawContextMenus(AppState& s) {
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
   };
+  // Excel's letters in the menus (the underlined ones; Shift+F10 or the Menu key, then V pastes values): only the
+  // letters no other entry of the menu shares, which run their entry at once (a shared one only moves the highlight
+  // in Excel's menus). Only while the menu itself has the keyboard, not an open submenu
+  auto letters = [&](std::initializer_list<std::pair<ImGuiKey, const char*>> cmds, std::initializer_list<std::pair<ImGuiKey, int>> pastes) {
+    const ImGuiIO& kio = ImGui::GetIO();
+    if (!ImGui::IsWindowFocused() || ImGui::IsAnyItemActive() || kio.KeyCtrl || kio.KeyAlt || kio.KeyShift) return;
+    for (const auto& [key, id] : cmds) {
+      const ui::Command* c = ui::Commands().Find(id);
+      if (ImGui::IsKeyPressed(key, false) && (!c || c->enabled)) {
+        ImGui::CloseCurrentPopup();
+        Exec(id);
+        return;
+      }
+    }
+    for (const auto& [key, way] : pastes) {  // the Paste Options pictures: Paste (P), Values (V), Formatting (R)
+      if (ImGui::IsKeyPressed(key, false) && CopyModeOn(s)) {
+        ImGui::CloseCurrentPopup();
+        PasteWayNow(s, way);
+        return;
+      }
+    }
+  };
   const bool cell_mini = mini_style("##cellmenu");
   const bool cell_open = ImGui::BeginPopup("##cellmenu");
   mini_pop(cell_mini);
@@ -3777,6 +3799,8 @@ void DrawContextMenus(AppState& s) {
       MenuCmd("FormatCellsDialog", TR("Format Cells..."));
     } else {
     if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
     clip_items();
     // a #SPILL! formula: what is in its way can be selected (Excel's error button)
     if (s.snap) {
@@ -3847,6 +3871,9 @@ void DrawContextMenus(AppState& s) {
   if (col_open) {
     MiniMenu mm;
     mm.Begin(col_mini);
+    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertColumns"}, {ImGuiKey_D, "DeleteColumns"}, {ImGuiKey_N, "ClearContents"}, {ImGuiKey_W, "ColumnWidth"},
+             {ImGuiKey_H, "HideColumns"}, {ImGuiKey_U, "UnhideColumns"}},
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
     clip_items();
     MenuCmd("InsertColumns", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
     MenuCmd("DeleteColumns", TR("Delete"));
@@ -3866,6 +3893,9 @@ void DrawContextMenus(AppState& s) {
   if (row_open) {
     MiniMenu mm;
     mm.Begin(row_mini);
+    letters({{ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertRows"}, {ImGuiKey_D, "DeleteRows"}, {ImGuiKey_N, "ClearContents"}, {ImGuiKey_H, "HideRows"},
+             {ImGuiKey_U, "UnhideRows"}},
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}});  // R is Row Height's here too
     clip_items();
     MenuCmd("InsertRows", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
     MenuCmd("DeleteRows", TR("Delete"));

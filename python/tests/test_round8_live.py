@@ -361,6 +361,23 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_cell_menu_takes_excels_letters(self):
+        # Shift+F10 (or the Menu key), then V pastes values: the menus ignored every letter
+        self.ws.Range("A1").Formula = "=2+3"
+        self.keys("g:A1|w:2|k:c-C|w:3|g:C1|w:2|k:s-F10|w:6|k:V|w:6")
+        self.assertEqual((self.ws.Range("C1").Formula, self.ws.Range("C1").Value), ("5", 5))
+        self.keys("k:Escape|w:3|g:C1|w:2|k:s-F10|w:6|k:D|w:6")
+        self.assertNotEqual(yc.ui.state()["dialog"], 0, "D opens Delete...")
+        self.keys("k:Escape|w:4")
+        self.assertEqual(yc.ui.state()["dialog"], 0)
+        self.ws.Range("E1").Value = "x"
+        x0, y0, x1, y1 = yc.ui.cell_rect("E1")
+        hx, hy = int((x0 + x1) / 2), int(y0) - 10
+        self.keys(f"m:{hx},{hy}|w:2|c:{hx},{hy}|w:3|r:{hx},{hy}|w:6|k:H|w:6")
+        self.assertTrue(self.ws.Columns("E").Hidden, "H in a column's menu hides it")
+        self.ws.Columns("E").Hidden = False
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_custom_autofilter_takes_the_value_typed_at_once(self):
         self.ws.Range("A1:A5").Value = [["Name"], ["Apple"], ["Banana"], ["Avocado"], ["Cherry"]]
         self.ws.Range("A1:A5").AutoFilter()
