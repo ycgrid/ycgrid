@@ -886,6 +886,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   them (a fill of blanks, a cut from another sheet), inside the step so Undo takes it back. Each path that kept a rule
   of its own let a header hold a number, a formula or an array's value (doc_fuzz seeds 10280369, 10290940, 10312766,
   10320462).
+- What Excel does by itself after an entry is an Undo step of its own, measured by Ctrl+Z after the entry: a table's
+  growth (Table AutoExpansion) and a calculated column's fill come back one Ctrl+Z each, before the typing (Excel 16;
+  Ctrl+D takes its growth back with the fill). YCGrid made them in the typing's step, so the first Ctrl+Z took the
+  typed value too (`Document::defer_table_growth`, `GrowDeferredTables`). Measure Undo after a new automatic action.
 - A table grows by itself (typing or code writing beside it) only over a line that holds nothing besides what is
   written, and never for an entry that is refused (Excel 16, measured by keys posted to its sheet window): grown over
   `=SUM(B2:B6)` under it, the SUM's range followed to the new row, a circular reference (basics seq470822). Measure a
