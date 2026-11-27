@@ -1601,7 +1601,7 @@ bool Document::RenameSheet(uint32_t id, std::string_view name, std::string* erro
   if (!ValidSheetName(name, error)) return false;
   const int32_t other = wb_.FindSheet(name);
   if (other >= 0 && wb_.sheets[static_cast<size_t>(other)]->id != id) {
-    if (error) *error = TR("A sheet with that name already exists.");
+    if (error) *error = TR("That name is already taken. Try a different one.");  // Excel 16's message, measured
     return false;
   }
   Sheet* s = M(id);

@@ -259,7 +259,7 @@
  "A scenario summary has at most 32 result cells.": "分析藍本摘要最多只能有 32 個結果儲存格。",
  "A scenario with this name already exists. Enter another name.": "已有同名的分析藍本。請輸入其他名稱。",
  "A sheet name must be followed by a cell reference": "工作表名稱後面必須是儲存格參照",
- "A sheet with that name already exists.": "已有相同名稱的工作表。",
+ "That name is already taken. Try a different one.": "該名稱已存在。請嘗試使用其他名稱。",
  "A sheet with this name already exists: ": "已經有同名的工作表：",
  "A slicer must be connected to at least one PivotTable.": "交叉分析篩選器必須至少連接一個樞紐分析表。",
  "A style with this name already exists, or the name is empty.": "已有同名的樣式，或名稱是空白的。",

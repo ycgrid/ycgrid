@@ -178,6 +178,9 @@ TEST_CASE("工作表新增、改名、刪除") {
   CHECK(t.F("A1") == "=報價!A1+1");
   std::string err;
   CHECK_FALSE(t.d.RenameSheet(s2, "a/b", &err));
+  // another sheet's name, in any case: Excel 16's message (measured)
+  CHECK_FALSE(t.d.RenameSheet(s2, "sheet1", &err));
+  CHECK(err == "That name is already taken. Try a different one.");
   REQUIRE(t.d.DeleteSheet(s2));
   t.d.Recalc();
   CHECK(t.T("A1") == "#REF!");
