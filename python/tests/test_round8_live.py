@@ -191,6 +191,27 @@ class UiOpsRound8Test(unittest.TestCase):
         no_cells("N3", "N3", "c-Slash")
         no_cells("B2", "B2", "c-Slash")
 
+    def test_end_mode_with_enter_and_escape(self):
+        from yc import excel
+
+        for r in range(2, 7):
+            self.ws.Range(f"B{r}:E{r}").Value = [[r * 10 + c for c in range(2, 6)]]
+        self.ws.Range("H9").Value = 1  # the used area ends at H9
+
+        def keys_from(start, script):
+            self.keys(f"g:{start}|w:2|{script}|w:3")
+            return excel.Selection.Address, excel.ActiveCell.Address
+
+        # End, Enter: the used area's last column in the row, an empty row too; Shift grows the selection to it
+        # (Excel 16, measured by keys posted to its sheet window)
+        self.assertEqual(keys_from("B3", "k:End|w:2|k:Enter"), ("$H$3", "$H$3"))
+        self.assertEqual(keys_from("B20", "k:End|w:2|k:Enter"), ("$H$20", "$H$20"))
+        self.assertEqual(keys_from("B3", "k:End|w:2|k:s-Enter"), ("$B$3:$H$3", "$B$3"))
+        # Escape ends Extend Selection (F8) but not End mode
+        self.assertEqual(keys_from("B2", "k:End|w:2|k:Escape|w:2|k:DownArrow"), ("$B$6", "$B$6"))
+        self.assertEqual(keys_from("B2", "k:F8|w:2|k:Escape|w:2|k:RightArrow"), ("$C$2", "$C$2"))
+        self.assertEqual(keys_from("B2", "k:End|w:2|k:End|w:2|k:DownArrow"), ("$B$3", "$B$3"))
+
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
         x, y = self.tab(self.other)
         self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")

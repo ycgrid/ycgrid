@@ -12668,3 +12668,16 @@ date,tool,seed,seconds,result,note
 
 2026-11-28,screen_walk,r131,900,found,"Ctrl+\, Ctrl+Shift+|, Ctrl+[, Ctrl+Shift+{, Ctrl+], Ctrl+Shift+}, Ctrl+Shift+*, Ctrl+/ and Alt+; on a block of prices, an array formula and a spill, measured in Excel by keys"
 2026-11-28,doc_fuzz,2400318,101,ok,
+2026-11-28,calc_fuzz,4654,30,ok,
+2026-11-28,formula_fuzz,5635,0,ok,
+2026-11-28,basics,4942,162,ok,
+2026-11-28,chaos,7898,361,ok,
+2026-11-28,gaps_fuzz,700315,93,ok,
+2026-11-28,doc_fuzz,2400319,89,ok,
+2026-11-28,calc_fuzz,4655,3,ok,
+2026-11-28,formula_fuzz,5636,0,ok,
+2026-11-28,gaps_fuzz,700316,99,ok,
+2026-11-28,chaos,7899,361,ok,
+2026-11-28,basics,4943,167,ok,
+
+2026-11-28,screen_walk,r132,600,found,"End mode on a price block: End with each arrow, Shift+arrow, Home, Shift+Home, Enter, Shift+Enter, End twice and Escape between, measured in Excel by keys"

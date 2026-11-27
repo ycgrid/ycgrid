@@ -95,6 +95,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - Ctrl+\ and Ctrl+Shift+| (Row and Column Differences) make the first cell found active, and find none with
   one cell selected, as in Excel; Ctrl+/ selects an array entered with Ctrl+Shift+Enter from its first cell and says
   "No cells were found." on a dynamic array's spill, as in Excel.
+- End, Enter goes to the last column of the used area in the row (with Shift, selects up to it), and Escape
+  leaves End mode on, as in Excel.
 
 ## 0.10.3 (2026-11-25)
 

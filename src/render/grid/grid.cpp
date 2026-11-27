@@ -3447,7 +3447,8 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         view.add_mode = false;
       }
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) view.extend_mode = view.add_mode = view.end_mode = false;
+    // Escape ends Extend and Add to Selection but not End mode: End, Escape, Down still jumps (Excel 16, measured)
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) view.extend_mode = view.add_mode = false;
     const bool jump = ctrl || view.end_mode;  // End, then an arrow: as Ctrl+arrow
     bool arrow = false;
     // a merged cell is one cell for the keys: a step starts from its far edge, and lands on a merge's top-left cell
@@ -3713,7 +3714,14 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     };
     // Enter with Ctrl or Alt moves nothing outside an entry (Excel 16, measured: Ctrl+Enter, Alt+Enter, Ctrl+Shift+Enter)
     if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && !ctrl && !io.KeyAlt) {
-      if (opt.copy_marquee && !opt.marquee_no_paste && !io.KeyShift && !ctrl && !io.KeyAlt) act.paste_enter = true;
+      if (view.end_mode) {
+        // End, then Enter: the used area's last column in the active cell's row, also in an empty row; with Shift the
+        // selection grows to it (Excel 16, measured by keys)
+        const core::CellPos lc = engine::LastCell(sheet);
+        if (io.KeyShift && selst.mode == SelectMode::Cells) grow_to(selst.act_r, lc.col);
+        else move_to(selst.act_r, lc.col, false);
+        view.end_mode = false;
+      } else if (opt.copy_marquee && !opt.marquee_no_paste && !io.KeyShift && !ctrl && !io.KeyAlt) act.paste_enter = true;
       else if (opt.enter_dir > 0) {
         // File > Options: the way Enter moves (Shift+Enter: the other way)
         static const int kBack[5] = {0, 2, 1, 4, 3};
