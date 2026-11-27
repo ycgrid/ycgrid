@@ -939,15 +939,20 @@ bool Document::SetInput(uint32_t sheet, uint32_t r, uint32_t c, std::string_view
     }
   }
   if (table_rules) {
-    // a formula grows the table at once (one with [@Qty] reads the grown table); a value may wait (defer_table_growth)
+    // a formula with a structured reference grows the table at once ([@Qty] beside it reads the grown table); the
+    // rest may wait (defer_table_growth)
     const bool keep = defer_table_growth;
-    if (text[0] == '=') defer_table_growth = false;
+    if (text[0] == '=' && text.find('[') != std::string_view::npos) defer_table_growth = false;
     AutoExpandTable(sheet, r, c);
     defer_table_growth = keep;
   }
   if (text[0] == '=' && text.size() > 1) {
     if (!SetFormula(sheet, r, c, text.substr(1), error, src, r1c1)) return false;
-    if (table_rules) FillCalculatedColumn(sheet, r, c);
+    if (table_rules) {
+      // the formula's own table loses its name at once; the column's fill may wait as a step of its own
+      FillCalculatedColumn(sheet, r, c, !defer_table_growth);
+      if (defer_table_growth && deferred_calc_.size() < 4096) deferred_calc_.emplace_back(sheet, core::CellPos{r, c});
+    }
     return true;
   }
   if (formula::LooksLikeFormula(text)) {

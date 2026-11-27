@@ -673,9 +673,9 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   const std::string label = TR("Typing \"") + shown + TR("\" in ") + core::CellA1(r, c);
   std::vector<uint32_t> group = GroupTargets(s, sheet);  // grouped sheets: the same entry in the same cells (Excel)
   group.erase(group.begin());
-  // a value typed beside a table grows it in a step of its own after the typing's: the first Ctrl+Z takes back only
-  // the growth (Excel 16, measured by keys); a formula grows it at once
-  const bool defer_growth = !formula::LooksLikeFormula(text);
+  // what a table does by itself after the typing (growing, filling a calculated column) is a step of its own: the
+  // first Ctrl+Z takes back only that (Excel 16, measured by keys)
+  const bool defer_growth = true;
   auto work = [=](Document& d, std::string* error) {
     d.defer_table_growth = defer_growth;
     d.Begin(label);

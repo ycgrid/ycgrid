@@ -114,6 +114,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   `Table1[[Qty]:[Px]]`), as Excel writes them.
 - A value typed, entered with Ctrl+Enter or filled right beside a table grows it in an Undo step of its own: the first
   Ctrl+Z takes back the growth and keeps the value, as in Excel (Table AutoExpansion).
+- A formula typed into an empty table column fills it in an Undo step of its own (Calculated Column): the first
+  Ctrl+Z keeps the typed formula, as in Excel; typed beside a table, the fill, the growth and the typing are three steps.
 - A data validation Warning answers No to Enter, as Excel's (back to the entry), instead of taking the value; an alert
   without a message of its own says Excel's "This value doesn't match the data validation restrictions defined for
   this cell."

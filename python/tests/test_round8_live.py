@@ -438,6 +438,26 @@ class UiOpsRound8Test(unittest.TestCase):
             shown = [self.ws.Cells(r, 1).Text for r in range(2, 9) if not self.ws.Rows(r).Hidden]
             self.assertEqual(shown, want, text)
 
+    def test_a_calculated_column_and_a_growth_are_undo_steps_of_their_own(self):
+        # Excel 16, measured by keys: =c3*d3 typed beside a table grows it and fills the column; the first Ctrl+Z
+        # takes back the fill, the second the growth, the third the typing. YCGrid took all three back at once.
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        self.keys("m:2,2|g:E3|w:3|t:=c3*d3|w:2|k:Enter|w:6")
+        col = lambda: [str(self.ws.Range(f"E{r}").Formula or "") for r in range(3, 7)]  # noqa: E731
+        self.assertEqual(col(), ["=C3*D3", "=C4*D4", "=C5*D5", "=C6*D6"])
+        self.assertEqual(lo.Range.Address, "$B$2:$E$6")
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(col(), ["=C3*D3", "", "", ""])
+        self.assertEqual(lo.Range.Address, "$B$2:$E$6")
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(col(), ["=C3*D3", "", "", ""])
+        self.assertEqual(lo.Range.Address, "$B$2:$D$6")
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(col(), ["", "", "", ""])
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

@@ -762,9 +762,18 @@ bool Document::SetTableTotal(uint32_t sheet, uint32_t id, uint32_t column, int f
 // written below or right of it (a paste, Python's Range.Value) grows it once to take the whole block
 void Document::GrowDeferredTables() {
   defer_table_growth = false;
-  if (deferred_growth_.empty()) return;
+  const std::vector<std::pair<uint32_t, core::CellPos>> calc = std::move(deferred_calc_);
+  deferred_calc_.clear();
   const std::vector<std::pair<uint32_t, Rect>> list = std::move(deferred_growth_);
   deferred_growth_.clear();
+  if (!list.empty()) GrowTables(list);
+  if (calc.empty()) return;
+  Begin(TR("Calculated Column"));
+  for (const auto& [sheet, p] : calc) FillCalculatedColumn(sheet, p.row, p.col);
+  Commit();
+}
+
+void Document::GrowTables(const std::vector<std::pair<uint32_t, Rect>>& list) {
   Begin(TR("Table AutoExpansion"));
   for (const auto& [sheet, w] : list) {
     // the cells the write wrote are its own, whichever of its parts noted them (Ctrl+Enter: the active cell, then the
@@ -961,7 +970,7 @@ void Document::GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_
 // (=Table1[@Qty] there is =[@Qty], Table1[Qty] is [Qty]); the other forms keep it: Table1[@[Sym]:[Qty]],
 // Table1[[Qty]:[Px]], Table1[[#Headers],[Qty]] (Excel 16, measured by keys); typed into an empty table column it fills the whole column (a calculated column), and typed over a
 // calculated column it replaces the column's formula in every row (Excel's default)
-void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
+void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c, bool fill) {
   const Table* t = TableAt(sheet, r, c);
   if (!t) return;
   const uint32_t fid = S(sheet)->GetFormula(r, c);
@@ -985,6 +994,7 @@ void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
     t = TableAt(sheet, r, c);
     if (!t) return;
   }
+  if (!fill) return;
   const Sheet* s = S(sheet);
   Rect d = t->Data();
   d.r1 = std::min(d.r1, s->row_limit - 1);  // a table kept to the end marker: the sheet's rows

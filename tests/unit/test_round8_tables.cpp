@@ -701,15 +701,48 @@ TEST_CASE("A table's growth after typing beside it is an Undo step of its own", 
   CHECK(t.V("A5").str() == "d");
   REQUIRE(t.d.Undo());
   CHECK(t.V("A5").IsEmpty());
-  // a formula: one step, the table grown with it
+  // a formula beside it: the growth waits too, a step of its own
   t.d.ClearUndo();
   t.d.defer_table_growth = true;
   t.d.Begin("typing");
   REQUIRE(t.d.SetInput(t.sheet(), 0, 3, "=1+1"));
   t.d.Commit();
+  CHECK(TableOf(t, id).range.c1 == 2);
   t.d.GrowDeferredTables();
   CHECK(TableOf(t, id).range.c1 == 3);
-  CHECK(t.d.UndoDepth() == 1);
+  CHECK(t.d.UndoDepth() == 2);
+}
+
+TEST_CASE("A calculated column's fill is an Undo step of its own after the typing", "[table][round8]") {
+  // Excel 16, measured by keys: =C3*D3 typed into an empty table column fills it; the first Ctrl+Z takes back the
+  // fill (the typed cell keeps its formula), the second the typing. Beside the table: fill, growth, typing
+  yctest::Doc t;
+  t.Set("A1", "Name");
+  t.Set("B1", "Qty");
+  t.Set("C1", "Price");
+  t.Set("D1", "Amt");
+  for (int i = 2; i <= 4; ++i) {
+    t.Set(("A" + std::to_string(i)).c_str(), "x");
+    t.Set(("B" + std::to_string(i)).c_str(), std::to_string(i));
+    t.Set(("C" + std::to_string(i)).c_str(), "10");
+  }
+  std::string err;
+  REQUIRE(t.d.AddTable(t.sheet(), Rect{0, 0, 3, 3}, true, "TableStyleMedium2", &err));
+  t.d.Recalc();
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 1, 3, "=B2*C2"));
+  t.d.Commit();
+  CHECK(t.F("D3").empty());  // not yet
+  t.d.GrowDeferredTables();
+  CHECK(t.F("D3") == "=B3*C3");
+  CHECK(t.d.UndoDepth() == 2);
+  REQUIRE(t.d.Undo());
+  CHECK(t.F("D2") == "=B2*C2");
+  CHECK(t.F("D3").empty());
+  REQUIRE(t.d.Undo());
+  CHECK(t.F("D2").empty());
 }
 
 TEST_CASE("Create Table guesses a header row as Excel does", "[table][round8]") {

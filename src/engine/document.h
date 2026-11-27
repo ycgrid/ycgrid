@@ -1041,12 +1041,13 @@ class Document : public formula::SheetResolver {
   // parameter cells: the user changes them only by typing (the UI checks and confirms, then sets param_commit for
   // that one edit); Python changes them freely. Every change of their values goes to the change log.
   bool param_commit = false;
-  // A table's growth that a write beside it makes is a step of its own after the write's, for the UI's typing,
-  // Ctrl+Enter and Fill Right: Excel 16's first Ctrl+Z takes back only the growth, the values stay (measured by keys;
-  // Ctrl+D takes both back at once). Set around the write; GrowDeferredTables makes the growths noted meanwhile, as
-  // one step (Table AutoExpansion)
+  // What a table does by itself after a write is a step of its own, for the UI's typing, Ctrl+Enter and Fill Right:
+  // its growth (Table AutoExpansion), then a formula filling its empty column (Calculated Column); Excel 16's first
+  // Ctrl+Z takes back the column's fill, the next the growth, the next the typing (measured by keys; Ctrl+D takes
+  // growth and fill back at once). Set around the write; GrowDeferredTables makes what was noted meanwhile
   bool defer_table_growth = false;
   void GrowDeferredTables();
+  void GrowTables(const std::vector<std::pair<uint32_t, Rect>>& writes);  // one step: each write's growth
   std::string audit_user;  // who the user changes of this window are logged as
   const model::ParameterDef* ParameterAt(uint32_t sheet, uint32_t r, uint32_t c) const;
   bool SetParameter(model::ParameterDef def, std::string* error);  // adds, or replaces the one of the same cell
@@ -1254,9 +1255,11 @@ class Document : public formula::SheetResolver {
   // a table on `sheet` (columns c0..c1, first row first) grew down from its last row old_last to new_last: the ranges
   // that end at old_last inside it grow with it (cell formulas, names, rules, objects)
   void GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_last, uint32_t new_last, uint32_t c0, uint32_t c1);
-  void FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c);
+  // fill: also fill the column (a calculated column); without it only the formula's own table loses its name
+  void FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c, bool fill = true);
   bool syncing_tables_ = false;
   std::vector<std::pair<uint32_t, Rect>> deferred_growth_;  // defer_table_growth's writes beside a table
+  std::vector<std::pair<uint32_t, core::CellPos>> deferred_calc_;  // and its formulas that may fill a table column
   const std::vector<Rect>* growth_written_ = nullptr;  // GrowDeferredTables: every cell its write wrote, on that sheet
   // header cells a table grew over and the format each takes once SyncTableHeaders made it text: {sheet, r, c, style}
   std::vector<std::array<uint32_t, 4>> grown_header_styles_;
