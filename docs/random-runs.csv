@@ -11848,3 +11848,16 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5511,0,ok,
 
 2026-11-27,screen_walk,r87,300,found,"Data > Sort from Alt, A, S, S: two levels (Qty largest first, then Sym), OK, Cancel, Escape and the selection around them, measured in Excel"
+2026-11-27,chaos,7770,361,ok,
+2026-11-27,basics,4818,164,fail,basics_4818.txt
+2026-11-27,gaps_fuzz,700191,88,ok,
+2026-11-27,doc_fuzz,2400191,112,ok,
+2026-11-27,calc_fuzz,4531,31,ok,
+2026-11-27,formula_fuzz,5512,0,ok,
+2026-11-27,chaos,7771,361,ok,
+2026-11-27,basics,4819,173,fail,basics_4819.txt
+2026-11-27,gaps_fuzz,700192,93,ok,
+
+2026-11-27,screen_walk,r88,300,clean,"Which dialogs change the selection behind them (Subtotal, Advanced Filter, PivotTable, Consolidate, Text to Columns) and what Escape leaves"
+2026-11-27,screen_walk,r89,300,clean,"Names in English and Chinese: a name typed in the Name Box, F3 Paste Name in a formula, the name typed to go there, Ctrl+Shift+F3 from the top row"
+2026-11-27,screen_walk,r90,300,found,"Home > Fill > Series from Alt, H, F, I, S on one cell: Columns, step 3, stop 10, measured with DataSeries in Excel"

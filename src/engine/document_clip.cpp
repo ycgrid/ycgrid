@@ -2529,7 +2529,11 @@ void Document::FillSeries(uint32_t sheet, const Rect& rect, bool by_cols, int ty
   const Sheet* s0 = S(sheet);
   if (!s0) return;
   const uint32_t lines = static_cast<uint32_t>(by_cols ? rect.Cols() : rect.Rows());
-  const uint32_t len = static_cast<uint32_t>(by_cols ? rect.Rows() : rect.Cols());
+  // a selection one cell long with a Stop value goes on past it to the Stop value, as far as the sheet's edge
+  // (Excel 16, measured: 1 in A1, step 3, stop 10 fills A1:A4); a longer one stops at its end or the Stop value
+  const bool to_stop = has_stop && (by_cols ? rect.Rows() : rect.Cols()) == 1;
+  const uint32_t edge = by_cols ? s0->row_limit - rect.r0 : s0->col_limit - rect.c0;
+  const uint32_t len = to_stop ? edge : static_cast<uint32_t>(by_cols ? rect.Rows() : rect.Cols());
   for (uint32_t li = 0; li < lines && li < 16384; ++li) {
     const uint32_t r0 = by_cols ? rect.r0 : rect.r0 + li, c0 = by_cols ? rect.c0 + li : rect.c0;
     const Value v0 = S(sheet)->GetValue(r0, c0);
@@ -2568,6 +2572,9 @@ void Document::FillSeries(uint32_t sheet, const Rect& rect, bool by_cols, int ty
         }
       }
       if (has_stop && ((step >= 0 && x > stop) || (step < 0 && x < stop))) break;
+      // past the selection only while each value comes nearer the Stop value: step 0 or a growth by 1 fills nothing
+      // (Excel 16, measured), where it would have filled the sheet down to its last row
+      if (to_stop && std::fabs(stop - x) >= std::fabs(stop - (vals.empty() ? v0.AsDouble() : vals.back().AsDouble()))) break;
       vals.push_back(Value::Number(x));
     }
     if (vals.empty()) continue;
