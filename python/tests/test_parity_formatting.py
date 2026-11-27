@@ -313,14 +313,21 @@ class FormattingParityTest(unittest.TestCase):
         self.assertEqual(self.ws.Range("A1").FormatConditions(1).DupeUnique, 0)  # xlUnique
 
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
-        self.ws.Range("A1:A4").Value = [[10], [20], [30], [40]]
-        self.keys("g:A1:A4|w:2")
+        # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
+        # and for Between a quarter and three quarters of the way, rounded (measured)
+        self.ws.Range("A1:A8").Value = [[12], [45], [7], [30], [88], [21], [64], [3]]
+        self.keys("g:A1:A8|w:2")
         self.run_cmd("CfGreater")
         from yc import ui
 
         self.assertTrue(any(w for w in [i["window"] for i in ui.items()] if w == "Greater Than"))
         self.keys("k:Enter|w:5")
-        self.assertEqual(self.ws.Range("A1").FormatConditions(1).Formula1, "=25")  # the average
+        self.assertEqual(self.ws.Range("A1").FormatConditions(1).Formula1, "=45.5")
+        self.ws.Range("A1:A8").FormatConditions.Delete()
+        self.run_cmd("CfBetween")
+        self.keys("w:4|k:Enter|w:5")
+        fc = self.ws.Range("A1").FormatConditions(1)
+        self.assertEqual((fc.Formula1, fc.Formula2), ("=24", "=67"))
 
     # ---- 15, 16. rule details from Python ----
     def test_text_operators_and_scale_points(self):

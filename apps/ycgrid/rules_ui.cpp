@@ -1308,10 +1308,12 @@ void RegisterRuleCommands(AppState& s) {
       u.cf_preset = 0;
       u.cf_dupe = 0;
       u.cf_period = 1;
-      // Excel starts the value boxes with values from the selection: the average, or the lowest and highest
+      // Excel starts the value boxes with values from the selection's numbers (Excel 16, measured): halfway
+      // between the lowest and the highest, and for Between a quarter and three quarters of the way, rounded to
+      // whole numbers (3 and 88 give 45.5, then 24 and 67)
       if (kind >= 1 && kind <= 4) {
         if (const model::Sheet* sh = s.FocusSheet()) {
-          double sum = 0, lo = 0, hi = 0;
+          double lo = 0, hi = 0;
           size_t n = 0;
           for (const Rect& a : SelectionAreasClipped(s)) {
             engine::ForEachValueRowMajor(*sh, a, [&](uint32_t, uint32_t, const core::Value& v) {
@@ -1319,7 +1321,6 @@ void RegisterRuleCommands(AppState& s) {
               const double x = v.AsDouble();
               lo = n ? std::min(lo, x) : x;
               hi = n ? std::max(hi, x) : x;
-              sum += x;
               return ++n < 100000;
             });
           }
@@ -1329,10 +1330,10 @@ void RegisterRuleCommands(AppState& s) {
               std::snprintf(buf, size, "%s", t.c_str());
             };
             if (kind == 3) {
-              put(u.cf_v1, sizeof(u.cf_v1), lo);
-              put(u.cf_v2, sizeof(u.cf_v2), hi);
+              put(u.cf_v1, sizeof(u.cf_v1), std::round(lo + (hi - lo) * 0.25));
+              put(u.cf_v2, sizeof(u.cf_v2), std::round(lo + (hi - lo) * 0.75));
             } else {
-              put(u.cf_v1, sizeof(u.cf_v1), sum / static_cast<double>(n));
+              put(u.cf_v1, sizeof(u.cf_v1), lo + (hi - lo) / 2);
             }
           }
         }

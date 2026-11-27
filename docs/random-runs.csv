@@ -11766,3 +11766,42 @@ date,tool,seed,seconds,result,note
 2026-11-27,chaos,7756,361,ok,
 2026-11-27,chaos,7757,361,ok,
 2026-11-27,chaos,7758,361,ok,
+2026-11-27,calc_fuzz,4518,25,ok,
+2026-11-27,formula_fuzz,5499,0,ok,
+2026-11-27,gaps_fuzz,700179,88,ok,
+2026-11-27,doc_fuzz,2400178,134,ok,
+2026-11-27,basics,4806,170,fail,basics_4806.txt
+2026-11-27,doc_fuzz,2400179,106,ok,
+2026-11-27,calc_fuzz,4519,30,ok,
+2026-11-27,formula_fuzz,5500,0,ok,
+2026-11-27,gaps_fuzz,700180,91,ok,
+2026-11-27,basics,4807,172,fail,basics_4807.txt
+2026-11-27,chaos,7759,373,ok,
+2026-11-27,doc_fuzz,2400180,125,ok,
+2026-11-27,calc_fuzz,4520,2,ok,
+2026-11-27,formula_fuzz,5501,0,ok,
+2026-11-27,chaos,7760,361,ok,
+2026-11-27,basics,4808,162,fail,basics_4808.txt
+2026-11-27,gaps_fuzz,700181,90,ok,
+2026-11-27,doc_fuzz,2400181,109,ok,
+2026-11-27,calc_fuzz,4521,16,ok,
+2026-11-27,formula_fuzz,5502,0,ok,
+2026-11-27,chaos,7761,361,ok,
+2026-11-27,gaps_fuzz,700182,89,ok,
+2026-11-27,basics,4809,169,fail,basics_4809.txt
+2026-11-27,doc_fuzz,2400182,118,ok,
+2026-11-27,calc_fuzz,4522,31,ok,
+2026-11-27,formula_fuzz,5503,0,ok,
+2026-11-27,basics,4810,167,fail,basics_4810.txt
+2026-11-27,chaos,7762,361,ok,
+2026-11-27,gaps_fuzz,700183,89,ok,
+2026-11-27,doc_fuzz,2400183,112,ok,
+2026-11-27,calc_fuzz,4523,2,ok,
+2026-11-27,formula_fuzz,5504,0,ok,
+2026-11-27,chaos,7763,361,ok,
+2026-11-27,gaps_fuzz,700184,92,ok,
+2026-11-27,basics,4811,180,fail,basics_4811.txt
+
+2026-11-27,screen_walk,r83,300,clean,"Remove Duplicates from Alt, A, M on a trade list: rows kept, the message, Undo; selection after OK measured (Excel keeps the cell)"
+2026-11-27,screen_walk,r84,300,clean,"Format shortcuts Ctrl+Shift+$ % ^ # @ ! ~ and Format Cells: Percentage with one decimal, Number with separators and red parentheses"
+2026-11-27,screen_walk,r85,300,found,"Highlight Cells Rules from Alt, H, L, H, G: the proposed values against Excel measured over 15 data sets"
