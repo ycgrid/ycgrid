@@ -1298,7 +1298,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   `EntireColumn`, and `Hidden = False` on it showed the columns, not the rows.
 - What the UI does after a format (rows that size themselves fit a bigger font or Wrap Text) is done after the same
   format from Python: the bridge calls the UI's helper (`FitRowsForStyle` through `OnUi`). `Range.Font.Size = 20` left
-  the row at 15 points while the ribbon grew it, as Excel's object model does.
+  the row at 15 points while the ribbon grew it, as Excel's object model does. Columns too: a number format that
+  shows a number wider than a column nobody sized widens it (`ColumnsToWidenForFormat`, Excel 16 measured through
+  ExecuteMso and `Range.NumberFormat`); YCGrid showed ######## after two Increase Decimals. A column a format widened
+  is noted (`AppState::auto_widened`) and widens again, one sized by hand since keeps its width.
 - A whole column's end marker (`ROW_END`, `kRowEnd`) never opts a request out of a rule: clamp it to the sheet and
   apply the rule. `req.r1 != kRowEnd` kept the filter out of `Range("B:B").Value`, `r.r1 < s->row_limit` out of
   EntireRow.Delete of every row, and `a[2] == ROW_END` read the whole sheet's rows as its columns (all measured in Excel).

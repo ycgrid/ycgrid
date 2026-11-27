@@ -1336,6 +1336,7 @@ void DrawPane(Ctx& c, const Pane& p) {
       ImFont* font = FontFor(c, st);
       const float px = FontPxFor(c, st);
       const CellText ct = MakeText(c, st, v, x1 - x0, font, px, m.r0, m.c0);
+      if (!c.opt.show_formulas && m.Contains(c.view.sel.act_r, c.view.sel.act_c)) c.view.active_shown = ct.text, c.view.active_shown_frame = ImGui::GetFrameCount();
       const ImVec4 clip(std::max(x0, p.rect.Min.x), std::max(y0, p.rect.Min.y), std::min(x1 - 1, p.rect.Max.x), std::min(y1 - 1, p.rect.Max.y));
       if (!ct.image || !DrawCellImage(c, ct, ImRect(x0, y0, x1, y1), clip)) DrawText(c, st, ct, font, px, ImRect(x0, y0, x1, y1), clip, RichFor(c, m.r0, m.c0, v));
     }
@@ -1393,6 +1394,7 @@ void DrawPane(Ctx& c, const Pane& p) {
       ImFont* font = FontFor(c, st);
       const float px = FontPxFor(c, st);
       CellText ct = MakeText(c, st, v, cl.size, font, px, r, col);
+      if (!c.opt.show_formulas && r == c.view.sel.act_r && col == c.view.sel.act_c) c.view.active_shown = ct.text, c.view.active_shown_frame = ImGui::GetFrameCount();
       if (ct.image && DrawCellImage(c, ct, ImRect(cl.pos, rl.pos, cl.pos + cl.size, rl.pos + rl.size),
                                     ImVec4(cl.pos, rl.pos, cl.pos + cl.size - 1, rl.pos + rl.size - 1)))
         continue;

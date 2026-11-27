@@ -320,6 +320,9 @@ struct AppState {
   uint32_t marquee_sheet = 0;
   // format painter
   bool format_painter = false, format_painter_sticky = false, painter_armed = false;
+  // columns a number format widened by itself (sheet, column) -> the width it gave: Excel widens a column whose width
+  // nobody set again and again as formats lengthen its numbers; a width set by hand since (another width) stays
+  std::map<std::pair<uint32_t, uint32_t>, int32_t> auto_widened;
   Rect painter_rect{};  // Format Painter's source cells (outlined while it is on)
   int format_category = -1;  // Format Cells opens its Number tab on this category once (More Accounting Formats)
   uint32_t painter_sheet = 0;
@@ -563,6 +566,9 @@ bool EditHasTextSelection(const AppState& s);
 void ApplyStyle(AppState& s, const std::string& label, std::function<void(model::Style&)> fn);
 // the rows of areas that size themselves and need another height once restyle is applied (Wrap Text, a bigger font,
 // a cell style): row -> height in px, to set in the same undo step as the change
+// the columns of areas a number format widens (a number it shows wider than a column nobody sized): column -> width px,
+// to set in the same undo step as the format (Excel 16, measured); noted in AppState::auto_widened
+std::vector<std::pair<uint32_t, int32_t>> ColumnsToWidenForFormat(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, const std::string& code);
 std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                           const std::function<void(model::Style&)>& restyle, const std::string* font = nullptr);
 void StartEdit(AppState& s, bool replace, std::string initial, bool in_formula_bar = false);

@@ -159,6 +159,10 @@ struct EditState {
 
 struct GridView {  // = Excel's Window (one per sheet)
   uint32_t sheet = 0;
+  // the text the active cell showed when last drawn, fitted to its width as General fits it (Increase / Decrease
+  // Decimal starts from the decimals General shows there, Excel 16, measured), and the frame it was drawn in
+  std::string active_shown;
+  int active_shown_frame = -1;
   ScrollAxis v, h;
   Selection sel;
   float zoom = 1.0f;

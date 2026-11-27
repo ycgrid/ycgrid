@@ -3257,6 +3257,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         return MV();
       });
     }
+    // a number format that shows numbers wider than their column widens a column nobody sized (Excel 16's
+    // Range.NumberFormat, measured), as the ribbon's formats do
+    std::vector<std::pair<uint32_t, int32_t>> widen;
+    if (pr.Has("numfmt") && pr.GetStr("numfmt") != "General" && !pr.GetStr("numfmt").empty()) {
+      OnUi([&](AppState& s) {
+        widen = ColumnsToWidenForFormat(s, sheet, areas, pr.GetStr("numfmt"));
+        for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+        return MV();
+      });
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       auto& tbl = d.wb_mut().styles.mut();
@@ -3270,6 +3280,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         });
       }
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
       // a bigger font grows rows without a height of their own, empty cells too (SetFontSize, the ribbon's)
       const model::Sheet* sh = d.S(sheet);
       if (!pr.Has("font_size") || !sh) return;

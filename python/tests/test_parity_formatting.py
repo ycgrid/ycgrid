@@ -337,6 +337,37 @@ class FormattingParityTest(unittest.TestCase):
         self.click_rect(red)
         self.assertEqual(self.ws.Range("C3").Interior.Color, 0x0000FF)  # BGR
 
+    def test_increase_decimal_widens_a_column_nobody_sized(self):
+        # Increase Decimal twice on 0.123456789 showed ######## where Excel 16 widens the column (measured: 8.43 to
+        # 10.27); a column whose width was set by hand keeps it and shows #### (measured too). The decimals start from
+        # what General shows at the column's width (0.123457 in a default column, so 7 decimals), as Excel's
+        self.ws.Range("B1").Value = 0.123456789
+        self.ws.Range("C1").Value = 0.123456789
+        self.ws.Columns("C").ColumnWidth = 8
+        self.keys("g:B1|w:3")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertEqual(self.ws.Range("B1").NumberFormat, "0.0000000")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertGreater(self.ws.Columns("B").ColumnWidth, 9.5)
+        self.assertEqual(self.ws.Range("B1").Text, "0.12345679")
+        self.keys("g:C1|w:3")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertEqual(self.ws.Columns("C").ColumnWidth, 8)
+        self.keys("k:c-Z|w:4|k:c-Z|w:4|k:c-Z|w:4")  # each step takes its format and the width it gave back
+        self.assertLess(self.ws.Columns("B").ColumnWidth, 11)
+        self.assertEqual(self.ws.Range("B1").NumberFormat, "0.0000000")
+        self.keys("k:c-Z|w:4")
+        self.assertAlmostEqual(self.ws.Columns("B").ColumnWidth, 8.43, places=1)
+        # Range.NumberFormat widens too (Excel 16, measured: 0.00000000 on 0.123456789 made column B 10.27 wide)
+        self.ws.Range("E1").Value = 0.123456789
+        self.ws.Range("E1").NumberFormat = "0.00000000"
+        self.assertGreater(self.ws.Columns("E").ColumnWidth, 9.5)
+
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
         # and for Between a quarter and three quarters of the way, rounded (measured)

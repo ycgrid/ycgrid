@@ -2364,7 +2364,12 @@ void ChangeDecimals(AppState& s, int delta) {
     // based on the decimals General shows; a text, a logical value or an error keeps General (Excel)
     const auto& v = sh->GetValue(sel.act_r, sel.act_c);
     if (!v.IsNumeric() && !v.IsEmpty()) return;
-    code = GeneralShiftedCode(v.IsNumeric() ? formula::FormatGeneral(v.AsDouble(), 11) : "0", delta);
+    // what General shows at the column's width (0.333333 in a default column, so 7 decimals up and 5 down; 0.3333333
+    // where it is wider), as the grid drew it lately; eleven characters when the cell isn't on the screen
+    const auto& view = s.FocusView();
+    const bool drawn = v.IsNumeric() && ImGui::GetFrameCount() - view.active_shown_frame <= 2 && !view.active_shown.empty() &&
+                       view.active_shown.find('#') == std::string::npos;
+    code = GeneralShiftedCode(drawn ? view.active_shown : v.IsNumeric() ? formula::FormatGeneral(v.AsDouble(), 11) : "0", delta);
     if (code.empty()) return;
   } else {
     code = ShiftCodeDecimals(old_code, delta);
@@ -2373,15 +2378,57 @@ void ChangeDecimals(AppState& s, int delta) {
   ApplyNumberFormat(s, code, delta > 0 ? TR("Increase Decimal") : TR("Decrease Decimal"));
 }
 
+// the columns of areas a number format widens, as Excel does (16, measured: Increase Decimal, Comma Style, Percent
+// Style, Range.NumberFormat): a number the new code shows wider than its column widens a column whose width nobody set
+// (or that a format widened before); a column of a set width shows ####. Measured on the UI thread (the font atlas)
+std::vector<std::pair<uint32_t, int32_t>> ColumnsToWidenForFormat(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, const std::string& code) {
+  std::vector<std::pair<uint32_t, int32_t>> out;
+  const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr;
+  if (!sh || !sh->has_used) return out;
+  const auto fmt = formula::CompileFormat(code);
+  if (!fmt) return out;
+  std::set<uint32_t> seen;
+  int64_t cells = 0;
+  for (const Rect& a0 : areas) {
+    const Rect a{std::max(a0.r0, sh->used.r0), std::max(a0.c0, sh->used.c0), std::min(a0.r1, sh->used.r1), std::min(a0.c1, sh->used.c1)};
+    if (a.r0 > a.r1 || a.c0 > a.c1) continue;
+    for (uint32_t c = a.c0; c <= a.c1 && seen.size() < 1000; ++c) {
+      if (!seen.insert(c).second || sh->cols->IsHidden(c)) continue;
+      const int32_t now = sh->cols->Size(c);
+      const auto aw = s.auto_widened.find({sheet, c});
+      if (sh->cols->IsCustom(c) && (aw == s.auto_widened.end() || aw->second != now)) continue;
+      int32_t best = now;
+      engine::ForEachValueRowMajor(*sh, Rect{a.r0, c, a.r1, c}, [&](uint32_t row, uint32_t, const core::Value& v) {
+        if (!v.IsNumeric()) return ++cells < 200000;
+        for (const Rect& m : *sh->merges) {
+          if (m.Contains(row, c) && !m.IsCell()) return ++cells < 200000;
+        }
+        const model::Style& st = s.snap->wb.styles->Get(sh->GetStyle(row, c));
+        const std::string text = formula::FormatValue(v, *fmt).text;
+        ImFont* font = ui::CellFont(s.snap->wb.styles->FontName(st), st.bold, st.italic);
+        const float px = s.snap->wb.styles->FontSize(st) * (96.0f / 72.0f);
+        best = std::max(best, static_cast<int32_t>(std::ceil(font->CalcTextSizeA(px, FLT_MAX, 0.0f, text.c_str()).x)) + 8);
+        return ++cells < 200000;
+      });
+      if (best > now) out.emplace_back(c, best);
+    }
+  }
+  return out;
+}
+
 void ApplyNumberFormat(AppState& s, const std::string& code, const std::string& label) {
   if (!s.engine) return;
   EndCopyMode(s);  // Excel: formatting ends cut / copy mode
   // format code strings must be interned on the engine thread (the style table is only written there)
   const auto areas = SelAreas(s);
   const uint32_t sheet = s.focus_sheet;
-  s.engine->PostUser(label, [areas, sheet, code](Document& d) {
+  const auto widen = ColumnsToWidenForFormat(s, sheet, areas, code);
+  for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+  // one Undo step: the format and the columns it widened
+  s.engine->PostUser(label, [areas, sheet, code, widen](Document& d) {
     const uint32_t id = code == "General" ? 0 : d.wb_mut().styles.mut().InternString(code);
     for (const Rect& a : areas) d.ModifyStyle(sheet, a, [id](model::Style& x) { x.numfmt = id; });
+    for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
   });
 }
 
