@@ -1097,7 +1097,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   reads itself or waits for one that does (Excel 16, measured), so its values are settled one by one, its own cells
   read as #BLOCKED! until each is set and the result calculated once more to check it
   (`SettleArrayReadingItself`), and one entered after a cycle shows 0 only in the values that read it. A rule about
-  cycles written for single cells gets its array case measured.
+  cycles written for single cells gets its array case measured. Two such arrays that read each other's cells
+  (B3 {=A1:B3*2} beside A2:A4 {=A1:B3*2}) are settled together (`SettleArraysTogether`): one at a time, each waited for
+  the other, the pair was taken for a cycle in one order of calculation and not in another, and C4 reading A4 kept a
+  value from before (doc_fuzz --xlsx seed 24002581569; a full calculation gave the right one).
 - `formula::NeedCell` (a read of a cell still waiting) isn't a `std::exception`: code that evaluates a formula outside
   the calculation's own loop catches it by name, or the read of a cell a cycle blocks ends the process (doc_fuzz
   --gaps seed 26, the array settling added that day).

@@ -1765,3 +1765,22 @@ TEST_CASE("doc_fuzz --xlsx seed 24000181430: an array value that reads a formula
   CheckStep(t, [&] { t.d.ModifyStyle(sh, yctest::Doc::Range("A1"), [](model::Style& x) { x.bold = true; }); });
 }
 
+
+TEST_CASE("doc_fuzz --xlsx seed 24002581569: a formula filled beside an array follows a cell the next array writes") {
+  // B3 {=A1:B3*2} (one cell: A1*2), A4 177, C1 =SUMIF(A1:A10,">2") filled to C4 (=SUMIF(A4:A13,">2")), then
+  // A2:A4 {=A1:B3*2} wrote 0 over A4: C4 kept 177 (only a full calculation gave 0)
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  std::string err;
+  REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("B3"), "A1:B3*2", &err));
+  t.Set("A4", "177");
+  t.Set("C1", "=SUMIF(A1:A10,\">2\")");
+  t.d.AutoFill(sh, yctest::Doc::Range("C1:D3"), yctest::Doc::Range("C1:D6"));
+  t.d.Recalc();
+  CHECK(t.N("C4") == 177);
+  REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("A2:A4"), "A1:B3*2", &err));
+  t.d.Recalc();
+  CHECK(t.N("A4") == 0);
+  CHECK(t.N("C4") == 0);
+}
+

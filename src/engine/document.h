@@ -1437,6 +1437,10 @@ class Document : public formula::SheetResolver {
   // an array entered with Ctrl+Shift+Enter that met itself as a cycle by reading its own cells: calculated when no
   // value of it reads itself (true), as in Excel; else its cells are as they were (false)
   bool SettleArrayReadingItself(uint64_t anchor);
+  // several arrays entered with Ctrl+Shift+Enter that read each other's cells (and nothing else of the cycle): their
+  // values settled together, each read of the others' cells waiting until that value is set (doc_fuzz --xlsx seed
+  // 24002581569: B3 {=A1:B3*2} and A2:A4 {=A1:B3*2} met as a cycle in one order of calculation, not in another)
+  bool SettleArraysTogether(const std::vector<uint64_t>& anchors);
   void RecalcOnly(uint32_t sheet, const Rect& rect, bool every_formula);  // RecalcSheet / RecalcRange
   std::unordered_map<uint64_t, uint32_t> pending_tiles_;  // tile key -> number of pending cells
   // (sheet << 32 | column) -> number of pending cells: a range of a column beside pending ones in the same tiles
