@@ -652,15 +652,8 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
   opt.cell_drag_drop = app::Config().cell_drag_and_drop && !prot.on && g_app.operator_mode;
   opt.resize_cols = !prot.on || prot.format_columns;
   opt.resize_rows = !prot.on || prot.format_rows;
-  if (prot.on) {
-    // Protect Sheet's "Select locked cells" / "Select unlocked cells", and Tab between the unlocked cells (Excel)
-    const model::StyleTable* styles = &g_app.snap->wb.styles.get();
-    const bool sel_locked = prot.select_locked && prot.select_unlocked, sel_unlocked = prot.select_unlocked;
-    opt.unlocked = [sh, styles](uint32_t r, uint32_t c) { return !styles->Get(sh->GetStyle(r, c)).locked; };
-    if (!sel_locked) {
-      opt.selectable = [sh, styles, sel_unlocked](uint32_t r, uint32_t c) { return sel_unlocked && !styles->Get(sh->GetStyle(r, c)).locked; };
-    }
-  }
+  // Protect Sheet's "Select locked cells" / "Select unlocked cells", and Tab between the unlocked cells (Excel)
+  app::ProtectionCellRules(*sh, &g_app.snap->wb.styles.get(), &opt.unlocked, &opt.selectable);
   if (sh->chart_sheet) {
     opt.chart_sheet = true;
     opt.keyboard = false;

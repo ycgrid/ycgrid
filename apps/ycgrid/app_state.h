@@ -1161,6 +1161,10 @@ bool RefuseLockedEdit(AppState& s, uint32_t sheet, uint32_t r, uint32_t c);  // 
 // change the workbook. Called before running it, so a dialog never reads the engine's refusal (0, false, "") as
 // "nothing found" and shows a wrong or blank message box
 bool RefuseReadOnlyUi(AppState& s);
+// a protected sheet's rules for the active cell: which cells are unlocked (Tab goes between them) and, when locked cells
+// can't be selected, which can be; both left empty on a sheet without protection
+void ProtectionCellRules(const model::Sheet& sh, const model::StyleTable* styles, std::function<bool(uint32_t, uint32_t)>* unlocked,
+                         std::function<bool(uint32_t, uint32_t)>* selectable);
 // commands that change the workbook don't run (nor open their dialogs) in read-only mode (safety_ui.cpp)
 bool ReadOnlyRefusesCommand(const std::string& id);
 

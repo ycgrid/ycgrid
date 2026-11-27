@@ -1557,6 +1557,52 @@ void NormalizeWholeSelection(GridView& view, const model::Sheet& sheet) {
   else if (cols_all) s.mode = SelectMode::Rows;
 }
 
+bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
+               const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row) {
+  *add_row = -1;
+  if (unlocked) {
+    // a protected sheet: the next / previous unlocked cell, in reading order, wrapping
+    Rect area = sheet.has_used ? sheet.used : Rect::Cell(r, c);
+    area = area.Union(Rect::Cell(r, c));
+    const uint64_t w = area.Cols(), n = static_cast<uint64_t>(area.Rows()) * w;
+    const uint64_t at = static_cast<uint64_t>(r - area.r0) * w + (c - area.c0);
+    for (uint64_t k = 1; k <= n && k < 4000000; ++k) {
+      const uint64_t i = back ? (at + n - k % n) % n : (at + k) % n;
+      const uint32_t rr = area.r0 + static_cast<uint32_t>(i / w), cc = area.c0 + static_cast<uint32_t>(i % w);
+      if (unlocked(rr, cc) && (!selectable || selectable(rr, cc))) {
+        *nr = rr, *nc = cc;
+        return true;
+      }
+    }
+    return false;
+  }
+  // a table: along its rows, from its last column to the next row's first and back; its last cell adds a row
+  for (const model::Table& tb : *sheet.tables) {
+    const Rect body(tb.header ? tb.range.r0 : tb.Data().r0, tb.range.c0, tb.Data().r1, tb.range.c1);
+    if (!body.Contains(r, c) || (body.c0 == body.c1 && body.r0 == body.r1)) continue;
+    if (!back && c == body.c1 && r == body.r1) {
+      if (tb.totals || body.r1 + 1 >= sheet.row_limit) return false;  // a totals row under it: Tab goes on to it
+      *add_row = tb.id;
+      *nr = body.r1 + 1, *nc = body.c0;
+      return true;
+    }
+    if (!back && c == body.c1) {
+      const int64_t n = sheet.rows->NextVisible(int64_t{r} + 1, +1, sheet.row_limit);
+      if (n < 0 || n > body.r1) return false;
+      *nr = static_cast<uint32_t>(n), *nc = body.c0;
+      return true;
+    }
+    if (back && c == body.c0 && r > body.r0) {
+      const int64_t n = sheet.rows->NextVisible(int64_t{r} - 1, -1, sheet.row_limit);
+      if (n < static_cast<int64_t>(body.r0)) return false;
+      *nr = static_cast<uint32_t>(n), *nc = body.c1;
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
+
 void EnsureVisible(const model::Sheet& sheet, GridView& view, uint32_t r, uint32_t c) {
   // the scale the grid was last drawn with: Dpi() outside a frame (scripts, Python requests run before NewFrame) can
   // be the unscaled 1.0, which made the window look wider than it is and left the cell off the screen
@@ -3660,26 +3706,19 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         move_in_selection(io.KeyShift ? kBack[std::clamp(opt.enter_dir, 1, 4)] : std::clamp(opt.enter_dir, 1, 4), false);
       }
     }
-    // a protected sheet: Tab / Shift+Tab go to the next / previous unlocked cell, in reading order, wrapping (Excel)
-    auto next_unlocked = [&](bool back) {
-      Rect area = sheet.has_used ? sheet.used : Rect::Cell(r, c);
-      area = area.Union(Rect::Cell(r, c));
-      const uint64_t w = area.Cols(), n = static_cast<uint64_t>(area.Rows()) * w;
-      const uint64_t at = static_cast<uint64_t>(r - area.r0) * w + (c - area.c0);
-      for (uint64_t k = 1; k <= n && k < 4000000; ++k) {
-        const uint64_t i = back ? (at + n - k % n) % n : (at + k) % n;
-        const uint32_t rr = area.r0 + static_cast<uint32_t>(i / w), cc = area.c0 + static_cast<uint32_t>(i % w);
-        if (opt.unlocked(rr, cc) && (!opt.selectable || opt.selectable(rr, cc))) {
-          move_to(rr, cc, false);
-          return true;
-        }
-      }
-      return false;
-    };
     const bool single = sel_areas.size() == 1 && (sel_areas.back().IsCell() || sel_areas.back() == am);
-    // (Ctrl+Tab switches windows: the active cell stays)
-    if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl && opt.unlocked && single) next_unlocked(io.KeyShift);
-    else if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl) move_in_selection(io.KeyShift ? 4 : 3, true);
+    // (Ctrl+Tab switches windows: the active cell stays.) One cell: a protected sheet's next unlocked cell, a table's
+    // next row, else one cell over (TabTarget, also after an entry); a selection: within it
+    if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl) {
+      uint32_t tr = r, tc = c;
+      int64_t add_row = -1;
+      if (single && TabTarget(sheet, r, c, io.KeyShift, opt.unlocked, opt.selectable, &tr, &tc, &add_row)) {
+        move_to(tr, tc, false);
+        act.table_add_row = add_row;
+      } else if (!single || !opt.unlocked) {
+        move_in_selection(io.KeyShift ? 4 : 3, true);
+      }
+    }
     if (ImGui::IsKeyPressed(ImGuiKey_Delete)) act.clear_contents = true;
     // F2 edits; Shift+F2 (a note) and Ctrl+F2 (print preview) are commands
     // (Alt+F2 is Save As, Alt+Shift+F2 Save: they don't start editing)

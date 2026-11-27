@@ -418,6 +418,39 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_tab_goes_along_a_tables_rows_and_adds_one_at_its_end(self):
+        # Excel: Tab wraps from a table's last column to the next row's first, and its last cell adds a row; Tab left
+        # the table to the right, where the next typing grew it a column at a time
+        self.ws.Range("A1:C4").Value = [["Sym", "Qty", "Px"], ["2330", 3, 600], ["2317", 5, 105], ["0050", 2, 150]]
+        self.ws.ListObjects.Add(1, self.ws.Range("A1:C4"), None, 1)
+        active = lambda: yc.excel.ActiveCell.Address.replace("$", "")
+        self.keys("g:C2|w:2|k:Tab|w:3")
+        self.assertEqual(active(), "A3")
+        self.keys("k:s-Tab|w:3")
+        self.assertEqual(active(), "C2", "Shift+Tab from the first column goes back to the row before's last")
+        self.keys("g:C4|w:2|k:Tab|w:6")
+        self.assertEqual((active(), self.ws.ListObjects(1).Range.Address), ("A5", "$A$1:$C$5"))
+        self.keys("t:1101|k:Tab|w:2|t:1|k:Tab|w:2|t:50|k:Tab|w:6")
+        self.assertEqual([self.ws.Range(a).Value for a in ("A5", "B5", "C5")], [1101, 1, 50])
+        self.assertEqual((active(), self.ws.ListObjects(1).Range.Address), ("A6", "$A$1:$C$6"), "typed with Tab: the next row")
+        self.keys("k:Escape|w:2|k:c-Z|w:6")
+        self.assertEqual(self.ws.ListObjects(1).Range.Address, "$A$1:$C$5", "Undo takes the added row back")
+
+    def test_tab_after_an_entry_on_a_protected_sheet_goes_to_the_next_unlocked_cell(self):
+        # Tab on the sheet went to the next unlocked cell, Tab ending an entry to the locked cell beside it
+        self.ws.Range("B2,E2,B3").Locked = False
+        self.ws.Protect()
+        try:
+            self.keys("g:B2|w:2|t:5|k:Tab|w:4")
+            self.assertEqual((self.ws.Range("B2").Value, yc.excel.ActiveCell.Address), (5, "$E$2"))
+            self.keys("t:6|k:Tab|w:4")
+            self.assertEqual(yc.excel.ActiveCell.Address, "$B$3", "on to the next row's unlocked cell")
+            self.keys("t:7|k:s-Tab|w:4")
+            self.assertEqual(yc.excel.ActiveCell.Address, "$E$2", "Shift+Tab back")
+        finally:
+            self.keys("k:Escape|w:2")
+            self.ws.Unprotect()
+
     def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
         # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control
         def click(item):

@@ -664,6 +664,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - Typing is not a command: F4 / Ctrl+Y repeat the last command (`AppState::repeat_id`, noted by
   `CommandRegistry::on_run`), and an entry is neither repeated nor ends what they repeat. A "Repeat Typing" written
   as Excel's without a measurement typed a cell's old value over the next cell after F2, Enter, F4.
+- Where Tab goes from one cell is `render::TabTarget`, for Tab on the sheet and Tab ending an entry (`MoveActive`)
+  alike: a protected sheet's next unlocked cell, a table's next row from its last column, a row added from its last
+  cell. Tab after an entry kept a rule of its own and went to the locked cell beside it, and neither knew tables.
 - In Enter mode a key that moves on the sheet ends the entry, then does on the sheet what it does there
   (`GridActions::nav_key`, replayed through `GridView::nav_replay` once the editor is gone): the sheet's key code is
   the one place a move is made, never a copy of it in the editor (Ctrl+Home moved the caret, Shift+Right moved one

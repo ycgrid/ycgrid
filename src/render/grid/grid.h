@@ -336,6 +336,7 @@ struct GridActions {
   int commit_move = 0;               // move after committing: 0 stay, 1 Enter, 2 Shift+Enter, 3 Tab, 4 Shift+Tab, 5-8 arrow down / up / right / left
   bool cancel_edit = false;
   bool clear_contents = false;       // Delete
+  int64_t table_add_row = -1;        // Tab in a table's last cell: the table (id) gets a row at its end (Excel)
   bool paste_enter = false;          // Enter while copied cells are outlined: paste them here and end copy mode (Excel)
   bool autofill = false;             // fill handle
   Rect autofill_src{}, autofill_dest{};
@@ -420,6 +421,13 @@ void SetFormulaCompletions(std::vector<Completion> items);
 // make the active cell visible (also used by Python's ScrollIntoView and Goto)
 void EnsureVisible(const model::Sheet& sheet, GridView& view, uint32_t r, uint32_t c);
 void SelectCell(GridView& view, uint32_t r, uint32_t c, bool extend = false);
+// where Tab / Shift+Tab from one active cell go by the sheet's own rules (Excel), on the sheet and after an entry
+// alike: a protected sheet's next unlocked cell (unlocked set; selectable when locked cells can't be selected), in
+// reading order and wrapping, or a table's next row from its last column (the previous row's last from its first).
+// From a table's last cell *add_row is the table's id: it gets a row, the active cell going to that row's first.
+// False when a plain move one cell over applies.
+bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
+               const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row);
 void SelectRange(GridView& view, const Rect& r);
 // a selection of whole columns (rows, the whole sheet) however it was made (Name Box, Go To, Python) is shown and
 // handled as one (Excel: C:C typed in the Name Box, then Ctrl+- deletes the column)

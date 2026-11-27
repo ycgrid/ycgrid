@@ -223,6 +223,30 @@ std::string AutoCloseParens(std::string t) {
 }
 
 // move: 1 Enter, 2 Shift+Enter, 3 Tab, 4 Shift+Tab, 5-8 an arrow key (down, up, right, left) that ended the entry
+// Tab in a table's last cell (render::TabTarget's add_row, on the sheet or after an entry): a row at the table's end,
+// the active cell already on the row's first cell (Excel)
+void AddTableRowAfterTab(AppState& s, uint32_t sheet_id, int64_t table) {
+  if (table < 0 || !s.engine || RefuseReadOnlyUi(s)) return;
+  const uint32_t id = static_cast<uint32_t>(table);
+  s.engine->PostUser(TR("Insert Table Rows"), [sheet_id, id](Document& d) { d.TableInsertRow(sheet_id, id, -1); });
+}
+
+}  // namespace
+
+void ProtectionCellRules(const model::Sheet& sh, const model::StyleTable* styles, std::function<bool(uint32_t, uint32_t)>* unlocked,
+                         std::function<bool(uint32_t, uint32_t)>* selectable) {
+  *unlocked = nullptr;
+  *selectable = nullptr;
+  const model::SheetProtection& prot = *sh.protection;
+  if (!prot.on || !styles) return;
+  const model::Sheet* p = &sh;
+  const bool sel_locked = prot.select_locked && prot.select_unlocked, sel_unlocked = prot.select_unlocked;
+  *unlocked = [p, styles](uint32_t r, uint32_t c) { return !styles->Get(p->GetStyle(r, c)).locked; };
+  if (!sel_locked) *selectable = [p, styles, sel_unlocked](uint32_t r, uint32_t c) { return sel_unlocked && !styles->Get(p->GetStyle(r, c)).locked; };
+}
+
+namespace {
+
 void MoveActive(AppState& s, int move) {
   if (move == 0) return;
   const model::Sheet* sh = s.FocusSheet();
@@ -294,6 +318,21 @@ void MoveActive(AppState& s, int move) {
     sel.act_r = static_cast<uint32_t>(r);
     sel.act_c = static_cast<uint32_t>(c);
   } else if (a.IsCell() || a == anchor) {
+    // the sheet's own rules for Tab (a protected sheet's unlocked cells, a table's rows), as Tab on the sheet does
+    if (tab) {
+      std::function<bool(uint32_t, uint32_t)> unlocked, selectable;
+      ProtectionCellRules(*sh, s.snap ? &s.snap->wb.styles.get() : nullptr, &unlocked, &selectable);
+      uint32_t tr = 0, tc = 0;
+      int64_t add_row = -1;
+      if (render::TabTarget(*sh, sel.act_r, sel.act_c, move == 4, unlocked, selectable, &tr, &tc, &add_row)) {
+        render::SelectCell(v, tr, tc, false);
+        sel.tab_from = UINT32_MAX;
+        AddTableRowAfterTab(s, sh->id, add_row);
+        render::EnsureVisible(*sh, v, sel.act_r, sel.act_c);
+        return;
+      }
+      if (unlocked) return;  // a protected sheet without another unlocked cell: the active cell stays
+    }
     const uint32_t tab_from = sel.TabFrom();
     if (tab) sel.NoteTab(move == 3);
     switch (move) {
@@ -2533,6 +2572,7 @@ void HandleGridActions(AppState& s, uint32_t sheet_id, const render::GridActions
     if (act.nav_key != ImGuiKey_None && !s.edit.active) s.FocusView().nav_replay = {act.nav_key, act.nav_ctrl, act.nav_shift, ImGui::GetFrameCount()};
   }
   if (act.cancel_edit) CancelEdit(s);
+  AddTableRowAfterTab(s, sheet_id, act.table_add_row);
   if (act.eval_part) EvaluateEditPart(s, act.eval_begin, act.eval_end);
   if (act.fn_args) OpenFunctionArgsForCell(s);
   if (act.clear_contents) {
