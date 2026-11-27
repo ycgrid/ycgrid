@@ -1013,7 +1013,7 @@ void DrawWhatIfDialogs(AppState& s) {
           std::snprintf(b, sizeof(b), "%s", blank_zero && *v == 0 ? "" : std::to_string(*v).c_str());
           if (ImGui::InputText(id, b, sizeof(b), ImGuiInputTextFlags_CharsDecimal)) *v = std::max(0, std::atoi(b));
         };
-        if (ImGui::BeginTabBar("##svopts")) {
+        if (BeginDlgTabBar("##svopts")) {
           if (ImGui::BeginTabItem(TR("All Methods"), nullptr, w.sv_opt_tab == 0 && w.sv_opt_set ? ImGuiTabItemFlags_SetSelected : 0)) {
             num(TR("Constraint Precision:"), "##o_prec", &o.precision, "%g");
             ImGui::Checkbox(TR("Use Automatic Scaling"), &o.auto_scaling);

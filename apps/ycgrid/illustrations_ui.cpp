@@ -351,7 +351,7 @@ void DrawSymbolWindow(AppState& s) {
   }
   // Escape is its Cancel / Close button, as in Excel's Symbol dialog
   if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) u.symbol_open = false;
-  if (ImGui::BeginTabBar("##symtabs")) {
+  if (BeginDlgTabBar("##symtabs")) {
     if (ImGui::BeginTabItem(TR("Symbols"))) {
       u.symbol_tab = 0;
       ImGui::EndTabItem();

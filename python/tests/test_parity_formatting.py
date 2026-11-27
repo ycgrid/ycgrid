@@ -426,6 +426,22 @@ class FormattingParityTest(unittest.TestCase):
         self.keys("k:Escape|w:4|k:c-1|w:6")
         self.assertTrue(any(x.startswith("Pattern: ") for x in self.labels("Format Cells")))
 
+    def test_ctrl_tab_goes_through_a_dialogs_tabs(self):
+        # Excel's dialogs: Ctrl+Tab / Ctrl+PgDn the next tab, Ctrl+Shift+Tab / Ctrl+PgUp the one before; they did nothing
+        self.keys("g:A1|w:2|k:c-1|w:6")
+        self.click("Number", "Format Cells")
+        try:
+            self.keys("k:c-Tab|w:4")
+            self.assertIn("Wrap text", self.labels("Format Cells"), "Alignment after Number")
+            self.keys("k:c-s-Tab|w:4")
+            self.assertIn("Scientific", self.labels("Format Cells"), "back to Number")
+            self.keys("k:c-PageUp|w:4")
+            self.assertIn("Locked", self.labels("Format Cells"), "from the first tab round to the last, Protection")
+            self.keys("k:c-PageDown|w:4")
+            self.assertIn("Scientific", self.labels("Format Cells"), "and on to the first")
+        finally:
+            self.keys("k:Escape|w:4")
+
     def test_currency_symbols_and_shortcut(self):
         r = self.ws.Range("A1")
         r.Value = -5

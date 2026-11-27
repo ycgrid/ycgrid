@@ -500,7 +500,7 @@ void DrawHeaderFooterTab(AppState& s, PrintUi& u) {
         const int cb = custom * 3;
         ImGui::SeparatorText(custom == 0 ? TR("Header") : TR("Footer"));
         if (u.edit.different_first || u.edit.different_odd_even) {
-          if (ImGui::BeginTabBar("##hfpages")) {
+          if (BeginDlgTabBar("##hfpages")) {
             const char* names[3][2] = {{TR("Header"), TR("Footer")}, {TR("First Page Header"), TR("First Page Footer")}, {TR("Even Page Header"), TR("Even Page Footer")}};
             const char* odd[2] = {TR("Odd Page Header"), TR("Odd Page Footer")};
             for (int pg = 0; pg < 3; ++pg) {
@@ -2341,7 +2341,7 @@ void DrawDocPropertiesDialog(AppState& s) {
   }
   if (!BeginDlg(s, Dialog::DocProperties, TR("Properties###yc_dlg_docprops"), 460)) return;
   bool close = false;
-  if (ImGui::BeginTabBar("##dptabs")) {
+  if (BeginDlgTabBar("##dptabs")) {
     if (ImGui::BeginTabItem(TR("Summary"))) {
       const char* labels[] = {TR("Title:"), TR("Subject:"), TR("Author:"), TR("Manager:"), TR("Company:"), TR("Category:"), TR("Keywords:"), TR("Comments:"), TR("Status:")};
       for (size_t k = 0; k < std::size(kDocProps); ++k) {
@@ -3456,7 +3456,7 @@ void DrawPageSetupDialog(AppState& s) {
   model::PageSetup& ps = u.edit;
   const float w = S(260);
   bool close = false;
-  if (ImGui::BeginTabBar("##pstabs")) {
+  if (BeginDlgTabBar("##pstabs")) {
     const char* tabs[] = {TR("Page"), TR("Margins"), TR("Header/Footer"), TR("Sheet")};
     for (int i = 0; i < 4; ++i) {
       if (!ImGui::BeginTabItem(tabs[i], nullptr, u.tab == i ? ImGuiTabItemFlags_SetSelected : 0)) continue;

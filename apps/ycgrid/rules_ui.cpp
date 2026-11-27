@@ -2551,7 +2551,7 @@ void DrawRuleDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::DataValidation, TR("Data Validation###yc_dlg_dv"), 460)) {
     model::DvRule& d = u.dv;
     const float tabs_top = ImGui::GetCursorPosY();
-    if (ImGui::BeginTabBar("##dvtabs")) {
+    if (BeginDlgTabBar("##dvtabs")) {
       if (ImGui::BeginTabItem(TR("Settings"))) {
         static const char* kTypes[] = {TR("Any value"), TR("Whole number"), TR("Decimal"), TR("List"), TR("Date"), TR("Time"), TR("Text length"), TR("Custom")};
         int t = static_cast<int>(d.type);

@@ -3354,7 +3354,7 @@ void DrawPivotDialogs(AppState& s) {
     const PivotTable* p = ActivePivot(s);
     ImGui::SetNextItemWidth(S(260));
     ImGui::InputText(TR("Custom Name"), u.vf_caption, sizeof(u.vf_caption));
-    if (ImGui::BeginTabBar("##vftabs")) {
+    if (BeginDlgTabBar("##vftabs")) {
       if (ImGui::BeginTabItem(TR("Summarize Values By"), nullptr, u.vf_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::TextUnformatted(TR("Summarize value field by"));
         if (ImGui::BeginListBox("##func", ImVec2(S(260), S(150)))) {
@@ -3490,7 +3490,7 @@ void DrawPivotDialogs(AppState& s) {
       }());
       ImGui::SetNextItemWidth(S(240));
       ImGui::InputText(TR("Custom Name"), u.fs_caption, sizeof(u.fs_caption));
-      if (ImGui::BeginTabBar("##fstabs")) {
+      if (BeginDlgTabBar("##fstabs")) {
         if (ImGui::BeginTabItem(TR("Subtotals & Filters"))) {
           ImGui::RadioButton(TR("Automatic"), &u.fs_sub, 0);
           ImGui::RadioButton(TR("None"), &u.fs_sub, 1);
@@ -3573,7 +3573,7 @@ void DrawPivotDialogs(AppState& s) {
     PivotTable& o = u.opt;
     ImGui::SetNextItemWidth(S(260));
     ImGui::InputText(TR("PivotTable Name:"), u.opt_name, sizeof(u.opt_name));
-    if (ImGui::BeginTabBar("##opttabs")) {
+    if (BeginDlgTabBar("##opttabs")) {
       if (ImGui::BeginTabItem(TR("Layout & Format"))) {
         ImGui::Checkbox(TR("Merge and center cells with labels"), &o.merge_labels);
         ImGui::SetNextItemWidth(S(80));

@@ -818,6 +818,9 @@ void DockAsTaskPane(const char* window_title, bool left, float width);
 // jumps to the next item starting with it. Call before drawing the list; returns true when the choice moved (scroll
 // it into view: ImGui::SetScrollHereY() when drawing the chosen item)
 bool DlgListKeys(int* sel, int count, const std::function<const char*(int)>& label);
+// a dialog's tab bar: ImGui::BeginTabBar, and Ctrl+Tab / Ctrl+PgDn go to the next tab, Ctrl+Shift+Tab / Ctrl+PgUp to the
+// one before (Excel's dialogs); every dialog's tabs use it
+bool BeginDlgTabBar(const char* id);
 void FinishModalCopy(AppState& s);  // once a frame, after the dialogs
 void RegisterUiCustomCommands(AppState& s);
 void UpdateUiCustom(AppState& s);

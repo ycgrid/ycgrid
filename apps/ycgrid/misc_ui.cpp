@@ -1415,7 +1415,7 @@ void DrawMiscDialogs(AppState& s) {
       }
       ImGui::PopID();
     };
-    if (ImGui::BeginTabBar("##fctabs")) {
+    if (BeginDlgTabBar("##fctabs")) {
       if (ImGui::BeginTabItem(TR("Font"))) {
         ImGui::TextUnformatted(TR("Font:"));
         ImGui::SetNextItemWidth(S(240));

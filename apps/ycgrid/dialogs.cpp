@@ -749,7 +749,7 @@ void DrawFormatCells(AppState& s) {
   }
   FormatDlg& f = g_fmt;
   bool apply = false, close = false;
-  if (ImGui::BeginTabBar("##fmt_tabs")) {
+  if (BeginDlgTabBar("##fmt_tabs")) {
     const char* tabs[] = {TR("Number"), TR("Alignment"), TR("Font"), TR("Border"), TR("Fill"), TR("Protection")};
     for (int i = 0; i < 6; ++i) {
       if (f.chars && i != 2) continue;  // selected characters: only their font
@@ -1704,7 +1704,7 @@ void DrawFindReplace(AppState& s) {
   if (g_find_focus) ImGui::SetWindowFocus();
   bool close = !open || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape));
   bool replace = g_find_open == 2;
-  if (ImGui::BeginTabBar("##find_tabs")) {
+  if (BeginDlgTabBar("##find_tabs")) {
     if (ImGui::BeginTabItem(TR("Find"), nullptr, g_find_tab_pick && !replace ? ImGuiTabItemFlags_SetSelected : 0)) {
       replace = false;
       ImGui::EndTabItem();
@@ -3430,6 +3430,32 @@ void PlaceNewWindow(WindowPlace where) {
     case WindowPlace::Right: pos = ImVec2(vp->Pos.x + vp->Size.x - S(24), vp->Pos.y + vp->Size.y * 0.22f), pivot = ImVec2(1.0f, 0.0f); break;
   }
   ImGui::SetNextWindowPos(pos, ImGuiCond_FirstUseEver, pivot);
+}
+
+bool BeginDlgTabBar(const char* id) {
+  if (!ImGui::BeginTabBar(id)) return false;  // lesson-ok: dlg-tabs the one place that calls it
+  ImGuiContext& g = *GImGui;
+  ImGuiTabBar* bar = g.CurrentTabBar;
+  // the dialog's own tabs only (a tab bar inside a tab, as Header / Footer's pages, keeps out), while it has the keyboard
+  if (!bar || g.CurrentTabBarStack.Size != 1 || bar->Tabs.Size < 2 || !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) return true;
+  int dir = 0;
+  if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Tab) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_PageDown)) dir = 1;
+  if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Tab) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_PageUp)) dir = -1;
+  if (!dir) return true;
+  // the tabs in the order they show (a tab left out this frame, as Format Cells' for a table style, isn't one)
+  std::vector<const ImGuiTabItem*> shown;
+  for (const ImGuiTabItem& t : bar->Tabs) {
+    if (t.LastFrameVisible >= g.FrameCount - 1) shown.push_back(&t);
+  }
+  std::sort(shown.begin(), shown.end(), [](const ImGuiTabItem* a, const ImGuiTabItem* b) { return a->Offset < b->Offset; });
+  if (shown.size() < 2) return true;
+  size_t at = 0;
+  for (size_t i = 0; i < shown.size(); ++i) {
+    if (shown[i]->ID == bar->SelectedTabId) at = i;
+  }
+  const int n = static_cast<int>(shown.size());
+  bar->NextSelectedTabId = shown[static_cast<size_t>((static_cast<int>(at) + dir + n) % n)]->ID;
+  return true;
 }
 
 bool DlgListKeys(int* sel, int count, const std::function<const char*(int)>& label) {

@@ -7968,7 +7968,7 @@ bool DrawActiveXGrid(AppState& s, Control& m) {
   ImGui::BeginDisabled();
   ImGui::InputText("##objname", const_cast<char*>(head.c_str()), head.size() + 1, ImGuiInputTextFlags_ReadOnly);
   ImGui::EndDisabled();
-  if (ImGui::BeginTabBar("##proptabs")) {
+  if (BeginDlgTabBar("##proptabs")) {
     if (ImGui::BeginTabItem(TR("Alphabetic"))) tab = 0, ImGui::EndTabItem();
     if (ImGui::BeginTabItem(TR("Categorized"))) tab = 1, ImGui::EndTabItem();
     ImGui::EndTabBar();
@@ -8066,7 +8066,7 @@ void DrawFormatControlDialog(AppState& s) {
   using K = ControlKind;
   Control& m = FC().work;
   const bool form = m.form;
-  if (ImGui::BeginTabBar("##fctabs")) {
+  if (BeginDlgTabBar("##fctabs")) {
     // Font: the form button's text
     if (form && m.kind == K::Button && ImGui::BeginTabItem(TR("Font"))) {
       PropFont("fcfont", m);
@@ -9240,7 +9240,7 @@ bool& StylesFlyoutOpening() {  // the flyout opens on its Style tab, as Excel's 
 
 void DrawChartStylesMenu(AppState& s, ObjSel o, const ChartObj& ch) {
   if (!ImGui::BeginPopupEx(kChartStylePopup, kPopupFlags)) return;
-  if (ImGui::BeginTabBar("##chart_style_tabs")) {
+  if (BeginDlgTabBar("##chart_style_tabs")) {
     const bool opening = StylesFlyoutOpening();
     StylesFlyoutOpening() = false;
     if (ImGui::BeginTabItem(TR("Style"), nullptr, opening ? ImGuiTabItemFlags_SetSelected : 0)) {

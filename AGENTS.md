@@ -449,6 +449,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   Results put the original values back, and a page shown over another (Add Constraint, Add Scenario) goes back to it.
   `BeginDlg(..., &cancel)` (whatif_ui.cpp) leaves the dialog open on Escape and sets `cancel` for the page to act on;
   closing every such dialog at once kept the values Goal Seek had found.
+- A dialog's tabs go through `BeginDlgTabBar` (dialogs.cpp): Ctrl+Tab / Ctrl+PgDn and Ctrl+Shift+Tab / Ctrl+PgUp move
+  between them as in Excel. Every dialog called `ImGui::BeginTabBar` itself and none took the keys (`check_lessons.py`'s
+  `dlg-tabs`).
 - A dialog opened over another (Confirm Password, New Range) takes Enter; the frames after it closes, the dialog under
   it must not take that Enter as its own OK (protect_ui's `ParentOk`), or both close at once.
 - File > Options edits a copy that OK applies and Cancel drops: a new option binds to `cfg` (the copy) and gets its
