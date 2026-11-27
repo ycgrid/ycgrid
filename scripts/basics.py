@@ -516,6 +516,7 @@ ALLOWED = [
     ("*", "copy_paste_enter", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "cut_paste", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
     ("*", "cut_escape_paste", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
+    ("*", "menu_key_cut", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
     ("*", "paste_values", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "paste_special_dialog", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "cmd:Select*", r"No cells were found", "Go To Special's kinds with nothing of that kind: Excel's own message"),

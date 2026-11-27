@@ -565,15 +565,17 @@ class Chaos:
             # one comes out, and a point near the sheets' edge then lay on the tab bar of a figure docked under them,
             # where it docks as a tab (seed 5679: the sheets were 50 px tall); sheets too short to aim at: double-click
             g = grid["rect"]
-            # and not over its own group when that floats over the sheets: dropped back on it, it docks there again (seed
-            # 7828 dropped the Error Log inside its own floating group and reported it stuck)
-            floating = [x["rect"] for x in over] + ([w["rect"]] if w.get("floating") and w.get("rect") else [])
+            # and not over itself, docked beside the sheets or in a group floating over them: dropped back on its own place
+            # it docks there again (seed 7828 inside its floating group, 7839 on its node left of the sheets)
+            floating = [x["rect"] for x in over] + ([w["rect"]] if w.get("rect") else [])
             dy = min(max(g[1] + 60, ty + 150), g[3] - 60, 860)
             for px, py in [(g[0] + min(60, (g[2] - g[0]) / 5), dy), (g[2] - min(60, (g[2] - g[0]) / 5), dy),
                            (g[0] + min(60, (g[2] - g[0]) / 5), g[3] - 60), (g[2] - min(60, (g[2] - g[0]) / 5), g[3] - 60)]:
-                if g[3] - g[1] < 160:
+                if g[3] - g[1] < 160 or g[2] - g[0] < 400:  # too narrow too: the node's own docking targets cover it (seed 7839)
                     break
-                if g[0] <= px <= g[2] and g[1] + 60 <= py <= g[3] - 60 and not any(r[0] <= px <= r[2] and r[1] <= py <= r[3] for r in floating):
+                # (and 100 px clear of the window's sides: ImGui docks a window dropped there at that side of the whole
+                # dock space, seed 7839 dropped it 50 px from the left and it docked on the left again)
+                if g[0] <= px <= g[2] and 100 <= px <= WINDOW[0] - 100 and g[1] + 60 <= py <= g[3] - 60 and not any(r[0] <= px <= r[2] and r[1] <= py <= r[3] for r in floating):
                     drop = (px, py)
                     break
             if drop is None:

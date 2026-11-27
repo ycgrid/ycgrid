@@ -24,3 +24,4 @@
 
 7718  en  420  # a protected sheet refused typing and pastes, noted in the Error Log as Excel says it in a box: chaos counted each refusal as a problem (entries now marked refusal)
 7828  en  360  # the Error Log dropped back into its own floating group (tool)
+7839  zh-TW  360  # the Error Log dropped back over its own node beside narrow sheets (tool)
