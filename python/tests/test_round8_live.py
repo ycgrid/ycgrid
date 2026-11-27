@@ -345,6 +345,22 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_filter_menu_takes_excels_letters(self):
+        # Alt+Down, E, a few letters, Enter: Excel's letters in the filter menu (S, O sort, C clears, E searches) did
+        # nothing, and what was typed went nowhere
+        self.ws.Range("A1:B6").Value = [["Sym", "Qty"], ["A2330", 3], ["A2317", 5], ["B2454", 1], ["T", 4], ["C2603", 7]]
+        self.ws.Range("A1:B6").AutoFilter()
+        hidden = lambda: [r for r in range(2, 7) if self.ws.Rows(r).Hidden]
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6|k:E|w:3|t:23|w:3|k:Enter|w:6")
+        self.assertEqual(hidden(), [4, 5, 6])
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6|k:C|w:6")
+        self.assertEqual(hidden(), [])
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6|k:O|w:6")
+        self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["T", "C2603", "B2454", "A2330", "A2317"])
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6|k:S|w:6")
+        self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_custom_autofilter_takes_the_value_typed_at_once(self):
         self.ws.Range("A1:A5").Value = [["Name"], ["Apple"], ["Banana"], ["Avocado"], ["Cherry"]]
         self.ws.Range("A1:A5").AutoFilter()

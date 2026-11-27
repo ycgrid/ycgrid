@@ -50,6 +50,7 @@ struct FilterUi {
   std::vector<double> serials;  // each value's number: a date column's list is grouped Year > Month > Day, as Excel's
   bool blanks_present = false, blanks_checked = true;
   char search[128] = {};
+  bool focus_search = false;  // E pressed in the menu: the search box takes the keyboard
   // while searching (Excel): the results are ticked on their own, and OK shows only them (or adds them to the filter)
   std::string searched;
   std::vector<char> found_checked;
@@ -437,11 +438,18 @@ void DrawFilterPopup(AppState& s) {
   // Excel words the sort by the column's kind of data
   const char* asc = f.col_date ? TR("Sort Oldest to Newest") : f.col_num ? TR("Sort Smallest to Largest") : TR("Sort A to Z");
   const char* desc = f.col_date ? TR("Sort Newest to Oldest") : f.col_num ? TR("Sort Largest to Smallest") : TR("Sort Z to A");
-  if (ImGui::Selectable(asc)) {
+  // Excel's letters in the menu (its underlined ones, the same in every language): S sorts ascending, O descending,
+  // C clears the column's filter, E goes to the search box (Alt+Down, E, a few letters, Enter is how people filter
+  // from the keyboard). Only while the menu itself has the keyboard: not in the search box or an open submenu
+  const ImGuiIO& kio = ImGui::GetIO();
+  const bool letters = ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl && !kio.KeyAlt && !kio.KeyShift;
+  auto letter = [&](ImGuiKey k) { return letters && ImGui::IsKeyPressed(k, false); };
+  if (letter(ImGuiKey_E)) f.focus_search = true;
+  if (ImGui::Selectable(asc) || letter(ImGuiKey_S)) {
     SortRange(s, f.sheet, data, col, false, 0, 0, f.table);
     ImGui::CloseCurrentPopup();
   }
-  if (ImGui::Selectable(desc)) {
+  if (ImGui::Selectable(desc) || letter(ImGuiKey_O)) {
     SortRange(s, f.sheet, data, col, true, 0, 0, f.table);
     ImGui::CloseCurrentPopup();
   }
@@ -476,7 +484,7 @@ void DrawFilterPopup(AppState& s) {
   std::string header = engine::DisplayTextOf(sh->GetValue(frange.r0, col), "General");
   if (header.empty()) header = core::ColumnName(col);
   for (size_t at = header.find("##"); at != std::string::npos; at = header.find("##", at + 3)) header.replace(at, 2, "# #");  // ## is ImGui's id marker
-  if (ImGui::Selectable((TR("Clear Filter From \"") + header + TR("\"##ctx_filter")).c_str())) {
+  if (ImGui::Selectable((TR("Clear Filter From \"") + header + TR("\"##ctx_filter")).c_str()) || (filtered && letter(ImGuiKey_C))) {
     model::FilterColumn fc;
     fc.field = f.field;
     PostFilterColumn(s, TR("Clear Filter"), f.sheet, f.table, fc);
@@ -612,6 +620,10 @@ void DrawFilterPopup(AppState& s) {
   }
   {
     ImGui::SetNextItemWidth(-1);
+    if (f.focus_search) {
+      ImGui::SetKeyboardFocusHere();
+      f.focus_search = false;
+    }
     ImGui::InputTextWithHint("##search", TR("Search"), f.search, sizeof(f.search));
     const std::string q = Lower(f.search);
     ImGui::BeginChild("##vals", ImVec2(S(240), S(220)), ImGuiChildFlags_Borders);
