@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -47,6 +48,27 @@ class RulesRound8Test(unittest.TestCase):
         f3 = ws.Range("C1").FormatConditions.AddTop10()
         self.assertEqual((f1.Priority, f2.Priority, f3.Priority), (1, 2, 3))
         self.assertEqual(ws.Range("A1:A3").FormatConditions(1).Formula1, "=1")
+
+    def test_a_rule_added_with_its_equals_sign_edits_without_a_second_one(self):
+        # FormatConditions.Add(..., "=10") kept the =, and the Rules Manager's Edit Rule showed ==10
+        from yc import ui
+
+        ws = self.ws
+        ws.Range("A1:A3").FormatConditions.Add(1, 5, "=10")
+        ws.Range("A1:A3").FormatConditions.Add(2, None, "=A1>5")
+        self.assertEqual(ws.Range("A1").FormatConditions(1).Formula1, "=10")
+        self.assertEqual(ws.Range("A1").FormatConditions(2).Formula1, "=A1>5")
+        def keys(script):
+            self.conn.request("ui.input", {"script": script, "timeout_ms": 8000}, timeout=20)
+            time.sleep(0.2)
+
+        keys("g:A1:A3|w:2")
+        ui.command("CfManageRules")
+        keys("w:6")
+        labels = [i["label"] for i in ui.items("")]
+        self.assertIn("Cell value greater than 10", labels)
+        self.assertIn("Formula: =A1>5", labels)
+        keys("k:Escape|w:4")
 
     def test_formula1_of_rules_without_one_is_excels_formula(self):
         ws = self.ws

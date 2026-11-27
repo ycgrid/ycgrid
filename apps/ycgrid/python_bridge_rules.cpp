@@ -170,8 +170,11 @@ void ApplyCf(model::CfRule& c, const MV& p) {
   }
   if (const MV* v = p.Get("type")) c.type = static_cast<model::CfType>(v->i);
   if (const MV* v = p.Get("op")) c.op = static_cast<model::CmpOp>(v->i);
-  if (const MV* v = p.Get("formula1")) c.formula1 = v->s;
-  if (const MV* v = p.Get("formula2")) c.formula2 = v->s;
+  // a rule keeps its formulas without the =, as the dialogs write them: FormatConditions.Add(..., "=10") kept it, and
+  // Edit Rule showed ==10 (Formula1 reads the = back either way)
+  auto bare = [](const std::string& f) { return !f.empty() && f[0] == '=' ? f.substr(1) : f; };
+  if (const MV* v = p.Get("formula1")) c.formula1 = bare(v->s);
+  if (const MV* v = p.Get("formula2")) c.formula2 = bare(v->s);
   if (const MV* v = p.Get("text")) c.text = v->s;
   if (const MV* v = p.Get("fill")) {
     c.fmt.has_fill = !v->IsNil();
