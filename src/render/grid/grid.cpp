@@ -936,8 +936,12 @@ CellText MakeText(const Ctx& c, const model::Style& st, const core::Value& v, fl
   // Show Formulas: constants lose their number formats too (a date shows its serial number), as in Excel
   const uint32_t numfmt = c.opt.show_formulas ? 0 : st.numfmt;
   const formula::NumberFormat& fmt = FormatFor(c.styles, numfmt);
-  const float digit_w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, "0").x;
-  const double max_chars = v.IsNumeric() && numfmt == 0 ? std::floor((cell_w - 2 * c.pad) / std::max(1.0f, digit_w)) : -1;
+  // a column holds as many digits as its width in characters, the digit's width taken in whole pixels as Excel takes
+  // it (Calibri 11's 7.43 is 7): measured, the fraction left 99999 as #### in a column 5 wide where Excel shows it
+  // (a column w characters wide is w digits and 5 pixels at 96 DPI: render::CharsToColPx), at the zoom and DPI shown
+  const float s = Dpi() * c.zoom;
+  const float digit_w = std::max(1.0f, std::floor(font->CalcTextSizeA(px, FLT_MAX, 0.0f, "0").x / s)) * s;
+  const double max_chars = v.IsNumeric() && numfmt == 0 ? std::floor((cell_w - 5.0f * s) / digit_w + 0.01) : -1;
   formula::FormatResult fr = formula::FormatValue(v, fmt, max_chars);
   if (max_chars > 0 && max_chars < 11) {
     // the budget counts every character as a digit, but "." and "-" are narrower: one or two more characters may fit
@@ -962,11 +966,13 @@ CellText MakeText(const Ctx& c, const model::Style& st, const core::Value& v, fl
     // the calendar
     const float w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, out.text.c_str()).x;
     if (fr.bad_date || w > cell_w - 2 * c.pad + 1) {
-      const int n = std::max(1, static_cast<int>((cell_w - 2 * c.pad) / std::max(1.0f, font->CalcTextSizeA(px, FLT_MAX, 0.0f, "#").x)));
-      out.text.assign(static_cast<size_t>(n), '#');
+      out.text.clear();
       out.hashes = true;
     }
   }
+  // a # for each character the column is wide, as Excel fills it (measured: ###### in a column 6 wide, ## in 2); the
+  // glyph's own width left one or two short
+  if (out.hashes) out.text.assign(static_cast<size_t>(std::max(1.0, std::floor((cell_w - 5.0f * s) / digit_w + 0.01))), '#');
   if (!out.hashes && fr.fill_at >= 0 && !fr.fill.empty() && fr.fill_at <= static_cast<int>(out.text.size())) {
     // *x: x repeats where the code puts it until the text spans the cell, so an accounting format's $ sits at the
     // left edge and the number at the right (Excel)

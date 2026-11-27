@@ -111,6 +111,19 @@ TEST_CASE("General: small numbers switch to scientific notation when that keeps 
   CHECK(FormatGeneral(-0.00001234567, 11) == "-1.2346E-05");
 }
 
+TEST_CASE("General: a whole number too wide for its column is shown in scientific notation, as Excel's") {
+  // Excel 16, measured (Range.Text in columns of these widths): 1234567890 is 1E+09 in 5 and 1.23E+09 in 8, 100000
+  // 1E+05 and 99999 itself in 5, -1234567 -1E+06 in 6; it showed ####. A default cell (11) keeps its digits
+  using formula::FormatGeneral;
+  CHECK(FormatGeneral(1234567890, 5) == "1E+09");
+  CHECK(FormatGeneral(1234567890, 8) == "1.23E+09");
+  CHECK(FormatGeneral(100000, 5) == "1E+05");
+  CHECK(FormatGeneral(99999, 5) == "99999");
+  CHECK(FormatGeneral(-1234567, 6) == "-1E+06");
+  CHECK(FormatGeneral(12345.678, 5) == "12346");
+  CHECK(FormatGeneral(1234567890, 11) == "1234567890");
+}
+
 TEST_CASE("General: a three-digit exponent takes a decimal less instead of ##### (a regression's p-value)") {
   auto W = [](double v, double chars) { return formula::FormatValue(core::Value::Number(v), "General", chars).text; };
   CHECK(W(1.234e-251, 8.43) == "1.2E-251");

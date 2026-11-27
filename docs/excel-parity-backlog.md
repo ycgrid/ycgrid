@@ -44,6 +44,10 @@ at the moment (measured against Excel 16 on 2026-11-08), except:
 
 These are not differences to fix; they stay:
 
+- `Range.Text` gives a number's formatted text whatever its column's width: Excel's gives what the cell shows
+  there (`1E+09`, `####` in a narrow column, measured 2026-11-27). What fits depends on the window's fonts, zoom and
+  screen scale, and a script reads `Text` for the formatted value; the sheet itself shows Excel's text.
+
 - A CSV's fields are never formulas: `=1+1`, `+1+1`, `-1+1`, `--5` and `@SUM(A1)` open as text, where Excel 16
   calculates them (measured 2026-11-19 over 719 fields, Workbooks.Open): a CSV from outside must not run a
   formula (CSV injection). A number of more than 15 significant digits opens as an exact Decimal (PLAN 5.2a),
