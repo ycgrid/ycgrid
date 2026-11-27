@@ -218,6 +218,30 @@ TEST_CASE("Flash Fill learns from examples") {
   CHECK(t.T("C3") == "B. LEE");
 }
 
+TEST_CASE("Flash Fill takes a token at either end over one counted to the middle (Excel 16, measured)") {
+  // one example each, the sources of different lengths: Range.FlashFill in Excel 16 gave these
+  struct Case {
+    std::vector<std::string> src;
+    std::string example;
+    std::vector<std::string> want;
+  };
+  const Case cases[] = {
+      {{"Taiwan Semi (2330)", "Hon Hai (2317)", "MediaTek (2454)", "Delta Electronics Inc (2308)"}, "2330", {"2317", "2454", "2308"}},
+      {{"John Smith", "Mary Ann Lee", "Bob Jones", "Al B Cee Dee"}, "Smith", {"Lee", "Jones", "Dee"}},
+      {{"John Smith", "Mary Ann Lee", "Bob Jones", "Al B Cee Dee"}, "John", {"Mary", "Bob", "Al"}},
+      {{"a-b-c", "d-e", "f-g-h-i", "j"}, "c", {"e", "i", "j"}},
+  };
+  for (const Case& k : cases) {
+    yctest::Doc t;
+    const uint32_t sh = t.sheet();
+    for (size_t i = 0; i < k.src.size(); ++i) t.Set(("A" + std::to_string(i + 1)).c_str(), k.src[i]);
+    t.Set("B1", k.example);
+    std::string err;
+    CHECK(t.d.FlashFill(sh, 0, 1, &err) == k.want.size());
+    for (size_t i = 0; i < k.want.size(); ++i) CHECK(t.T(("B" + std::to_string(i + 2)).c_str()) == k.want[i]);
+  }
+}
+
 TEST_CASE("Solver: linear, nonlinear, integer, evolutionary") {
   yctest::Doc t;
   const uint32_t sh = t.sheet();
