@@ -83,7 +83,7 @@ void AppState::ShowError(std::string title, std::string text) {
 
 void AppState::NoteRefusal(std::string text, std::string brief) {
   if (text.empty()) return;
-  ReportError("YCGrid", "YCGrid", text, true);
+  ReportRefusal(text);
   refusal = brief.empty() ? text.substr(0, text.find('\n')) : std::move(brief);
   refusal_until = ImGui::GetTime() + 6.0;
 }

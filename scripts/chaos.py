@@ -237,6 +237,9 @@ class Chaos:
             # script still running in it (an example from the ribbon) is cut short, as a person saving then would see
             # (chaos seed 7145: backtest_report and a Save As right after it)
             expected = expected or (tag == "save as" and "The Python host is stopping" in txt)
+            # what a protected sheet or workbook refused (the protection chaos turned on), noted in the Error Log since
+            # 2026-11-25 where Excel shows a message box (chaos seed 7718 counted 21 of them as problems)
+            expected = expected or bool(e.get("refusal"))
             # the hang watchdog's 10 s on a debug build is a fraction of a second released (seed 5562: Ctrl+D over
             # 8 million cells, a 0.65 s frame released, 11 s on debug); a real freeze still shows as UNRESPONSIVE
             title = str(e.get("title", ""))

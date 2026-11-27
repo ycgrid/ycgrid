@@ -20,10 +20,13 @@ struct ErrorEntry {
   std::string title;
   std::string text;
   bool error = true;  // false: a message YCGrid showed (kept with the errors, filtered out by "Errors only")
+  bool refusal = false;  // what a protected sheet or workbook refused (AppState::NoteRefusal): Excel's message box
 };
 
 // any thread
 void ReportError(const std::string& source, const std::string& title, const std::string& text, bool error = true);
+// a refusal a person meets working a protected sheet (an error, marked as a refusal for tools that tell them apart)
+void ReportRefusal(const std::string& text);
 // pieces of an error stream (Python's stderr): pieces within 0.3 s of each other become one entry
 void ReportErrorStream(const std::string& source, const std::string& text);
 std::vector<ErrorEntry> ErrorEntries(int64_t after_id = 0);

@@ -447,6 +447,10 @@ class DialogsRound8Test(unittest.TestCase):
             self.assertEqual(yc.excel.ActiveCell.Address, "$B$3", "on to the next row's unlocked cell")
             self.keys("t:7|k:s-Tab|w:4")
             self.assertEqual(yc.excel.ActiveCell.Address, "$E$2", "Shift+Tab back")
+            # typing on a locked cell: the refusal is in the Error Log, marked as one (tools tell it from a fault)
+            self.keys("g:A1|w:2|t:9|w:4")
+            last = yc.ui.errors()[-1]
+            self.assertTrue(last.get("refusal") and "protected sheet" in last["text"], last)
         finally:
             self.keys("k:Escape|w:2")
             self.ws.Unprotect()

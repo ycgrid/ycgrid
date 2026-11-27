@@ -86,7 +86,8 @@ def ping() -> bool:
 
 def errors(errors_only: bool = False, after: int = 0) -> list:
     """[YC] What the Error Log window lists (View > Error Log), oldest first: dicts with id, time (Unix seconds), source
-    ("YCGrid", "Python", "VS Code"...), title, text and error (False: a message YCGrid showed). after: only newer ids."""
+    ("YCGrid", "Python", "VS Code"...), title, text and error (False: a message YCGrid showed), and refusal (True: what
+    a protected sheet or workbook refused, which Excel says in a message box). after: only newer ids."""
     return list(_rq("errors.list", errors_only=bool(errors_only), after=int(after)))
 
 
