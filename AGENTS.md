@@ -176,6 +176,9 @@ invent a sixth:
   instance only) checks it (`test_live.CrashDumpTest`).
 - A crash without a dump (fast-fail, `0xC0000409`): the Application event log has the offset; a debugger attached to
   the hidden instance (`scripts\crash_stack.py <pid>`: dbghelp `StackWalk64` with `dist_*\ycgrid.pdb`) gives the stack.
+  A dump (crash, hang, a debug build's assert or abort) reads without a debugger installed: `scripts\dump_stack.py
+  <file.dmp>` walks it with the same pdb. A random round's dumps are in its own TEMP folder, deleted with the round:
+  replay the seed with TEMP / TMP set to a folder that exists (a missing one was a crash of its own).
 - A stutter or a freeze: `scripts\ui_sampler.py <pid>` samples the hidden instance's UI thread and names the functions
   it spends its frames in (`--thread yc-engine` samples the engine); a frame waiting in `Engine::Call` is behind the
   engine, so sample the engine next. `perf.stats` gives each frame's work (`frame_cpu_max_ms`), and

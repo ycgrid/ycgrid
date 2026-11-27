@@ -8,6 +8,7 @@
 #pragma once
 
 #include "imgui.h"
+struct ImGuiDockNode;  // imgui_internal.h
 
 #include <windows.h>
 
@@ -47,6 +48,11 @@ void RestoreMainWindow(HWND hwnd, const nlohmann::json& j);
 // split in the same frame then reads freed memory (a crash docking a figure that was docked already).
 void UndockWindow(const char* window_name);
 void DockWindow(const char* window_name, ImGuiID node_id);
+// splits `leaf` toward dir (the new part is ratio of it) and returns the new part's node; a leaf too small for both
+// parts to hold a window returns itself, so what is docked goes in as a tab. Docked one after another, each split
+// took its ratio of the part before until a pane was under a pixel, and dragging a splitter there failed ImGui's
+// own check (a debug build stopped: chaos seed 7609)
+ImGuiID SplitOrTab(::ImGuiDockNode* leaf, ImGuiDir dir, float ratio);
 void RefreshDockRoots();  // recomputes those pointers of every root node
 
 // dock a window to one side of the dock node of anchor_window (a custom panel shown for the first time).

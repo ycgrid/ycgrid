@@ -3646,8 +3646,7 @@ MV PythonBridge::DispatchObjects(const std::string& m, const MV& p, std::string*
         ImGuiDockNode* leaf = node;
         while (leaf->IsSplitNode()) leaf = leaf->ChildNodes[1] ? leaf->ChildNodes[1] : leaf->ChildNodes[0];
         const ImGuiDir dir = pos == "left" ? ImGuiDir_Left : pos == "right" ? ImGuiDir_Right : pos == "top" ? ImGuiDir_Up : ImGuiDir_Down;
-        ImGuiID rest = 0;
-        dst = ImGui::DockBuilderSplitNode(leaf->ID, dir, std::clamp(static_cast<float>(ratio), 0.05f, 0.95f), nullptr, &rest);
+        dst = ui::dock::SplitOrTab(leaf, dir, static_cast<float>(ratio));  // a leaf too small to split takes it as a tab
       }
       ui::dock::DockWindow(wn.c_str(), dst);
       ImGui::DockBuilderFinish(ds);

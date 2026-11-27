@@ -318,6 +318,16 @@ void RefreshDockRoots() {
 
 void UndockWindow(const char* window_name) { DockWindow(window_name, 0); }
 
+ImGuiID SplitOrTab(ImGuiDockNode* leaf, ImGuiDir dir, float ratio) {
+  const float r = std::clamp(ratio, 0.05f, 0.95f);
+  const float along = (dir == ImGuiDir_Left || dir == ImGuiDir_Right) ? leaf->Size.x : leaf->Size.y;
+  const ImGuiStyle& st = ImGui::GetStyle();
+  const float min_part = std::max({st.WindowMinSize.x * 2.0f, st.WindowMinSize.y * 2.0f, ImGui::GetFontSize() * 6.0f});
+  if (along > 0.0f && (along * r < min_part || along * (1.0f - r) < min_part)) return leaf->ID;
+  ImGuiID rest = 0;
+  return ImGui::DockBuilderSplitNode(leaf->ID, dir, r, nullptr, &rest);
+}
+
 void DockWindow(const char* window_name, ImGuiID node_id) {
   ImGui::DockBuilderDockWindow(window_name, node_id);
   RefreshDockRoots();
@@ -336,8 +346,7 @@ bool DockBesideWindow(const char* window_name, const char* anchor_window, int di
   ImGuiID target = leaf->ID;
   if (dir >= 0 && dir < 4) {
     static constexpr ImGuiDir kDirs[] = {ImGuiDir_Left, ImGuiDir_Right, ImGuiDir_Up, ImGuiDir_Down};
-    ImGuiID rest = 0;
-    target = ImGui::DockBuilderSplitNode(leaf->ID, kDirs[dir], std::clamp(ratio, 0.05f, 0.9f), nullptr, &rest);
+    target = SplitOrTab(leaf, kDirs[dir], std::min(ratio, 0.9f));
   }
   DockWindow(window_name, target);
   ImGui::DockBuilderFinish(root_id);

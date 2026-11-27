@@ -20,3 +20,4 @@
 6156  en     711  # the backtest example run again after a person's AutoFilter on its sheet: its table was refused ("This will change a filtered range")
 6803  zh-TW  116  # the Page Layout tab's Scale box laid the sheet out at every frame with Fit To set: the window stopped answering
 6821  zh-TW  108  # Flash Fill's live preview made text of every cell of a large region at each keystroke: typing waited a minute
+7609  zh-TW  714  # figures docked one after another split the pane by their ratio until it was under a pixel; a splitter dragged there failed ImGui's docking check (abort in a debug build)

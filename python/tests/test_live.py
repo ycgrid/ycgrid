@@ -472,6 +472,28 @@ def Workbook_BeforeClose(cancel):
             time.sleep(0.2)
         self.assertTrue(self.conn.request("python.status", {}).get("ready"))  # still alive
 
+    # ---- figures docked one after another never split a pane smaller than a window can be ----
+    def test_many_docked_figures_keep_a_usable_size(self):
+        # each Dock split the last pane again by its ratio: after a dozen, a pane was under a pixel and dragging a
+        # splitter there failed ImGui's own check (a debug build stopped, chaos seed 7609); a pane too small to split
+        # takes the figure as a tab
+        from yc import plot, ui
+        from yc.constants import ycDockRight
+
+        figs = []
+        for i in range(14):
+            fig = plot.figure(f"Many docked {i}", key=f"live.many{i}")
+            fig[0].line([0, 1], [0, 1])
+            fig.Dock(ycDockRight, Ratio=0.2)
+            figs.append(fig)
+        time.sleep(0.5)
+        rects = [w["rect"] for w in ui.windows() if w["label"].startswith("Many docked") and w.get("tab", True)]
+        narrow = [r for r in rects if r[2] - r[0] < 40]
+        self.assertFalse(narrow, f"panes narrower than a window can be: {narrow}")
+        self.assertEqual(ui.state().get("imgui_asserts", 0), 0)
+        for i in range(14):
+            plot.close(key=f"live.many{i}")
+
     # ---- the hang watchdog writes a dump when the UI thread stops answering ----
     def test_hang_dump(self):
         import glob
