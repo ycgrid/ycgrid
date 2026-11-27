@@ -149,7 +149,7 @@ std::string Document::TableCantHold(uint32_t sheet, const Rect& rect, uint32_t t
 
 std::string Document::NextTableName() const {
   for (int n = 1;; ++n) {
-    const std::string name = "Table" + std::to_string(n);
+    const std::string name = TR("Table") + std::to_string(n);  // in the UI's language, as Excel's
     if (ValidTableName(name, 0, nullptr)) return name;
   }
 }
@@ -197,7 +197,7 @@ void Document::SyncTableHeaders(uint32_t sheet) {
       bool generated = false;
       if (name.empty()) {
         // the first ColumnN no header has (a column added to Name, Qty, Price is Column1)
-        do name = "Column" + std::to_string(counter++);
+        do name = TR("Column") + std::to_string(counter++);  // in the UI's language, as Excel's
         while (taken(name));
         generated = true;
       } else if (used_set.count(UpperAscii(name))) {

@@ -194,6 +194,18 @@ class ChineseKeyTipsTest(HabitsBase):
         excel.Application.DisplayAlerts = False
         excel.Worksheets(added[0]).Delete()
 
+    def test_a_new_table_is_named_in_chinese(self):
+        """Excel's Chinese UI names a table, its generated headers and a PivotTable in Chinese (Table1, Column1 were
+        English), and the names work in structured references."""
+        table, column = "表格", "欄"
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("A1:A3"), None, 2)  # xlSrcRange, no headers: one is inserted
+        self.assertTrue(lo.Name.startswith(table), ascii(lo.Name))
+        self.assertEqual(self.ws.Range("A1").Value, column + "1")
+        self.ws.Range("C1").Formula = "=SUM(" + lo.Name + "[" + column + "1])"
+        self.assertEqual(self.ws.Range("C1").Value, 6)
+        lo.Unlist()
+
 
 class KeyTipsTest(HabitsBase):
     def test_alt_h_l_opens_conditional_formatting(self):

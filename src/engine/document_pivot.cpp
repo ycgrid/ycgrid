@@ -39,7 +39,7 @@ bool Dark(uint32_t argb) {
 
 std::string Document::NextPivotName() const {
   for (int n = 1;; ++n) {
-    const std::string name = "PivotTable" + std::to_string(n);
+    const std::string name = TR("PivotTable") + std::to_string(n);  // in the UI's language, as Excel's
     bool used = false;
     for (const auto& sc : wb_.sheets) {
       for (const auto& p : *sc->pivots) used = used || LowerStr(p.name) == LowerStr(name);

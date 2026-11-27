@@ -1822,7 +1822,7 @@ uint32_t Document::CopySheet(uint32_t id, int32_t new_index) {
     p.id = wb_.next_object_id++;
     p.name = NextPivotName();  // PivotTable names are unique in the workbook
     for (int k = 2; std::any_of(copy.pivots->begin(), copy.pivots->end(), [&](const model::PivotTable& o) { return &o != &p && o.name == p.name; }); ++k) {
-      p.name = "PivotTable" + std::to_string(k);
+      p.name = TR("PivotTable") + std::to_string(k);
     }
   }
   std::unordered_map<std::string, std::string> table_names;  // the source's table (lowered) -> the copy's
@@ -1831,7 +1831,7 @@ uint32_t Document::CopySheet(uint32_t id, int32_t new_index) {
     t.id = wb_.next_object_id++;
     t.name = NextTableName();  // table names are unique in the workbook
     for (int k = 2; std::any_of(copy.tables->begin(), copy.tables->end(), [&](const model::Table& o) { return &o != &t && o.name == t.name; }); ++k) {
-      t.name = "Table" + std::to_string(k);
+      t.name = TR("Table") + std::to_string(k);
     }
     table_names[was] = t.name;
   }
