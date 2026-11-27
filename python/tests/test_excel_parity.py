@@ -274,6 +274,12 @@ class ExcelParityTest(unittest.TestCase):
         self.keys(f"m:{int(r[0]) + 10},{int((r[1] + r[3]) / 2)}|w:2|c:{int(r[0]) + 10},{int((r[1] + r[3]) / 2)}|w:3|k:c-A|t:12|w:2|k:Enter|w:10")
         self.keys("k:Enter|w:6")
         self.assertAlmostEqual(self.ws.Range("A1").Value, 4, places=4)
+        # Esc in Goal Seek Status is its Cancel: the original value comes back (it kept the value found)
+        self.keys("g:B1|w:2|k:LeftAlt|w:2|t:A|w:3|t:W|w:4|t:G|w:8|k:Tab|w:2|t:30|k:Tab|w:2|t:A1|w:2|k:Enter|w:10")
+        self.assertAlmostEqual(self.ws.Range("A1").Value, 10, places=4)
+        self.keys("k:Escape|w:6")
+        self.assertEqual(self.dialog(), 0)
+        self.assertAlmostEqual(self.ws.Range("A1").Value, 4, places=4)
 
 
     def test_function_arguments_box_per_argument(self):
