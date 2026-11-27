@@ -418,6 +418,35 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_menus_over_the_cells_keep_the_ui_font_when_zoomed(self):
+        # the sheet draws its overlays in the cells' font, zoomed: the filter menu and the Paste Options menu grew with
+        # the zoom (headings 30 pixels high at 200%), where Excel's menus keep their size
+        self.ws.Range("A1:A3").Value = [["Sym"], ["X"], ["Y"]]
+        self.ws.Range("A1:A3").AutoFilter()
+        win = yc.excel.ActiveWindow
+
+        def heights():
+            self.keys("g:A1|w:2|k:a-DownArrow|w:6")
+            sort = [i for i in yc.ui.items("") if i.get("label") == "Sort A to Z"]
+            self.keys("k:Escape|w:3|g:A2:A3|w:2|k:c-C|w:3|g:C2|w:2|k:c-V|w:6|k:LeftCtrl|w:6")
+            items = yc.ui.items("")
+            first = [i for i in items if i.get("label") == "Paste"]
+            last = [i for i in items if i.get("label") == "Paste Link"]
+            self.keys("k:Escape|w:3|k:Escape|w:3")
+            self.assertTrue(sort and first and last, "both menus open")
+            # the gallery's first and last rows have two headings between them
+            return sort[0]["rect"][3] - sort[0]["rect"][1], last[0]["rect"][1] - first[-1]["rect"][1]
+
+        try:
+            at100 = heights()
+            win.Zoom = 200
+            self.keys("w:4")
+            at200 = heights()
+        finally:
+            win.Zoom = 100
+        self.assertAlmostEqual(at200[0], at100[0], delta=2, msg="the filter menu's entries")
+        self.assertAlmostEqual(at200[1], at100[1], delta=2, msg="the Paste Options menu's headings")
+
     def test_the_cell_menu_takes_excels_letters(self):
         # Shift+F10 (or the Menu key), then V pastes values: the menus ignored every letter
         self.ws.Range("A1").Formula = "=2+3"

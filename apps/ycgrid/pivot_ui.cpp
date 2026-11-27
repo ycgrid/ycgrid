@@ -4467,6 +4467,7 @@ void DrawSlicers(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
       u.sl_l0 = slp->left, u.sl_t0 = slp->top, u.sl_w0 = slp->width, u.sl_h0 = slp->height;
     }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) ImGui::OpenPopup("##slmenu");
+    ImGui::PushFont(ui::F().ui, ui::F().ui_size);  // a menu in the UI's font, not the zoomed cells'
     if (ImGui::BeginPopup("##slmenu")) {
       const uint32_t id = sl.id;
       u.sl_sel = sl.id, u.sl_sel_sheet = sheet_id;
@@ -4522,6 +4523,7 @@ void DrawSlicers(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
       }
       ImGui::EndPopup();
     }
+    ImGui::PopFont();
     const ImRect body(ImVec2(r.Min.x + pad, head.Max.y + S(2)), ImVec2(r.Max.x - pad, r.Max.y - pad));
     if (sl.timeline) {
       DrawTimelineBody(s, sl, pt, body, dmin, dmax, tl_from, tl_to);
@@ -4827,10 +4829,12 @@ void DrawPivotOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
       DrawFieldButton(dl, br, hov, af);
       // the filter list
       ImGui::SetNextWindowPos(u.filter_pos, ImGuiCond_Appearing);
+      ImGui::PushFont(ui::F().ui, ui::F().ui_size);  // a menu in the UI's font, not the zoomed cells'
       if (ImGui::BeginPopup("##pivot_filter")) {
         DrawFilterPopupBody(s, p, b.area);
         ImGui::EndPopup();
       }
+      ImGui::PopFont();
       ImGui::PopID();
     }
   }

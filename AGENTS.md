@@ -418,6 +418,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   `ImGuiHoveredFlags_AllowWhenBlockedByActiveItem`.
 - `IsWindowHovered(ImGuiHoveredFlags_ChildWindows)` is also true over a popup opened from that window (a chart's flyout
   opened by the sheet): add `ImGuiHoveredFlags_NoPopupHierarchy` where the window acts on the mouse (the sheet's wheel).
+- The sheet calls its overlays (`opt.overlay`) inside its cells' font, zoomed: a menu or popup opened there (the filter
+  menu, Paste Options, a slicer's menu) pushes the UI's font (`ui::F().ui`) around it, or it grows with the zoom (the
+  Paste Options headings were 30 pixels high at 200%). What sits on the cells and zooms with them (a slicer, a shape's
+  text) keeps the cells' font.
 - ImGui scales a font so that ascent + descent equals its size: a font's real line height (rows that fit a taller
   font) comes from its file through GDI (`tmHeight` at a known em size, sheet_actions.cpp `LineHeightPerEm`), not
   `ImFontBaked`.

@@ -868,8 +868,13 @@ void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
   for (const auto& tb : *sh->tables) {
     if (engine::TableHasOwnFilter(*sh, tb)) buttons(tb.filter, engine::TableFilterRange(tb), tb.id);
   }
-  // menu opened on this sheet (opened and drawn in the same window)
-  if (R().filter.sheet == sheet_id) DrawFilterPopup(s);
+  // menu opened on this sheet (opened and drawn in the same window), in the UI's font as Excel's menus: the sheet's
+  // window draws in the cells' font, zoomed, and the filter menu grew with the zoom
+  if (R().filter.sheet == sheet_id) {
+    ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+    DrawFilterPopup(s);
+    ImGui::PopFont();
+  }
   if (R().list.sheet == sheet_id) DrawListPopup(s);
   // validation of the active cell: list drop-down arrow and input message
   if (s.focus_sheet != sheet_id || s.edit.active || sh->validations->empty()) return;

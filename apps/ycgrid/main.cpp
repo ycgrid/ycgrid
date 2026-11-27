@@ -674,15 +674,24 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
     app::DrawRuleOverlays(g_app, id, g);
     app::DrawCellTips(g_app, id, g);
     app::DrawAuditOverlay(g_app, id, g);
-    app::DrawErrorCheckButton(g_app, id, g);
+    // the floating buttons and their menus are Excel's UI, not the cells: the UI's font, whatever the zoom (the sheet
+    // draws its overlays in the cells' font, zoomed, and the Paste Options menu's headings grew to 30 pixels at 200%)
+    const auto ui_font = [](auto&& draw) {
+      ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+      draw();
+      ImGui::PopFont();
+    };
+    ui_font([&] { app::DrawErrorCheckButton(g_app, id, g); });
     app::DrawTableOverlay(g_app, id, g);
     app::DrawPageBreakOverlay(g_app, id, g);
     app::DrawStaleOverlay(g_app, id, g);
     app::DrawPivotOverlay(g_app, id, g);
-    app::DrawFillOptions(g_app, id, g);
-    app::DrawPasteOptions(g_app, id, g);
-    app::DrawInsertOptions(g_app, id, g);
-    app::DrawQuickAnalysis(g_app, id, g);
+    ui_font([&] {
+      app::DrawFillOptions(g_app, id, g);
+      app::DrawPasteOptions(g_app, id, g);
+      app::DrawInsertOptions(g_app, id, g);
+      app::DrawQuickAnalysis(g_app, id, g);
+    });
     app::DrawSafetyOverlay(g_app, id, g);
     app::DrawTradingOverlay(g_app, id, g);
     if (!g_app.hide_objects) {  // Ctrl+6 hides them (Workbook.DisplayDrawingObjects = xlHide)
