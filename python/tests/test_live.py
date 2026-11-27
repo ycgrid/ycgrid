@@ -1266,7 +1266,9 @@ class UserFlowTest(unittest.TestCase):
         self.keys("g:B4|t:first|k:a-Enter|t:second|k:Enter|w:4")
         self.assertEqual(r("B4").Value, "first\nsecond")     # the break where it was typed, even typed fast
         self.assertTrue(r("B4").WrapText)                    # Alt+Enter turns Wrap Text on, as in Excel
-        self.assertGreaterEqual(ws.Rows(4).RowHeight, 22)    # two lines of 11 pt text (one line: 15)
+        # two lines of 11 pt text are two one-line rows, as Excel fits them (a multiple of one line, measured): they
+        # were 28.5, a line and a half short of the second line's row
+        self.assertEqual(ws.Rows(4).RowHeight, 30)
         self.keys("k:c-Z|w:3")
         self.assertEqual(ws.Rows(4).RowHeight, 15)
         ws.Rows(6).RowHeight = 45                            # a height set by hand stays

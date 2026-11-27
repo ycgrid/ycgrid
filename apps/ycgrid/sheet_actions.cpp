@@ -99,7 +99,11 @@ float LineHeightPerEm(const std::string& name, bool bold, bool italic) {
 float TextBlockHeight(ImFont* font, float px, float wrap_w, const std::string& text, const std::string& name, bool bold, bool italic) {
   const ImVec2 ts = font->CalcTextSizeA(px, FLT_MAX, wrap_w, text.c_str());
   const float lines = std::max(1.0f, std::round(ts.y / std::max(1.0f, px)));
-  return lines * std::max(px, px * LineHeightPerEm(name, bold, italic));
+  // each line takes a whole one-line row (its pixels and the 2 around them): Excel 16 fits wrapped Calibri 11 at a
+  // multiple of one line's height (measured: 29, 43.5, 58, 72.5 for 2 to 5 lines where one line is 14.5), where
+  // the lines rounded together came 1.5 points short at two lines and 3.5 at five. The caller adds the last 2
+  const float line = std::ceil(std::max(px, px * LineHeightPerEm(name, bold, italic))) + 2.0f;
+  return lines * line - 2.0f;
 }
 
 // Excel: a row that sizes itself fits its text again after a change (wrapped text, line breaks, a bigger font).
