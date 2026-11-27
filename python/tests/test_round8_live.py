@@ -574,6 +574,10 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertIn("OK", [i["label"] for i in yc.ui.items("")])
         self.assertNotIn("Insert Function", yc.ui.state()["clipped_windows"])
         self.keys("k:Escape|w:3|k:Escape|w:3")
+        # Function Arguments: the help of range_lookup (two lines) cut OK and Cancel under the dialog's edge
+        self.keys('g:C2|w:2|t:=VLOOKUP(|w:3|k:c-A|w:8|t:"y"|k:Tab|w:2|t:A1:B3|k:Tab|w:2|t:2|k:Tab|w:2|t:FALSE|w:6')
+        self.assertNotIn("Function Arguments", yc.ui.state()["clipped_windows"])
+        self.keys("k:Escape|w:3|k:Escape|w:3")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
     def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):

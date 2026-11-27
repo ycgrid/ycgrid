@@ -3078,6 +3078,9 @@ void DrawFunctionArgs(AppState& s) {
     }
   }
   ImGui::Spacing();
+  // the description and the help of the argument being typed keep one height: grown when a box took the keyboard (a
+  // help two lines long), the dialog, sized when it opened, scrolled and cut OK and Cancel under its edge
+  const float help_top = ImGui::GetCursorPosY();
   if (h) {
     ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x);
     ImGui::TextWrapped("%s", h->desc);
@@ -3098,6 +3101,7 @@ void DrawFunctionArgs(AppState& s) {
     }
     ImGui::PopTextWrapPos();
   }
+  if (const float used = ImGui::GetCursorPosY() - help_top, room = ImGui::GetTextLineHeightWithSpacing() * 6; used < room) ImGui::Dummy(ImVec2(1, room - used));
   const std::string call = CallText(d);
   ImGui::Text("%s %s", TR("Formula result ="), ArgValue(s, call).c_str());
   static bool help = false;
