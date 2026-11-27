@@ -91,6 +91,11 @@ struct MiscUi {
   bool sort_header = true;
   Rect sort_rect{};
   uint32_t sort_table = 0;  // a table's data body: its header row (above) names the columns
+  // the selection before the dialog showed the cells it sorts: Cancel, Escape and the close box put it back (Excel 16,
+  // measured); OK keeps the sorted cells selected
+  bool sort_restore = false;
+  uint32_t sort_restore_sheet = 0;
+  render::Selection sort_saved_sel;
   // series
   int fs_dir = 1;   // 0 rows, 1 columns
   int fs_type = 0;  // 0 linear, 1 growth, 2 date, 3 AutoFill
@@ -202,6 +207,9 @@ void OpenCustomSort(AppState& s, const DataRange& t) {
   m.sort_sel = 0;
   m.sort_case = false;
   m.sort_ltr = false;
+  m.sort_restore = true;
+  m.sort_restore_sheet = s.focus_sheet;
+  m.sort_saved_sel = s.FocusView().sel;
   s.OpenDialog(Dialog::CustomSort);
 }
 
@@ -1228,6 +1236,11 @@ void RegisterMiscCommands(AppState& s) {
 
 void DrawMiscDialogs(AppState& s) {
   MiscUi& m = M();
+  // the Sort dialog closed without OK (its Options page is part of it)
+  if (m.sort_restore && s.dialog != Dialog::CustomSort && s.dialog != Dialog::SortOptions) {
+    m.sort_restore = false;
+    if (s.focus_sheet == m.sort_restore_sheet) s.FocusView().sel = m.sort_saved_sel;
+  }
   // notes
   if (BeginDlg(s, Dialog::NoteEdit, TR("Notes###yc_dlg_note"), 380)) {
     ImGui::Text(TR("Note for %s"), core::CellA1(m.note_r, m.note_c).c_str());
@@ -1928,6 +1941,7 @@ void DrawMiscDialogs(AppState& s) {
         d.Sort(sheet, r, keys, header, true, match_case, ltr);
         if (in_filter) d.SetFilterSort(sheet, levels);
       });
+      m.sort_restore = false;
       close = true;
     }
     ImGui::SameLine();

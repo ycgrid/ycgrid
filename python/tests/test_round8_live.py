@@ -402,6 +402,28 @@ class DialogsRound8Test(unittest.TestCase):
         self.keys("k:Escape|w:3|k:Escape|w:4")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_cancelling_the_sort_dialog_puts_the_selection_back(self):
+        # Excel 16 puts back the cell selected before the Sort dialog when it is cancelled (measured); the sheet kept
+        # the cells the dialog had shown, and the next key or format acted on the whole list
+        self.ws.Range("A1:C4").Value = [["Sym", "Side", "Qty"], ["B", "Buy", 3], ["A", "Sell", 5], ["C", "Buy", 1]]
+        sel = lambda: yc.excel.Application.Selection.Address
+        self.keys("g:B3|w:2|x:CustomSort|w:8")
+        self.assertEqual(sel(), "$A$2:$C$4")
+        self.keys("k:Escape|w:4")
+        self.assertEqual(sel(), "$B$3")
+        self.keys("x:CustomSort|w:8")
+        self.click(self.item("Cancel")["rect"])
+        self.keys("w:4")
+        self.assertEqual(sel(), "$B$3")
+        self.keys("x:CustomSort|w:8")  # Options... and back is still the dialog
+        self.click(self.item("Options...")["rect"])
+        self.keys("w:4|k:Enter|w:4")
+        self.assertEqual(sel(), "$A$2:$C$4")
+        self.keys("k:Enter|w:6")  # OK keeps the sorted cells selected
+        self.assertEqual(sel(), "$A$2:$C$4")
+        self.assertEqual([r[0] for r in self.ws.Range("B2:B4").Value], ["Buy", "Buy", "Sell"])
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_the_filter_menu_takes_excels_letters(self):
         # Alt+Down, E, a few letters, Enter: Excel's letters in the filter menu (S, O sort, C clears, E searches) did
         # nothing, and what was typed went nowhere

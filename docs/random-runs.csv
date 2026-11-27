@@ -11826,3 +11826,25 @@ date,tool,seed,seconds,result,note
 2026-11-27,doc_fuzz,2400187,111,ok,
 
 2026-11-27,screen_walk,r86,300,found,"Text That Contains and Equal To from a list of tickers: the proposed text measured in Excel"
+2026-11-27,calc_fuzz,4527,18,ok,
+2026-11-27,formula_fuzz,5508,0,ok,
+2026-11-27,chaos,7767,361,ok,
+2026-11-27,basics,4815,162,fail,basics_4815.txt
+2026-11-27,gaps_fuzz,700188,91,ok,
+2026-11-27,doc_fuzz,2400188,124,ok,
+2026-11-27,calc_fuzz,4528,31,ok,
+2026-11-27,formula_fuzz,5509,0,ok,
+2026-11-27,basics,4816,172,fail,basics_4816.txt
+2026-11-27,chaos,7768,361,ok,
+2026-11-27,gaps_fuzz,700189,95,ok,
+2026-11-27,doc_fuzz,2400189,113,ok,
+2026-11-27,calc_fuzz,4529,2,ok,
+2026-11-27,formula_fuzz,5510,0,ok,
+2026-11-27,chaos,7769,361,ok,
+2026-11-27,gaps_fuzz,700190,91,ok,
+2026-11-27,basics,4817,171,fail,basics_4817.txt
+2026-11-27,doc_fuzz,2400190,125,ok,
+2026-11-27,calc_fuzz,4530,16,ok,
+2026-11-27,formula_fuzz,5511,0,ok,
+
+2026-11-27,screen_walk,r87,300,found,"Data > Sort from Alt, A, S, S: two levels (Qty largest first, then Sym), OK, Cancel, Escape and the selection around them, measured in Excel"
