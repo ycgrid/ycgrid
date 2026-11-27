@@ -12681,3 +12681,20 @@ date,tool,seed,seconds,result,note
 2026-11-28,basics,4943,167,ok,
 
 2026-11-28,screen_walk,r132,600,found,"End mode on a price block: End with each arrow, Shift+arrow, Home, Shift+Home, Enter, Shift+Enter, End twice and Escape between, measured in Excel by keys"
+2026-11-28,doc_fuzz,2400320,95,ok,
+2026-11-28,calc_fuzz,4656,15,ok,
+2026-11-28,formula_fuzz,5637,1,ok,
+2026-11-28,basics,4944,162,ok,
+2026-11-28,chaos,7900,361,ok,
+2026-11-28,gaps_fuzz,700317,95,ok,
+2026-11-28,doc_fuzz,2400321,91,ok,
+2026-11-28,calc_fuzz,4657,30,ok,
+2026-11-28,formula_fuzz,5638,0,ok,
+2026-11-28,chaos,7901,361,ok,
+2026-11-28,basics,4945,165,ok,
+2026-11-28,gaps_fuzz,700318,91,ok,
+2026-11-28,doc_fuzz,2400322,98,ok,
+2026-11-28,calc_fuzz,4658,3,ok,
+2026-11-28,formula_fuzz,5639,0,ok,
+
+2026-11-28,screen_walk,r133,600,found,"Ctrl+Space, Shift+Space, Ctrl+A and Ctrl+Shift+Space pressed again and again from a table's data, header and totals, measured in Excel by keys"

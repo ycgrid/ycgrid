@@ -212,6 +212,34 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(keys_from("B2", "k:F8|w:2|k:Escape|w:2|k:RightArrow"), ("$C$2", "$C$2"))
         self.assertEqual(keys_from("B2", "k:End|w:2|k:End|w:2|k:DownArrow"), ("$B$3", "$B$3"))
 
+    def test_selection_keys_take_a_tables_part_first(self):
+        from yc import excel
+
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1).ShowTotals = True
+
+        def presses(start, key, n):
+            self.keys(f"g:{start}|w:3")
+            out = []
+            for _ in range(n):
+                self.keys(f"k:{key}|w:4")
+                out.append(excel.Selection.Address)
+            self.assertEqual(excel.ActiveCell.Address, self.ws.Range(start).Address)
+            return out
+
+        # Excel 16, measured by keys posted to its sheet window
+        self.assertEqual(presses("C4", "c-Space", 3), ["$C$3:$C$6", "$C$2:$C$7", "$C:$C"])
+        self.assertEqual(presses("C2", "c-Space", 2), ["$C$2:$C$7", "$C:$C"])
+        self.assertEqual(presses("C7", "c-Space", 2), ["$C$2:$C$7", "$C:$C"])
+        self.assertEqual(presses("C4", "s-Space", 2), ["$B$4:$D$4", "$4:$4"])
+        self.assertEqual(presses("C4", "c-A", 3), ["$B$3:$D$6", "$B$2:$D$7", "$1:$1048576"])
+        self.assertEqual(presses("C2", "c-A", 2), ["$B$2:$D$7", "$1:$1048576"])
+        self.assertEqual(presses("C4", "c-s-Space", 3), ["$B$3:$D$6", "$B$2:$D$7", "$1:$1048576"])
+        # outside the table they work as before
+        self.assertEqual(presses("F4", "c-Space", 1), ["$F:$F"])
+
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
         x, y = self.tab(self.other)
         self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")

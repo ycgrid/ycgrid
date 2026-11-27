@@ -19,6 +19,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <optional>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -3585,7 +3586,54 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     const bool star = ctrl && ((io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_8)) || ImGui::IsKeyPressed(ImGuiKey_KeypadMultiply));
     // Ctrl+Shift+Space works as Ctrl+A (the data around the active cell first)
     const bool sel_all = ctrl && ((!io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_A)) || (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Space)));
-    if (sel_all || star) {
+    // In a table, Ctrl+A, Ctrl+Shift+Space, Ctrl+Space and Shift+Space take the table's part first: Ctrl+A its data,
+    // then all of it; Ctrl+Space its column's data, then the column with its header and totals; Shift+Space its row;
+    // pressed again they go on as outside (Excel 16, measured by keys posted to its sheet window)
+    const model::Table* in_table = nullptr;
+    if (selst.areas.size() == 1 && selst.mode == SelectMode::Cells && !sheet.tables->empty()) {
+      for (const model::Table& tb : *sheet.tables) {
+        if (tb.range.Contains(selst.areas[0].r0, selst.areas[0].c0) && tb.range.Contains(selst.areas[0].r1, selst.areas[0].c1) &&
+            tb.range.Contains(selst.act_r, selst.act_c)) {
+          in_table = &tb;
+          break;
+        }
+      }
+    }
+    // the table part the keys take next from the area (nothing when the area is already all of it)
+    auto table_step = [&](const Rect& tpart, const Rect& twhole) -> std::optional<Rect> {
+      const Rect sa = selst.areas[0];
+      const bool within_part = tpart.Contains(sa.r0, sa.c0) && tpart.Contains(sa.r1, sa.c1);
+      if (within_part && !(sa == tpart)) return tpart;
+      if (!(sa == twhole)) return twhole;
+      return std::nullopt;
+    };
+    auto take_table_part = [&](const Rect& tp) {
+      selst.areas.assign(1, tp);
+      selst.anc_r = tp.r0, selst.anc_c = tp.c0;
+      selst.mode = SelectMode::Cells;
+      act.selection_changed = true;
+    };
+    bool table_took = false;
+    if ((sel_all || (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) ||
+         (io.KeyShift && !ctrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space))) &&
+        in_table) {
+      const Rect ta = selst.areas[0], tall = in_table->range, tdata = in_table->Data();
+      std::optional<Rect> tnext;
+      if (sel_all) tnext = table_step(tdata, tall);
+      else if (ctrl) tnext = table_step(Rect{tdata.r0, ta.c0, tdata.r1, ta.c1}, Rect{tall.r0, ta.c0, tall.r1, ta.c1});
+      else tnext = table_step(Rect{ta.r0, tall.c0, ta.r1, tall.c1}, Rect{ta.r0, tall.c0, ta.r1, tall.c1});
+      if (tnext && tdata.r0 <= tdata.r1) {
+        take_table_part(*tnext);
+        table_took = true;
+      } else if (sel_all) {
+        // all of the table already: the whole sheet
+        selst.areas.assign(1, Rect{0, 0, static_cast<uint32_t>(row_limit - 1), static_cast<uint32_t>(col_limit - 1)});
+        selst.mode = SelectMode::All;
+        act.selection_changed = true;
+        table_took = true;
+      }
+    }
+    if ((sel_all || star) && !table_took) {
       const Rect reg = engine::CurrentRegion(sheet, selst.act_r, selst.act_c);
       const bool lone = reg.IsCell() && sheet.IsEmptyCell(reg.r0, reg.c0);
       const bool already = selst.mode == SelectMode::Cells && selst.areas.size() == 1 && selst.areas[0] == reg;
@@ -3605,7 +3653,8 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     }
     // Ctrl+Space / Shift+Space: the whole columns / rows of every area, stored as a header click stores them (so
     // Shift+arrows after them grow whole columns / rows)
-    if (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) {
+    if (table_took) {
+    } else if (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) {
       for (Rect& wa : selst.areas) {
         if (selst.mode == SelectMode::Cells) wa = expand_merges(wa);  // a merged cell's columns, all of them
         wa = Rect{0, wa.c0, static_cast<uint32_t>(row_limit - 1), wa.c1};

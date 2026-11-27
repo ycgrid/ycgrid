@@ -97,6 +97,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   "No cells were found." on a dynamic array's spill, as in Excel.
 - End, Enter goes to the last column of the used area in the row (with Shift, selects up to it), and Escape
   leaves End mode on, as in Excel.
+- In a table, Ctrl+Space selects the column's data, then the column with its header and totals, then the sheet's
+  column; Shift+Space the table's row before the sheet's; Ctrl+A (and Ctrl+Shift+Space) the data, then the whole
+  table, then the sheet, as in Excel.
 
 ## 0.10.3 (2026-11-25)
 
