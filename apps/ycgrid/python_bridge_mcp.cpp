@@ -13,6 +13,7 @@
 #include "python_bridge.h"
 
 #include "app_state.h"
+#include "settings.h"
 #include "engine/snapshot.h"
 #include "error_log.h"
 #include "model/table.h"
@@ -424,6 +425,9 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
       for (const auto& n : s.clipped_windows) clipped.Push(MV::Str(n));
       o.Set("clipped_windows", std::move(clipped));  // dialogs whose contents are cut off on the right (should stay empty)
       o.Set("vscode_request", MV::Str(LastVsCodeRequest()));  // a hidden instance opens no VS Code: what it would have opened
+      // nor anything else on the desktop: the last link, file or folder it would have opened, and how many times
+      o.Set("desktop_open", MV::Str(ToUtf8(LastDesktopOpen())));
+      o.Set("desktop_opens", MV::Int(DesktopOpens()));
       MV wins = MV::Array();  // the top-level windows of the last frame: name, [x, y, width, height], fits its contents, popup
       for (const auto& w : s.window_rects) {
         MV e = MV::Map();

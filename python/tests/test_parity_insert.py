@@ -510,6 +510,19 @@ class NotesLinksTest(InsertParityBase):
         self.keys(f"u:{x},{y}|w:4")
         self.assertEqual(excel.ActiveSheet.Name, self.ws.Name)
         self.assertEqual(self.active(), "B2")
+        # a web link: a hidden instance opens nothing on the desktop and says what it would have opened
+        from yc import ui
+
+        self.ws.Hyperlinks.Add(self.ws.Range("D4"), "https://example.com/2330", TextToDisplay="TSMC")
+        self.keys("w:3")
+        before = ui.state()["desktop_opens"]
+        x, y = self.cell("D4")
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:6")
+        self.assertEqual((ui.state()["desktop_opens"], ui.state()["desktop_open"]), (before + 1, "https://example.com/2330"))
+        self.keys(f"m:{x},{y}|w:2|p:{x},{y}|w:3")
+        time.sleep(0.9)
+        self.keys(f"u:{x},{y}|w:4")
+        self.assertEqual(ui.state()["desktop_opens"], before + 1, "a hold selects the cell and follows nothing")
 
     def test_remove_link_takes_its_look(self):
         # M8: Remove Link left blue underlined text

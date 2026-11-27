@@ -271,7 +271,17 @@ bool g_save_enabled = true;
 void EnableSettingsSave(bool on) { g_save_enabled = on; }
 bool UserStateSaved() { return g_save_enabled; }
 
+namespace {
+std::wstring g_last_desktop_open;
+int g_desktop_opens = 0;
+}  // namespace
+
+std::wstring LastDesktopOpen() { return g_last_desktop_open; }
+int DesktopOpens() { return g_desktop_opens; }
+
 bool OpenOnDesktop(const std::wstring& target, const std::wstring& params, void* owner, int show) {
+  g_last_desktop_open = target;
+  ++g_desktop_opens;
   if (!g_save_enabled) return false;  // a hidden instance: nothing on the user's desktop
   // lesson-ok: shell-open the one place that opens things on the desktop
   const auto r = ::ShellExecuteW(static_cast<HWND>(owner), L"open", target.c_str(), params.empty() ? nullptr : params.c_str(), nullptr, show);

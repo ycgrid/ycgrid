@@ -93,6 +93,9 @@ finally:
   the settings (`editor.vscode`), as on a machine without VS Code: Alt+F11 then asks "VS Code not found" (Browse...
   takes a path queued with `ui.answer_file_dialogs`, and keeps it in the settings; give the instance its own
   `YCGRID_SETTINGS` file).
+- Nor does it open a link, file or folder on the desktop (a click on a web link, Open Hyperlink, a file's folder):
+  `ui.state()["desktop_open"]` is the last target it would have opened and `["desktop_opens"]` how many times it was
+  asked, so a test of a click that follows a link compares the count before and after.
 - A project from scratch: `python -m yc init <folder>` (run with YCGrid's own Python from `<YCGrid>\python`; the other
   `python -m yc` commands are in [app-development.md](app-development.md) §1).
 
