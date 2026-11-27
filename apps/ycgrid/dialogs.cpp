@@ -1608,6 +1608,7 @@ struct FindHit {
   std::string value, formula, name;  // Find All's Value, Formula and Name columns (as Excel's list)
 };
 std::vector<FindHit> g_hits;
+int g_hit_sel = -1;  // the row of the list last clicked, highlighted as in Excel
 // Format...: the format to find and to replace with; Choose Format From Cell arms a pick (1 find, 2 replace) taken
 // from the next cell clicked on the sheet
 engine::FormatSpec g_find_fmt, g_repl_fmt;
@@ -1991,6 +1992,7 @@ void DrawFindReplace(AppState& s) {
   }
   if (button(TR("Find All")) && s.engine && can_find) {
     g_hits = collect(g_find);
+    g_hit_sel = -1;
     s.SetStatus(g_hits.empty() ? std::string(TR("We couldn't find what you were looking for")) : TR("Find All: found ") + std::to_string(g_hits.size()) + TR(" cells"));
     if (g_hits.empty()) not_found();
   }
@@ -2029,6 +2031,7 @@ void DrawFindReplace(AppState& s) {
           return col == 1 ? h.name : col == 2 ? std::string(cell) : col == 3 ? h.value : h.formula;
         };
         std::stable_sort(g_hits.begin(), g_hits.end(), [&](const FindHit& a, const FindHit& b) { return desc ? key(b) < key(a) : key(a) < key(b); });
+        g_hit_sel = -1;
         ss->SpecsDirty = false;
       }
       ImGuiListClipper clip;
@@ -2039,14 +2042,20 @@ void DrawFindReplace(AppState& s) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
           ImGui::PushID(i);
-          if (ImGui::Selectable(h.sheet_name.c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) GoToHit(s, h);
+          if (ImGui::Selectable(h.sheet_name.c_str(), i == g_hit_sel, ImGuiSelectableFlags_SpanAllColumns)) {
+            g_hit_sel = i;
+            GoToHit(s, h);
+          }
           ImGui::PopID();
           if (!notes) {
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(h.name.c_str());
           }
           ImGui::TableNextColumn();
-          ImGui::TextUnformatted(core::CellA1(h.r, h.c, true, true).c_str());
+          const std::string addr = core::CellA1(h.r, h.c, true, true);
+          ImGui::TextUnformatted(addr.c_str());
+          // tests find a row by its sheet and cell, as a person reads it (the sheet's name alone is also a tab's)
+          ui::NoteUiText((h.sheet_name + "!" + addr).c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
           ImGui::TableNextColumn();
           ImGui::TextUnformatted(notes ? h.text.c_str() : h.value.c_str());
           if (!notes) {
@@ -2074,6 +2083,7 @@ void DrawFindReplace(AppState& s) {
   if (close) {
     g_find_open = 0;
     g_hits.clear();
+    g_hit_sel = -1;
   }
 }
 
