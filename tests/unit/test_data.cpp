@@ -264,6 +264,30 @@ TEST_CASE("outline groups") {
   CHECK(t.d.wb().sheets[0]->rows->MaxLevel() == 0);
 }
 
+TEST_CASE("Ungroup keeps collapsed rows hidden, Clear Outline shows them (Excel 16, measured)") {
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  const auto rows = [&] { return t.d.wb().sheets[0]->rows; };
+  t.d.GroupOutline(sh, true, 1, 3, true);
+  t.d.ShowOutlineLevel(sh, true, 1);
+  REQUIRE(rows()->IsHidden(2));
+  t.d.GroupOutline(sh, true, 1, 3, false);  // Alt+Shift+Left, Range.Ungroup
+  CHECK(rows()->Level(2) == 0);
+  CHECK(rows()->IsHidden(1));
+  CHECK(rows()->IsHidden(3));
+  t.d.HideRows(sh, 1, 3, false);
+  t.d.GroupOutline(sh, true, 1, 3, true);
+  t.d.ShowOutlineLevel(sh, true, 1);
+  t.d.ClearOutline(sh, true, 1, 2);  // Range("A2:A3").ClearOutline: those rows leave the group and are shown
+  CHECK_FALSE(rows()->IsHidden(1));
+  CHECK_FALSE(rows()->IsHidden(2));
+  CHECK(rows()->IsHidden(3));
+  CHECK(rows()->Level(3) == 1);
+  t.d.ClearOutline(sh, true);  // the whole sheet's
+  CHECK_FALSE(rows()->IsHidden(3));
+  CHECK(rows()->MaxLevel() == 0);
+}
+
 TEST_CASE("moving cells keeps formulas pointing at them") {
   yctest::Doc t;
   t.Set("A1", "5");

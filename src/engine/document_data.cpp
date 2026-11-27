@@ -414,8 +414,9 @@ void Document::GroupOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b_in
     if (group) {
       d.SetLevel(static_cast<int64_t>(i), std::min(l + 1, model::DimIndex::kMaxOutline));
     } else if (l > 0) {
+      // a hidden row that leaves its last group stays hidden (Excel 16, measured: Alt+Shift+Left and Range.Ungroup
+      // over collapsed rows); Clear Outline shows them
       d.SetLevel(static_cast<int64_t>(i), l - 1);
-      if (l == 1 && d.IsHidden(static_cast<int64_t>(i))) d.Hide(static_cast<int64_t>(i), false);  // no longer in a group: show it
     }
   }
   changes_.push_back(CellChange{sheet, rows ? Rect{a, 0, b, core::kMaxCols - 1} : Rect{0, a, core::kRowEnd, b}, kSrcUser});
@@ -530,14 +531,14 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
   return static_cast<int>(row_groups.size() + col_groups.size());
 }
 
-void Document::ClearOutline(uint32_t sheet, bool rows) {
+void Document::ClearOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b) {
   if (RefuseReadOnly(sheet)) return;
   Sheet* s = M(sheet);
   if (!s) return;
   NoteTouched();
   auto& d = rows ? s->rows.mut() : s->cols.mut();
   std::vector<int64_t> idx;
-  for (const auto& [i, l] : d.Levels()) idx.push_back(i);
+  for (auto it = d.Levels().lower_bound(a); it != d.Levels().end() && it->first <= b; ++it) idx.push_back(it->first);
   for (int64_t i : idx) {
     if (d.IsHidden(i)) d.Hide(i, false);
     d.SetLevel(i, 0);

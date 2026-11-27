@@ -11989,3 +11989,10 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5531,0,ok,
 2026-11-27,chaos,7790,361,ok,
 2026-11-27,gaps_fuzz,700211,98,ok,
+2026-11-27,basics,4838,165,fail,basics_4838.txt
+2026-11-27,doc_fuzz,2400211,107,ok,
+2026-11-27,chaos,7791,360,ok,
+2026-11-27,chaos,7792,361,ok,
+
+2026-11-27,screen_walk,r101,300,clean,"Ctrl+; and Ctrl+Shift+; in one cell and apart, Ctrl+' and Ctrl+Shift+' from the cell above"
+2026-11-27,screen_walk,r102,300,found,"Outline from the keyboard: Alt+Shift+Right on cells (the Rows dialog) and whole rows, the level buttons, Alt+Shift+Left over collapsed rows, measured in Excel with Clear Outline"

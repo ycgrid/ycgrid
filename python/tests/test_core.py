@@ -343,8 +343,8 @@ class UiCoverageRequestTest(RequestShapeTest):
         rng.InsertIndent(3)
         self.assertEqual(self.sent[-1][0], "range.style")
         excel.Range._from(1, [(2, 1, 4, 3)]).ClearOutline()
-        self.assertEqual(self.sent[-2], ("outline.level", {"sheet": 1, "rows": True, "index": 2, "b": 4, "set": 1}))
-        self.assertEqual(self.sent[-1], ("outline.level", {"sheet": 1, "rows": False, "index": 1, "b": 3, "set": 1}))
+        self.assertEqual(self.sent[-2], ("outline.level", {"sheet": 1, "rows": True, "index": 2, "b": 4, "set": 1, "clear": True}))
+        self.assertEqual(self.sent[-1], ("outline.level", {"sheet": 1, "rows": False, "index": 1, "b": 3, "set": 1, "clear": True}))
 
     def test_application_ui_members(self):
         excel.Application.Undo()

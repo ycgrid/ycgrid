@@ -391,6 +391,20 @@ class DialogsRound8Test(unittest.TestCase):
         self.click(self.item("##outline_row_5")["rect"])
         self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 5)], [False, False, False])
         self.ws.Range("A2:A4").Rows.Ungroup()
+        # Alt+Shift+Left over collapsed rows ungroups them and leaves them hidden, as Excel 16 does (measured); they
+        # were shown. Clear Outline shows them (measured too)
+        self.ws.Range("A2:A4").Rows.Group()
+        self.keys("w:4")
+        self.click(self.item("##outline_rows_1")["rect"])
+        self.keys("g:A1:A5|w:2|k:s-Space|w:2|k:a-s-LeftArrow|w:5")
+        self.assertEqual([self.ws.Rows(r).OutlineLevel for r in range(2, 5)], [1, 1, 1])
+        self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 5)], [True, True, True])
+        self.ws.Rows("2:4").Hidden = False
+        self.ws.Range("A2:A4").Rows.Group()
+        self.keys("w:4")
+        self.click(self.item("##outline_rows_1")["rect"])
+        self.ws.Range("A1").ClearOutline()
+        self.assertEqual([self.ws.Rows(r).Hidden for r in range(2, 5)], [False, False, False])
 
     def test_task_panes_sit_beside_the_sheets(self):
         # the Clipboard pane floated over columns A:D and the cells it was for; Excel's task panes sit beside the grid.

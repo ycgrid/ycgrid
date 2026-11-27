@@ -751,7 +751,9 @@ class Document : public formula::SheetResolver {
   uint32_t TextToColumns(uint32_t sheet, const Rect& src, uint32_t dest_r, uint32_t dest_c, const TextToColumnsOptions& o);
   // outline: group (level + 1) or ungroup rows / columns a..b; show levels; collapse / expand the group around index
   void GroupOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b, bool group);
-  void ClearOutline(uint32_t sheet, bool rows);
+  // Clear Outline: the lines of [a, b] (all of them by default) leave every group and are shown (Excel 16, measured:
+  // Range.ClearOutline and Data > Ungroup > Clear Outline both show collapsed rows; Ungroup keeps them hidden)
+  void ClearOutline(uint32_t sheet, bool rows, uint32_t a = 0, uint32_t b = 0xFFFFFFFFu);
   // Data > Outline settings: summary rows below detail, summary columns right of detail, automatic styles
   void SetOutlineSettings(uint32_t sheet, bool summary_below, bool summary_right, bool automatic_styles);
   int AutoOutline(uint32_t sheet, const Rect& area);  // groups the rows / columns SUM and SUBTOTAL formulas add up; returns the groups made

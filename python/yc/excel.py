@@ -7854,13 +7854,14 @@ class Range:
 
     def ClearOutline(self):  # noqa: N802
         """Remove the row and column groups of the range's rows and columns; one cell clears the whole sheet's outline,
-        as Data > Ungroup > Clear Outline does in Excel. Hidden rows and columns stay hidden."""
+        as Data > Ungroup > Clear Outline does in Excel. Collapsed rows and columns are shown again (Excel 16, measured;
+        Ungroup and OutlineLevel = 1 keep them hidden)."""
         a = self._a
         if a[0] == a[2] and a[1] == a[3]:
             a = (0, 0, ROW_END, MAX_COLS - 1)
         r1 = a[2] if a[2] != ROW_END else self.Worksheet.RowLimit - 1
-        _rq("outline.level", sheet=self._sheet, rows=True, index=a[0], b=r1, set=1)
-        _rq("outline.level", sheet=self._sheet, rows=False, index=a[1], b=a[3], set=1)
+        _rq("outline.level", sheet=self._sheet, rows=True, index=a[0], b=r1, set=1, clear=True)
+        _rq("outline.level", sheet=self._sheet, rows=False, index=a[1], b=a[3], set=1, clear=True)
 
     @property
     def ListObject(self):  # noqa: N802

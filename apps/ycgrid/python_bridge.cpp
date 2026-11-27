@@ -114,27 +114,6 @@ Rect Clamp(const model::Sheet& s, Rect r) {
   return r;
 }
 
-// the hidden rows (columns) of [a, b] that are in a group: Excel keeps them hidden when they leave it (Ungroup,
-// Clear Outline, OutlineLevel = 1), while Document::GroupOutline shows a row that leaves its last group
-std::vector<uint32_t> HiddenGrouped(const model::Sheet& s, bool rows, uint32_t a, uint32_t b) {
-  std::vector<uint32_t> out;
-  const auto& dim = rows ? *s.rows : *s.cols;
-  const auto& lv = dim.Levels();
-  for (auto it = lv.lower_bound(a); it != lv.end() && it->first <= b; ++it) {
-    if (dim.IsHidden(it->first)) out.push_back(static_cast<uint32_t>(it->first));
-  }
-  return out;
-}
-
-void HideAgain(Document& d, uint32_t sheet, bool rows, const std::vector<uint32_t>& hidden) {
-  for (const uint32_t i : hidden) {
-    const model::Sheet* s = d.S(sheet);
-    if (!s || (rows ? *s->rows : *s->cols).IsHidden(i)) continue;
-    if (rows) d.HideRows(sheet, i, i, true);
-    else d.HideCols(sheet, i, i, true);
-  }
-}
-
 MV ValueToMV(const core::Value& v) {
   switch (v.type()) {
     case core::VType::Number: return MV::Double(v.number());
@@ -2449,10 +2428,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         err = "Unable to get the Ungroup property of the Range class: the rows or columns are in no group";
         return;
       }
-      const std::vector<uint32_t> hidden = group ? std::vector<uint32_t>{} : HiddenGrouped(*s, rows, a, b);
       d.Begin(group ? "Group" : "Ungroup");
-      d.GroupOutline(sheet, rows, a, b, group);
-      HideAgain(d, sheet, rows, hidden);
+      d.GroupOutline(sheet, rows, a, b, group);  // hidden rows that leave their groups stay hidden, as Excel's
       d.Commit();
     });
     if (!err.empty()) return Err(ec, em, "E_APP", err), MV();
@@ -2530,6 +2507,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     if (const MV* set = p.Get("set")) {
       const int lv = static_cast<int>((set->t == MV::T::Double ? static_cast<int64_t>(set->d) : set->i));
       const uint32_t b_in = static_cast<uint32_t>(p.GetInt("b", index));
+      const bool clear = p.GetBool("clear", false);  // Clear Outline rather than OutlineLevel = 1
       if (lv < 1 || lv > model::DimIndex::kMaxOutline + 1) {
         return Err(ec, em, "E_APP", "Unable to set the OutlineLevel property of the Range class: the level goes from 1 to 8"), MV();
       }
@@ -2539,9 +2517,11 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // a whole column's end marker (0xFFFFFFFF) walked four billion lines
         const uint32_t b = std::min<uint32_t>(b_in, rows ? s0->row_limit - 1 : core::kMaxCols - 1);
         if (index > b) return;
-        const std::vector<uint32_t> hidden = HiddenGrouped(*s0, rows, index, b);
-        d.Begin("OutlineLevel");
-        if (lv == 1) {
+        d.Begin(clear ? "Clear Outline" : "OutlineLevel");
+        if (clear) {
+          // Range.ClearOutline: the lines leave every group and collapsed ones are shown (Excel 16, measured)
+          d.ClearOutline(sheet, rows, index, b);
+        } else if (lv == 1) {
           // Clear Outline: only the grouped rows change (a whole sheet's rows are not walked one by one)
           for (int k = 0; k <= model::DimIndex::kMaxOutline; ++k) {
             const model::Sheet* s = d.S(sheet);
@@ -2590,7 +2570,6 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
             for (int k = run.level; k > lv - 1; --k) d.GroupOutline(sheet, rows, run.a, run.b, false);
           }
         }
-        HideAgain(d, sheet, rows, hidden);
         d.Commit();
       });
       return {};
