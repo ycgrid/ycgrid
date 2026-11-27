@@ -487,6 +487,22 @@ class DialogsRound8Test(unittest.TestCase):
         finally:
             self.keys("k:Escape|w:3|k:Escape|w:3")
 
+    def test_alt_in_a_dialog_that_isnt_modal_stays_with_the_dialog(self):
+        # Symbol, Select Data Source, Error Checking...: Alt there lit the ribbon's KeyTips behind the dialog
+        self.keys("g:B2|w:2")
+        yc.ui.command("InsertSymbol")
+        self.keys("w:6")
+        try:
+            title = [w for w in yc.ui.windows() if w.get("name", "").startswith("Symbol")] if hasattr(yc.ui, "windows") else []
+            items = [i for i in yc.ui.items("Symbol") if i.get("rect")]
+            self.assertTrue(items, "the Symbol dialog is open")
+            r = items[0]["rect"]
+            x, y = int((r[0] + r[2]) / 2), int((r[1] + r[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:3|k:LeftAlt|w:4")
+            self.assertEqual(yc.ui.state()["ribbon"]["keytips"], 0, title)
+        finally:
+            self.keys("k:Escape|w:3|k:Escape|w:3")
+
     def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
         # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control
         def click(item):

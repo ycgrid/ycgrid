@@ -1703,7 +1703,7 @@ void DrawFindReplace(AppState& s) {
   }
   if (g_find_focus) ImGui::SetWindowFocus();
   // the dialog has the keyboard: Alt + a letter is its own (Replace All...), not the ribbon's KeyTips behind it
-  if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) ui::ribbon::St().dialog_keys_frame = ImGui::GetFrameCount();
+  NoteDialogKeyboard();
   bool close = !open || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape));
   bool replace = g_find_open == 2;
   if (BeginDlgTabBar("##find_tabs")) {
@@ -3441,6 +3441,10 @@ void PlaceNewWindow(WindowPlace where) {
     case WindowPlace::Right: pos = ImVec2(vp->Pos.x + vp->Size.x - S(24), vp->Pos.y + vp->Size.y * 0.22f), pivot = ImVec2(1.0f, 0.0f); break;
   }
   ImGui::SetNextWindowPos(pos, ImGuiCond_FirstUseEver, pivot);
+}
+
+void NoteDialogKeyboard() {
+  if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) ui::ribbon::St().dialog_keys_frame = ImGui::GetFrameCount();
 }
 
 bool DlgKey(ImGuiKey key) {

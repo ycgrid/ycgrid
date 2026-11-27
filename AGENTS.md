@@ -494,6 +494,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   "visible" variant reads false there, since the ribbon draws before the dialog), or Alt, H in Paste Special ran Home's
   commands under it. Excel 2003's menu keys (Alt, E, S, V) are `LegacyKeys` in ribbon.cpp, taken when no tab has the
   letter; a test sends a dialog's letter as a key (`k:V`), since its options read keys, not typed characters.
+  So does a dialog that isn't modal (Find and Replace, Select Data Source, Symbol) while it has the keyboard: it calls
+  `NoteDialogKeyboard()` after its Begin, or Alt+A (Replace All) opened the Data tab's KeyTips behind it. Its options
+  take Excel's letters through `DlgKey` (the letter alone off a text box, Alt+letter always): Ctrl+-, R, Enter and
+  F5, Alt+S, K, Enter are how people delete a row and select the blanks.
 - KeyTips register while they show: a held Alt + a letter (Alt+W pressed together) turns them on and is matched the
   next frame, once the tabs' are there; matched at once against none, it did nothing. ui.input's chords hold the
   modifier keys too (`ImGuiKey_LeftAlt`), as Windows sends them: with only the flag, no test pressed Alt as a person.

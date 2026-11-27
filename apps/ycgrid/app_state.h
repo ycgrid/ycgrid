@@ -827,6 +827,9 @@ bool CheckboxMixed(const char* label, bool* all, bool mixed);
 // an option's letter in a dialog (Excel's underlined one), while the dialog has the keyboard: the letter alone when no
 // text box takes it, or with Alt (Ctrl+-, R, Enter deletes a row; Alt+C ticks Text to Columns' Comma)
 bool DlgKey(ImGuiKey key);
+// a dialog that isn't modal (Find and Replace, Select Data Source, Symbol...) calls this after its Begin: while it has
+// the keyboard, Alt + a letter is the dialog's, never the ribbon's KeyTips behind it (Excel)
+void NoteDialogKeyboard();
 void FinishModalCopy(AppState& s);  // once a frame, after the dialogs
 void RegisterUiCustomCommands(AppState& s);
 void UpdateUiCustom(AppState& s);

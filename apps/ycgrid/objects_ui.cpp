@@ -4883,6 +4883,7 @@ void DrawAssignMacro(AppState& s) {
   ImGui::SetNextWindowSize(ImVec2(S(380), S(340)), ImGuiCond_Appearing);
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   if (ImGui::Begin(TR("Assign Macro###yc_assign_macro"), &u.assign_open, ImGuiWindowFlags_NoCollapse)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     ImGui::TextUnformatted(TR("Macro name:"));
     ImGui::SetNextItemWidth(-1);
     ImGui::InputText("##macro", u.assign_buf, sizeof u.assign_buf);
@@ -11994,6 +11995,7 @@ void DrawObjectPasteSpecial(AppState& s) {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   bool open = true, ok = false;
   if (ImGui::Begin(TR("Paste Special###yc_obj_paste_special"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (ImGui::IsWindowAppearing()) ImGui::SetWindowFocus();
     ImGui::TextUnformatted(TR("As:"));
     const char* what = !Clip().charts.empty() ? TR("YCGrid Chart Object") : TR("YCGrid Drawing Object");

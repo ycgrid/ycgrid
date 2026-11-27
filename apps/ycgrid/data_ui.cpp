@@ -1839,6 +1839,7 @@ void DrawErrorCheckingWindow(AppState& s) {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   bool open = true;
   if (ImGui::Begin(TR("Error Checking###yc_errorchecking"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape)) open = false;
     const engine::ErrorCheckOptions o = ErrorCheckingOptions();
     const int rule = engine::ErrorCheckRule(s.snap->wb, *sh, g_walk.r, g_walk.c, o);

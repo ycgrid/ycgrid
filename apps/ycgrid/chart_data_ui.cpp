@@ -372,6 +372,7 @@ void DrawCollapsed(AppState& s, SelectData& d) {
   PlaceNearChart(d, ImVec2(S(420), S(70)));
   bool open = true;
   if (ImGui::Begin(title, &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     const float w = ImGui::GetContentRegionAvail().x;
     bool picked = false;
     switch (d.collapsed_box) {
@@ -428,6 +429,7 @@ void DrawEditSeries(AppState& s, SelectData& d) {
   bool open = true;
   bool ok = false, cancel = false;
   if (ImGui::Begin(TR("Edit Series###yc_edit_series"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (d.focus) {
       ImGui::SetWindowFocus();
       d.focus = false;
@@ -494,6 +496,7 @@ void DrawAxisLabels(AppState& s, SelectData& d) {
   bool open = true;
   bool ok = false, cancel = false;
   if (ImGui::Begin(TR("Axis Labels###yc_axis_labels"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (d.focus) {
       ImGui::SetWindowFocus();
       d.focus = false;
@@ -750,6 +753,7 @@ void DrawSelectDataWindow(AppState& s) {
   PlaceNearChart(d, ImVec2(S(500), S(360)));
   bool open = true, ok = false, cancel = false;
   if (ImGui::Begin(TR("Select Data Source###yc_select_data"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (d.focus) {
       ImGui::SetWindowFocus();
       d.focus = false;
