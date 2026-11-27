@@ -468,6 +468,8 @@ void ItemExtras(const Item& it, const ImRect& r, const char* popup, bool* check 
   // a drop-down ("##menu", "##gallery"), a combo box ("##fonts", "##sizes", "##formats") or a plain button
   Seen(it.cmd, r, !popup ? "ribbon" : (std::strcmp(popup, "##menu") == 0 || std::strcmp(popup, "##gallery") == 0) ? "dropdown" : "combo");
   if (!popup) popup = "";
+  // a color button's KeyTip opens its palette, as Excel's (Alt, H, H: Fill Color); a click on its face applies the color
+  if (!*popup && it.kind == ItemKind::ColorSplit && it.color) popup = "##palette";
   if (g_kt_open == it.cmd && *popup) {
     ImGui::OpenPopup(popup);
     g_kt_open.clear();

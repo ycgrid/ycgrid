@@ -11887,3 +11887,20 @@ date,tool,seed,seconds,result,note
 2026-11-27,basics,4823,163,fail,basics_4823.txt
 
 2026-11-27,screen_walk,r91,300,found,"The Number Format list from Alt, H, N: where it opens, the arrows and Enter, the active cell after it"
+2026-11-27,basics,4824,162,fail,basics_4824.txt
+2026-11-27,chaos,7776,361,ok,
+2026-11-27,formula_fuzz,5517,0,ok,
+2026-11-27,calc_fuzz,4536,15,ok,
+2026-11-27,doc_fuzz,2400196,281,ok,
+2026-11-27,gaps_fuzz,700197,95,ok,
+2026-11-27,doc_fuzz,2400197,113,ok,
+2026-11-27,calc_fuzz,4537,30,ok,
+2026-11-27,formula_fuzz,5518,0,ok,
+2026-11-27,chaos,7777,361,ok,
+2026-11-27,gaps_fuzz,700198,88,ok,
+2026-11-27,basics,4825,169,fail,basics_4825.txt
+2026-11-27,doc_fuzz,2400198,125,ok,
+2026-11-27,calc_fuzz,4538,2,ok,
+2026-11-27,formula_fuzz,5519,0,ok,
+
+2026-11-27,screen_walk,r92,300,found,"Menus opened from the keyboard: Shift+F10, the Menu key, Alt+Down on a filter, Alt, H, B (Borders), Alt, H, H (Fill Color), Alt, H, F, C (Font Color), Alt, N, C, 1"

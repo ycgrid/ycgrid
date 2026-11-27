@@ -328,6 +328,14 @@ class FormattingParityTest(unittest.TestCase):
         self.assertEqual(ui.state()["active_cell"], "B2")
         self.keys("t:5|k:Enter|w:4")  # the sheet has the keyboard again
         self.assertEqual(self.ws.Range("B2").Value, 0.05)
+        # Alt, H, H opens Fill Color's palette under its button (it applied the last color at once)
+        self.keys("m:2,2|w:2|g:C3|w:2|k:Alt|w:3|t:H|w:3|t:H|w:6")
+        self.assertEqual(self.ws.Range("C3").Interior.ColorIndex, -4142)  # xlColorIndexNone: nothing applied yet
+        fill = self.ribbon("FillColor")
+        red = self.find("Red")["rect"]
+        self.assertTrue(fill[0] - 5 <= self.find("No Fill")["rect"][0] < fill[0] + 30)
+        self.click_rect(red)
+        self.assertEqual(self.ws.Range("C3").Interior.Color, 0x0000FF)  # BGR
 
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
