@@ -770,6 +770,27 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
     Rect nr = t.range;
     if (below) nr.r1 = w.r1;
     else nr.c1 = std::min(w.c1, core::kMaxCols - 1);
+    // only over a line that holds nothing besides what is written (Excel 16, measured): 9 typed in C7 under a table
+    // doesn't grow it while B7 holds =SUM(B2:B6), 5 or any text, nor in D2 beside it while D4 does. Grown, the table
+    // took the SUM in and its range followed to =SUM(B2:B7), a circular reference (basics seq470822). A spill's
+    // values are TakeSpillsUnder's
+    {
+      const Rect band = below ? Rect{t.range.r1 + 1, t.range.c0, nr.r1, t.range.c1} : Rect{t.range.r0, t.range.c1 + 1, t.range.r1, nr.c1};
+      bool other = false;
+      auto counts = [&](uint32_t rr, uint32_t cc) {
+        if (other || w.Contains(rr, cc)) return;
+        uint32_t ar = 0, ac = 0;
+        if (!s->spills->empty() && s->SpillAt(rr, cc, &ar, &ac) && (ar != rr || ac != cc)) return;
+        other = true;
+      };
+      ForEachCellInTiles(s->values, band, [&](uint32_t rr, uint32_t cc, const model::ValueTile& vt, uint32_t idx) {
+        if (vt.Occupied(idx)) counts(rr, cc);
+      });
+      ForEachCellInTiles(s->meta, band, [&](uint32_t rr, uint32_t cc, const model::MetaTile& mt, uint32_t idx) {
+        if (mt.formula[idx]) counts(rr, cc);
+      });
+      if (other) continue;
+    }
     // it doesn't grow over what a table can't hold: a typed formula beside it took in part of an array, whose value
     // became a header (doc_fuzz seed 10312766)
     if (!TableCantHold(sheet, nr, t.id).empty()) return;

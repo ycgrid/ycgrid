@@ -584,3 +584,80 @@ TEST_CASE("Round8 tables: a table growing down takes in the ranges that end at i
   CHECK(t.F("G1") == "=SUM(B2:C3)");
   CHECK(t.N("G7") == 2);
 }
+
+TEST_CASE("Round8: a formula refused under a table changes nothing, the table's size and the formula's range included") {
+  // F2, 9, Enter on =SUM(B2:B4) right under a table: the entry is refused (extra content after the formula), and the
+  // table grew over it first, its range followed to =SUM(B2:B5), a circular reference, with an Undo step (basics
+  // seq470822). Excel leaves everything as it was
+  yctest::Doc t;
+  t.Set("A1", "Item");
+  t.Set("B1", "Qty");
+  for (int i = 2; i <= 4; ++i) {
+    t.Set(("A" + std::to_string(i)).c_str(), "x");
+    t.Set(("B" + std::to_string(i)).c_str(), std::to_string(i));
+  }
+  t.Set("B5", "=SUM(B2:B4)");  // before the table: typed under it, it would grow the table
+  std::string err;
+  const uint32_t id = t.d.AddTable(t.sheet(), Rect{0, 0, 3, 1}, true, "", &err);
+  REQUIRE(id);
+  t.d.Recalc();
+  t.d.ClearUndo();
+  const size_t depth = t.d.UndoDepth();
+  t.d.Begin("typing");
+  std::string why;
+  CHECK_FALSE(t.d.SetInput(t.sheet(), 4, 1, "=SUM(B2:B4)9", &why));
+  t.d.Commit();
+  t.d.Recalc();
+  CHECK_FALSE(why.empty());
+  CHECK(t.F("B5") == "=SUM(B2:B4)");
+  CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 3);
+  CHECK(t.d.circular_cells.empty());
+  CHECK(t.d.UndoDepth() == depth);
+}
+
+TEST_CASE("Round8: typing beside a table grows it only over a line that holds nothing else") {
+  // Excel 16, measured (keys posted to its sheet window): 9 typed in C7 under A1:C6 grows the table while row 7 is
+  // empty, and doesn't while B7 holds =SUM(B2:B6), 5 or text; the same for D2 beside it with D4 holding something
+  auto make = [](yctest::Doc& t, const char* other, const char* text) {
+    t.Set("A1", "Item");
+    t.Set("B1", "Qty");
+    t.Set("C1", "Price");
+    for (int i = 2; i <= 6; ++i) {
+      const std::string row = std::to_string(i);
+      t.Set(("A" + row).c_str(), "x");
+      t.Set(("B" + row).c_str(), std::to_string(i));
+      t.Set(("C" + row).c_str(), std::to_string(i * 10));
+    }
+    if (other) t.Set(other, text);
+    std::string err;
+    const uint32_t id = t.d.AddTable(t.sheet(), Rect{0, 0, 5, 2}, true, "", &err);
+    REQUIRE(id);
+    return id;
+  };
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, nullptr, nullptr);
+    t.Set("C7", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 6);
+  }
+  for (const char* text : {"=SUM(B2:B6)", "5", "note"}) {
+    yctest::Doc t;
+    const uint32_t id = make(t, "B7", text);
+    t.Set("C7", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 5);
+    CHECK(t.F("B7") == text);
+    CHECK(t.d.circular_cells.empty());
+  }
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, nullptr, nullptr);
+    t.Set("D2", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.c1 == 3);
+  }
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, "D4", "5");
+    t.Set("D2", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.c1 == 2);
+  }
+}

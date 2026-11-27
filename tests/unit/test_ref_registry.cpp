@@ -535,6 +535,10 @@ TEST_CASE("A cell read from a file next to a table leaves the table as the file 
   REQUIRE(t.d.AddTable(sh, Rect{0, 0, 1, 1}, true, "TableStyleMedium2") != 0);
   t.d.SetValue(sh, 2, 0, yc::core::Value::Number(5), engine::kSrcFile);  // A3, under the table
   CHECK(t.d.S(sh)->tables->at(0).range == (Rect{0, 0, 1, 1}));
-  t.d.SetValue(sh, 2, 1, yc::core::Value::Number(6), engine::kSrcPython);  // code writing there grows it, as Excel's
-  CHECK(t.d.S(sh)->tables->at(0).range == (Rect{0, 0, 2, 1}));
+  // code writing beside a table grows it over a line that holds nothing else, as Excel's (measured: Range.Value of C7
+  // under A1:C6 grows it while row 7 is empty); row 3 holds the file's A3, so B3 doesn't
+  t.d.SetValue(sh, 2, 1, yc::core::Value::Number(6), engine::kSrcPython);
+  CHECK(t.d.S(sh)->tables->at(0).range == (Rect{0, 0, 1, 1}));
+  t.d.SetValue(sh, 1, 2, yc::core::Value::Number(7), engine::kSrcPython);  // C2, beside the table's empty column
+  CHECK(t.d.S(sh)->tables->at(0).range == (Rect{0, 0, 1, 2}));
 }

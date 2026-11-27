@@ -836,6 +836,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   them (a fill of blanks, a cut from another sheet), inside the step so Undo takes it back. Each path that kept a rule
   of its own let a header hold a number, a formula or an array's value (doc_fuzz seeds 10280369, 10290940, 10312766,
   10320462).
+- A table grows by itself (typing or code writing beside it) only over a line that holds nothing besides what is
+  written, and never for an entry that is refused (Excel 16, measured by keys posted to its sheet window): grown over
+  `=SUM(B2:B6)` under it, the SUM's range followed to the new row, a circular reference (basics seq470822). Measure a
+  rule that decides when Excel does something by itself with the cells around it empty and not.
 - Whether an array can spill is one rule (`Document::SpillBlocked`: a value or formula, a merged area, another array,
   a table), and a #SPILL! anchor is woken by what frees its range whatever freed it (`RecheckBlockedSpills` before
   every calculation, as a spill a merged area now crosses is calculated again): the paths that woke anchors by the

@@ -928,6 +928,16 @@ bool Document::SetInput(uint32_t sheet, uint32_t r, uint32_t c, std::string_view
   }
   // typing (or code writing) next to a table grows it; a formula in an empty table column fills the column
   const bool table_rules = PolicyFor(src).table_rules;
+  // ...but a formula that is refused changes nothing, as in Excel: F2, 9, Enter on =SUM(B2:B6) under a table grew
+  // the table over it, its range followed to =SUM(B2:B7), a circular reference, and left an Undo step (basics
+  // seq470822). One with a structured reference ([@Qty]) may need the table grown first to read
+  if (table_rules && text[0] == '=' && text.size() > 1 && text.find('[') == std::string_view::npos) {
+    const formula::ParseResult pre = formula::Parse(text.substr(1), core::CellPos{r, c}, this, r1c1);
+    if (!pre.ok) {
+      if (error) *error = pre.error;
+      return false;
+    }
+  }
   if (table_rules) AutoExpandTable(sheet, r, c);
   if (text[0] == '=' && text.size() > 1) {
     if (!SetFormula(sheet, r, c, text.substr(1), error, src, r1c1)) return false;
