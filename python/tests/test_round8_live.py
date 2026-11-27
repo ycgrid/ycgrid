@@ -206,6 +206,21 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(excel.Application.ActiveCell.Address, "$B$3")
         self.assertEqual(excel.Application.ActiveWindow.ScrollRow, 1)
 
+    def test_enter_and_home_with_ctrl_or_alt_leave_the_active_cell(self):
+        # outside an entry Alt+Enter moved down as Enter and Alt+Home went to column A as Home; Excel 16 does nothing
+        # for either, nor for Ctrl+Enter and Ctrl+Shift+Enter (measured by keys posted to its sheet window)
+        from yc import excel
+
+        self.ws.Range("B3").Value2 = 7
+        for chord in ("a-Enter", "c-Enter", "c-s-Enter", "a-s-Enter", "a-Home"):
+            self.keys(f"g:B3|w:2|k:{chord}|w:3|k:Escape|w:2")
+            self.assertEqual(excel.Application.ActiveCell.Address, "$B$3", chord)
+            self.assertEqual(self.ws.Range("B3").Value2, 7, chord)
+        self.keys("g:B3|w:2|k:Enter|w:3")
+        self.assertEqual(excel.Application.ActiveCell.Address, "$B$4")
+        self.keys("g:B3|w:2|k:Home|w:3")
+        self.assertEqual(excel.Application.ActiveCell.Address, "$A$3")
+
     def test_ctrl_enter_gives_every_cell_the_entry_format(self):
         self.keys("g:F2:F5|w:2|t:5%|k:c-Enter|w:5")
         self.assertEqual([self.ws.Range(f"F{r}").Text for r in range(2, 6)], ["5%"] * 4)  # F3:F5 showed 0.05

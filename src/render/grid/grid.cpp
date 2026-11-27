@@ -3551,13 +3551,14 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       EnsureVisible(sheet, view, static_cast<uint32_t>(tr), static_cast<uint32_t>(tc));
       act.selection_changed = true;
     };
-    if (key_pressed(ImGuiKey_Home) && view.end_mode) {
+    // Alt+Home and Alt+Enter do nothing on the sheet (Excel 16, measured by keys posted to its sheet window)
+    if (key_pressed(ImGuiKey_Home) && view.end_mode && !io.KeyAlt) {
       // End, then Home: the last cell of the used area, as Ctrl+End (Excel)
       const core::CellPos lc = engine::LastCell(sheet);
       if (shift && selst.mode == SelectMode::Cells) grow_to(lc.row, lc.col);
       else move_to(lc.row, lc.col, shift);
       view.end_mode = false;
-    } else if (key_pressed(ImGuiKey_Home)) {
+    } else if (key_pressed(ImGuiKey_Home) && !io.KeyAlt) {
       const int64_t hr = ctrl ? (view.freeze_rows ? fr_end : 0) : er, hc = view.freeze_cols && !tee ? fc_end : 0;
       if (ctrl && shift && selst.mode == SelectMode::Cells) grow_to(hr, hc);
       else move_to(hr, hc, shift);
@@ -3700,7 +3701,8 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       EnsureVisible(sheet, view, selst.act_r, selst.act_c);
       act.selection_changed = true;
     };
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
+    // Enter with Ctrl or Alt moves nothing outside an entry (Excel 16, measured: Ctrl+Enter, Alt+Enter, Ctrl+Shift+Enter)
+    if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && !ctrl && !io.KeyAlt) {
       if (opt.copy_marquee && !opt.marquee_no_paste && !io.KeyShift && !ctrl && !io.KeyAlt) act.paste_enter = true;
       else if (opt.enter_dir > 0) {
         // File > Options: the way Enter moves (Shift+Enter: the other way)

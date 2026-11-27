@@ -77,6 +77,20 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - Find All highlights the row clicked.
 - A validation's input message floats over the circles and objects on the cells.
 - Renaming a sheet to a name in use says Excel's message ("That name is already taken. Try a different one.").
+- Excel's letters in the dialogs people drive from the keyboard: Insert and Delete (Ctrl+-, R, Enter deletes the
+  row), Text to Columns, Go To's Special button (Alt+S) and Go To Special (F5, Alt+S, K, Enter selects the blanks; K
+  did nothing, and the = Up Ctrl+Enter after it wrote a formula over the data), Find and Replace (Alt+A replaces all).
+  Alt and a letter in a dialog that leaves the sheet usable stay with the dialog instead of the ribbon behind it.
+- Ribbon drop-downs open under their button: opened from the KeyTips (Alt, H, N) they showed wherever the mouse was.
+  The arrows and Enter pick an entry in them, and that Enter no longer moves the active cell; Alt, H, H and Alt, H,
+  F, C open the color palette instead of applying the last color.
+- Greater Than, Less Than, Equal To and Between start with Excel's values (halfway between the lowest and the highest
+  number; a quarter and three quarters of the way, rounded), and Text That Contains with the active cell's text.
+- Cancelling the Sort dialog puts the selection back, as in Excel; OK keeps the sorted cells selected.
+- Home > Fill > Series from one cell with a Stop value fills down (or across) to it, as in Excel.
+- Ctrl+PgDn and Ctrl+PgUp no longer page the sheet they leave a screen down; Alt+Enter, Ctrl+Enter and Alt+Home
+  outside an entry leave the active cell where it is, as in Excel.
+- Customize Status Bar names Minimum and Maximum in full, as Excel's menu.
 
 ## 0.10.3 (2026-11-25)
 

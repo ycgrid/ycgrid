@@ -671,7 +671,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   in a hidden Excel writes a range's totals, readable through COM).
 - A key the grid handles checks the modifiers a shortcut adds to it: Ctrl+PgDn switched the sheet (main.cpp) and the
   grid's PageDown, which asked only about Alt, paged the sheet it left a screen down at every switch, unseen until a
-  person came back to it. Test a shortcut by the state it leaves behind as well as the one it makes.
+  person came back to it. Alt+Enter moved down as Enter and Alt+Home went to column A, where Excel 16 does nothing
+  (measured by keys posted to its sheet window). Test a shortcut by the state it leaves behind as well as the one it
+  makes, and measure a key with each modifier before letting it fall through to the plain key's action.
 - Typing is not a command: F4 / Ctrl+Y repeat the last command (`AppState::repeat_id`, noted by
   `CommandRegistry::on_run`), and an entry is neither repeated nor ends what they repeat. A "Repeat Typing" written
   as Excel's without a measurement typed a cell's old value over the next cell after F2, Enter, F4.

@@ -487,6 +487,8 @@ ALLOWED = [
     ("*", "type_ref_formula", r"circular", "a formula pointing at its own cell is a circular reference, as in Excel"),
     ("*", "f4_in_edit", r"circular", "=$E$9 typed in E9 (the active cell after a Ctrl+drag copy) is its own cell: Excel warns too (seq310230)"),
     ("*", "find", r"couldn't find", "Find searches the selection when several cells are selected: Excel says so too"),
+    ("*", "replace_all", r"All done\. We made \d+ replacements|couldn't find anything to replace",
+     "Replace All reports what it replaced, or that it found nothing, as Excel's Find and Replace does (Alt+A reached the ribbon behind the dialog before)"),
     ("rules", "*", r"must enter a (whole )?number|outside the allowed range|doesn't match", "a value the cell's data validation refuses: Excel stops it too"),
     ("*", "sort_asc", r"can't be applied to the selected range", "Sort on an empty cell: Excel's own message"),
     ("*", "sort_asc", r"shift cells in a table",
