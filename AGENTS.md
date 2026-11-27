@@ -38,8 +38,10 @@ invent a sixth:
 
 ## Git
 
-- Work on `dev` or a branch from it; pull requests go to `dev`. `main` holds the released versions.
-- Don't push unless asked.
+- Work on a branch from `dev` and bring it in through a pull request to `dev`, never a direct push; `main` holds the
+  released versions and moves only through a pull request from `dev`. Every step (branch names, the pull request,
+  waiting for CI, merging with a merge commit, the release) is in [docs/git-workflow.md](docs/git-workflow.md).
+- Don't push, open a pull request or merge unless asked.
 - Commit messages are English: a first line saying what changes for the user, then the details when they help. No
   `Co-Authored-By` trailer or any other AI-agent attribution.
 - Every source file of YCGrid's own (C++, Python, `.cmd`, CMake) starts with `SPDX-License-Identifier: Apache-2.0`
@@ -408,6 +410,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   flags`; `col, thickness, flags`): the other order is a deleted overload.
 - ImGui owns Ctrl+Tab / Ctrl+Shift+Tab (its window switcher, even without keyboard navigation) unless
   `ConfigNavWindowingKeyNext` / `Prev` are 0: YCGrid sets them to 0 so the keys switch workbook windows as in Excel.
+- `IsWindowHovered` is false while any item is active, the window's own too: the grid's wheel waited for the end of
+  its own selection drag. What must work during a drag or an entry (the wheel over the sheet) adds
+  `ImGuiHoveredFlags_AllowWhenBlockedByActiveItem`.
 - `IsWindowHovered(ImGuiHoveredFlags_ChildWindows)` is also true over a popup opened from that window (a chart's flyout
   opened by the sheet): add `ImGuiHoveredFlags_NoPopupHierarchy` where the window acts on the mouse (the sheet's wheel).
 - ImGui scales a font so that ascent + descent equals its size: a font's real line height (rows that fit a taller
@@ -418,6 +423,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 
 - A modal dialog (`BeginModal`) blocks the sheet: a box that takes cells must use `RefEdit` and let the user reach
   the sheet (a non-modal window, or the dialog shrunk to the box while picking).
+- A range box takes a cell clicked on the sheet while it has the keyboard (Excel's RefEdit), not only through its
+  button: the press the modal dialog kept is handed to the grid (`Pick::direct`, its click time reset so it isn't a
+  double-click that edits the cell) and the dialog comes back when the button goes up.
+- A letter taken from a label (a KeyTip without Excel's fixed key) comes from the English label
+  (`i18n::SourceOf`): a Chinese label has none, and Alt, H, L, H, G reached nothing in the Chinese UI.
 - Picking cells for a range box (RefEdit) puts the sheet's selection back afterwards, as Excel does, and the grid
   leaves a cell entry in progress alone meanwhile (Insert Function's arguments): a dialog that reads the selection
   at OK (Data Validation) applied its rule to the cells picked for its list, and a drag pointed in the cell's
@@ -429,6 +439,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   clicks on the sheet silently change it.
 - Live updates (a range box filled while the mouse drags) run on every frame of the drag: derive titles, legends and
   defaults from the final state, never from the first event.
+- A dialog that leaves the sheet usable (a window, not `BeginModal`: Insert Symbol, Mark Parameter) closes on Escape
+  like any dialog: both stayed open, since ui_sweep pressed Escape only on modal dialogs. Its dialogs pass also
+  takes every new floating window with a Cancel or Close button and fails one Escape leaves open.
 - A dialog opened over another (Confirm Password, New Range) takes Enter; the frames after it closes, the dialog under
   it must not take that Enter as its own OK (protect_ui's `ParentOk`), or both close at once.
 - File > Options edits a copy that OK applies and Cancel drops: a new option binds to `cfg` (the copy) and gets its
@@ -462,6 +475,13 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - Excel's KeyTips (`FixedKeyTips`, `MenuKeyTips` in ribbon.cpp) are keyed by the command id the ribbon item or menu
   entry really uses (`ConditionalFormatting`, not a made-up `CondFormatMenu`): a wrong or renamed id silently falls
   back to two letters of the label. Test the sequence a person types (Alt, H, O, I), not the map.
+- A modal dialog owns the keyboard: the ribbon's KeyTips stay off while one is open (`GetTopMostPopupModal`; the
+  "visible" variant reads false there, since the ribbon draws before the dialog), or Alt, H in Paste Special ran Home's
+  commands under it. Excel 2003's menu keys (Alt, E, S, V) are `LegacyKeys` in ribbon.cpp, taken when no tab has the
+  letter; a test sends a dialog's letter as a key (`k:V`), since its options read keys, not typed characters.
+- KeyTips register while they show: a held Alt + a letter (Alt+W pressed together) turns them on and is matched the
+  next frame, once the tabs' are there; matched at once against none, it did nothing. ui.input's chords hold the
+  modifier keys too (`ImGuiKey_LeftAlt`), as Windows sends them: with only the flag, no test pressed Alt as a person.
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in
   the same frame, so the ribbon never collapsed (since the first release). Before adding a key, grep for its chord;
   test the key a person presses and that the state changed (`test_parity_habits.ShortcutsTest`). `check_lessons.py`'s
@@ -532,6 +552,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - The character that starts an entry is put into the editor, not typed into it: no edit event comes for it, so what
   reacts to typing (AutoComplete, `EditState::ac_first`) also runs once for it, or one Chinese character never
   completes.
+- The text that starts an entry can be several characters (a Chinese IME commits `12.5%` in one frame): what the
+  first character decides (automatic percent entry adds a %) looks at all of it, or 12.5% was the text 12.5%%. Test
+  a typed entry as one `t:` step too, not only one character a step.
 - The cell editor's keys work only while its `EditField` is drawn: keep it alive (invisible) when its cell scrolls out
   of view, as for any widget that owns a live entry.
 - The editor's caret (`EditState::caret`) follows every change of its text in the same frame: InputText calls its
@@ -1180,6 +1203,23 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 
 ### Python and the skill
 
+- A click action (`yc.interact.on_click`) runs on the host's thread beside a screen's live loop: what both change (a
+  figure's items, a shared position) is changed under one lock. market_watch drew its chart from the click and from
+  the loop at once, each saw the symbol change and added its lines, and a dozen fast clicks left seven copies of every
+  line. A click action also runs on every click: an order button that a double-click must not send twice uses
+  `RiskLimits.duplicate_window`, and a quantity typed wrong sends nothing rather than a guess. It runs on a press and
+  a release on the same cell, as a button: run on the press, a drag selecting a ladder's sizes sent an order. What a
+  screen shows per price (the ladder's My Bid) adds up every order there (`Ladder.working`). A line that stands for an
+  order stays in view (`drag_line(..., fit=True)`) and says when the order is gone (filled, refused). A timer chain
+  (`Application.OnTime`) that a button pauses and resumes keeps one tick waiting at most, and a live table finds its
+  rows by key, never by position: a person sorts it (demo tripled its updates and measured TSMC against MediaTek's
+  open). A screen with several figures docks them (`Dock`, `Anchor=`): floating, each opened over the one before and
+  the first, the screen's own chart, lay under the rest, and a single one floated over the cells the screen shows
+  (backtest_report's trade list): ui_sweep's examples fail figures that cover each other or most of the sheet.
+  The example screens are
+  used as a trader uses them in `tests.test_live_screens` (tabs, rows, buttons, mistakes, while the data streams),
+  checked by what they show (`plot.figures()` lists each plot's items): a new example screen gets its class there.
+  The converged random tools never clicked an example's own controls on purpose and found none of these.
 - What a button starts in the background (Install on the package bar) shows that it is working and ends in a state
   the person sees: the bar went away on Install, a failed install said only "Installation failed (code 1)" in the
   Error Log, and the example stayed blank. The bar says "Installing...", and a failure brings it back with the

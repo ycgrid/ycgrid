@@ -43,6 +43,11 @@ def run(points: int = 10_000_000, seed: int = 2):
     hm = plot.figure("Correlation", size=(620, 560))
     hm[0].heatmap(c, xlabels=names, ylabels=names, cmap="rdbu", vmin=-1, vmax=1)
     hm[0].set(title="Correlation matrix")
+    # docked beside the sheet, the ten million points on top: floating, each window opened over the one before and the
+    # heatmap covered the chart this example is about
+    fig.Dock("right", Ratio=0.7)
+    h.Dock("bottom", Ratio=0.5, Anchor=fig)
+    hm.Dock("right", Ratio=0.5, Anchor=h)
     print(f"[example] {points:,} points sent in {t1 - t0:.2f} s; histogram {t2 - t1:.2f} s")
     return fig, h, hm
 

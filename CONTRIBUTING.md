@@ -49,6 +49,7 @@ page the compiler's dependency tracking needs.
 ## Making a change
 
 1. Fork the repository and branch from `dev`; pull requests go to `dev`. `main` holds the released versions.
+   [docs/git-workflow.md](docs/git-workflow.md) has every step.
 2. Make the change with its tests (below). Keep a pull request to one topic.
 3. Run the checks, then open the pull request and fill in its template.
 

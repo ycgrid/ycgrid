@@ -82,6 +82,7 @@ def run(scenarios: int = 100_000, seed: int = 21, dof: float = 4.0):
     ws.Columns(4).ColumnWidth = 18
     ws.Columns(5).ColumnWidth = 22
     fig = plot.figure("Monte Carlo VaR", rows=1, cols=2, size=(1200, 480))
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].hist(pnl / 1e6, bins=120, label="P&L (millions)", color="#5c6bc0")
     fig[0].vline([-var[0.95] / 1e6], label="VaR 95%", color="#ef6c00", width=2)
     fig[0].vline([-var[0.99] / 1e6], label="VaR 99%", color="#c62828", width=2)

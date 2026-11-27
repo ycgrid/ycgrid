@@ -120,6 +120,7 @@ def run():
     body.NumberFormat = "#,##0,K;-#,##0,K"
     color_scale(body)  # losses green, profits red
     fig = plot.figure("Scenario P&L", size=(760, 520), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     lim_k = float(np.abs(grid).max()) / 1e3 or 1.0
     fig[0].heatmap(grid[::-1] / 1e3, xlabels=[f"{m:+.0%}" for m in moves], ylabels=[f"{s:+.0%}" for s in shifts[::-1]],
                    cmap="pnl", vmin=-lim_k, vmax=lim_k, fmt="%.0f")

@@ -109,6 +109,7 @@ def run(speed: float = 60.0):
     dark_table(quotes)
     bb = bars.BarBuilder(seconds=60, keep=500)
     fig = plot.figure("TXF from the CSV, 1-minute candles", rows=2, link_x=True, size=(960, 600), pos=(80, 200), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].set(time=True, follow=3600, title="TXF")
     fig[1].set(time=True, follow=3600, title="Volume")
     hb = safety.heartbeat("example playback", timeout=5)

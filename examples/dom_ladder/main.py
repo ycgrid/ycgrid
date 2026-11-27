@@ -76,10 +76,7 @@ def run(seconds: float = 0):
         t_end = time.time() + seconds if seconds else None
         mkt = gw.market
         while not stop.is_set() and (t_end is None or time.time() < t_end):
-            mine = [o for o in om.orders(open_only=True) if o.price is not None]  # market orders have no level
-            lad.update(float(mkt.last), *mkt.book(levels=12),
-                       {o.price: o.qty - o.filled for o in mine if o.side == "buy"},
-                       {o.price: o.qty - o.filled for o in mine if o.side == "sell"})
+            lad.update(float(mkt.last), *mkt.book(levels=12), *Ladder.working(om.orders(open_only=True)))
             q, avg = om.position("TXF"), om.avg_cost("TXF")
             pos.update({"Contract": ["TXF"], "Qty": [q], "Avg": [avg], "Last": [mkt.last],
                         "PnL": [(mkt.last - avg) * q * 200 if q and avg else 0.0]})

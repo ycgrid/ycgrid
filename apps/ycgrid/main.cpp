@@ -2331,9 +2331,9 @@ void FeedScript() {
   }
   if (g_key_release) {
     io.AddKeyEvent(g_key_release->key, false);
-    if (g_key_release->ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false);
-    if (g_key_release->shift) io.AddKeyEvent(ImGuiMod_Shift, false);
-    if (g_key_release->alt) io.AddKeyEvent(ImGuiMod_Alt, false);
+    if (g_key_release->ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false), io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
+    if (g_key_release->shift) io.AddKeyEvent(ImGuiMod_Shift, false), io.AddKeyEvent(ImGuiKey_LeftShift, false);
+    if (g_key_release->alt) io.AddKeyEvent(ImGuiMod_Alt, false), io.AddKeyEvent(ImGuiKey_LeftAlt, false);
     g_key_release = nullptr;
     return;
   }
@@ -2463,9 +2463,11 @@ void FeedScript() {
     }
     case ScriptStep::Key:
       if (st.key == ImGuiKey_None) st.key = KeyByName(st.text);
-      if (st.ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, true);
-      if (st.shift) io.AddKeyEvent(ImGuiMod_Shift, true);
-      if (st.alt) io.AddKeyEvent(ImGuiMod_Alt, true);
+      // a chord holds the modifier keys themselves too, as a keyboard does (Windows sends VK_MENU for Alt+W): code that
+      // asks for the Alt key (the ribbon's Alt+W) saw only the flag, and Alt+W, F, F typed FF into the cell
+      if (st.ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, true), io.AddKeyEvent(ImGuiKey_LeftCtrl, true);
+      if (st.shift) io.AddKeyEvent(ImGuiMod_Shift, true), io.AddKeyEvent(ImGuiKey_LeftShift, true);
+      if (st.alt) io.AddKeyEvent(ImGuiMod_Alt, true), io.AddKeyEvent(ImGuiKey_LeftAlt, true);
       io.AddKeyEvent(st.key, true);
       // Windows sends Shift+Space as a typed space as well (WM_CHAR): the grid must not type it into the cell
       if (st.key == ImGuiKey_Space && st.shift && !st.ctrl && !st.alt) io.AddInputCharacter(' ');

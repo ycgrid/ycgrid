@@ -51,3 +51,14 @@ TEST_CASE("TR: ImGui's ##id is kept, text without a translation comes back uncha
   CHECK(std::wstring_view(TRW(L"沒有翻譯的寬字元")) == L"沒有翻譯的寬字元");
   CHECK(std::string_view(yc::i18n::LangCode(yc::i18n::Lang::En)) == "en");
 }
+
+TEST_CASE("SourceOf: a translation's English text, for the letters of a KeyTip") {
+  // a Chinese label has no Latin letter: menu entries without Excel's fixed KeyTip got none in the Chinese UI
+  yc::i18n::SetCurrent(yc::i18n::Lang::ZhTW);
+  const char* zh = TR("Greater Than");
+  CHECK(std::strcmp(zh, "Greater Than") != 0);
+  CHECK(std::string_view(yc::i18n::SourceOf(zh)) == "Greater Than");
+  CHECK(std::string_view(yc::i18n::SourceOf("not a translation")) == "not a translation");
+  yc::i18n::SetCurrent(yc::i18n::Lang::En);
+  CHECK(std::string_view(yc::i18n::SourceOf("Greater Than")) == "Greater Than");
+}

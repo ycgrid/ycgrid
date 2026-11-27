@@ -395,8 +395,9 @@ void StartEdit(AppState& s, bool replace, std::string initial, bool in_formula_b
   e.caret = static_cast<int>(e.text.size());
   // a percent cell: a number typed is a percentage, Excel's automatic percent entry; the % goes in after the first digit
   // with the caret before it, and stays when the entry turns out not to be a number (Excel 16, measured: 5 then 1
-  // shows 51%, 5a is the text 5a%)
-  if (replace && !e.text.empty() && e.text[0] >= '0' && e.text[0] <= '9') {
+  // shows 51%, 5a is the text 5a%). The text that starts an entry can hold several characters at once (a Chinese IME
+  // commits 12.5% together): one with its own % gets none more, or it was the text 12.5%%
+  if (replace && !e.text.empty() && e.text[0] >= '0' && e.text[0] <= '9' && e.text.find('%') == std::string::npos) {
     const std::string code = s.snap->wb.styles->NumberFormat(s.snap->wb.styles->Get(sh->GetStyle(e.r, e.c)));
     if (formula::IsPercentFormat(code)) {
       e.text += '%';

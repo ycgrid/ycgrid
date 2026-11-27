@@ -10634,3 +10634,33 @@ date,tool,seed,seconds,result,note
 2026-11-23,doc_fuzz,2200000,300,ok,--gaps
 2026-11-23,doc_fuzz,2300000,300,ok,--more --xlsx
 2026-11-23,doc_fuzz,2400000,300,ok,
+2026-11-26,screen_walk,r01,900,found,dom_ladder: bid / cancel clicks, fast clicks, drags, right clicks
+2026-11-26,screen_walk,r02,900,found,txo_market_maker: start / stop, double-clicks, parameter typos, Delete on a parameter, kill switch, DOM
+2026-11-26,screen_walk,r03,600,found,technical_chart: rows by mouse and keys, sort, the linked mark
+2026-11-26,screen_walk,r04,420,ok,option_payoff: legs typed (lowercase, thousands commas, a future), a typo and Undo, a row deleted and Undo, the multiplier, a leg cleared; payoff and chart checked
+2026-11-26,screen_walk,r05,1500,found,Traditional Chinese UI: every dialog opened and closed with Escape; ui_sweep dialogs extended to non-modal dialog windows
+2026-11-26,screen_walk,r06,600,found,imprecise mouse: Escape during fill and move drags, a release outside the window, border double-clicks and clicks, the wheel during a drag and during an entry
+2026-11-26,screen_walk,r07,300,ok,a researcher's table: typed by Tab / Enter, Ctrl+T, a calculated column, Ctrl+Shift+T totals, a filter, an entry and a sort while filtered
+2026-11-26,screen_walk,r08,600,found,KeyTips a trader types daily in English and Chinese: borders, AutoFit, alignment, paste values, freeze panes, number formats, insert and delete rows, Ctrl+T
+2026-11-26,screen_walk,r09,300,ok,keyboard habits: number-format shortcuts, Ctrl+; and Ctrl+Shift+;, Alt+=, F4, Ctrl+Enter, Ctrl+D, Ctrl+' and Ctrl+Shift+", Alt+Enter, row / column selection, hide / unhide, borders, dialog shortcuts
+2026-11-26,screen_walk,r10,600,found,order_flow: the order line, a double-click above the market, the fill
+2026-11-26,screen_walk,r11,600,found,demo: the panel's pause / resume, a sort of the live table
+2026-11-26,screen_walk,r12,420,ok,a sort of every live example's bound table (quote_board, tick_replay, options_desk, execution_algos): keys found again, rows stay whole
+2026-11-26,screen_walk,r13,420,found,portfolio_optimizer: weights typed by hand, Solver run again from its dialog (Solve, Keep), percent entries
+2026-11-26,screen_walk,r14,300,ok,entries committed at once as an IME does vs one character at a time: dates, times, currency, fractions, Text cells, percentages, AutoComplete in English and Chinese
+2026-11-26,screen_walk,r15,600,found,a workbook built as a person does (typing, KeyTips, filter, freeze, validation, rules, names, note, merge, chart, outline, protection, zoom), saved with F12 and reopened: 25 properties compared
+2026-11-26,screen_walk,r16,300,ok,sheet tabs: Shift+F11, rename by double-click (Chinese, a duplicate, a / and Escape), typing after, Ctrl+PageDown, a tab dragged and Undo, the tab menu
+2026-11-26,screen_walk,r17,300,ok,a validation list: Alt+Down and arrows, the drop-down arrow, a value typed in another case and a wrong one refused, a paste over it, Delete
+2026-11-26,screen_walk,r18,420,ok,big_data's Data View: header sorts (ties stay in order), the filter row, the wheel and Ctrl+End, clearing a filter, To Sheet past the sheet's rows (stops at its limit, said on the status bar)
+2026-11-26,screen_walk,r19,600,found,quick_plot and strategy_lab: the wheel, a drag and a double-click on the charts, the windows' layout, the heatmap's labels
+2026-11-26,screen_walk,r20,240,ok,backtest_report: a trade clicked marks its day on every chart, a click on the chart finds the nearest trade
+2026-11-26,screen_walk,r21,900,found,time_machine: the replay bar's pause, a click and a drag on the bar, |<, typing during a replay, Back to Live
+2026-11-26,screen_walk,r22,1500,found,every example screen: what its floating windows cover of the sheet (figures over the cells a screen shows)
+2026-11-26,screen_walk,r23,240,ok,the Name Box: an address, a range, a new name, a name in another case, a whole column, another sheet's cell, invalid names, Escape
+2026-11-26,screen_walk,r24,240,ok,Format Painter: one click, a double-click until Escape, Undo, a drag over a range
+2026-11-26,screen_walk,r25,240,ok,a chart: Alt+F1, a drag to move it, Delete and Ctrl+Z, copy and paste, Escape then typing
+2026-11-26,screen_walk,r26,900,found,conditional formatting by KeyTips in English and Chinese: Greater Than typed and picked on the sheet, Undo, Clear Rules
+2026-11-26,screen_walk,r27,420,ok,a PivotTable by Alt+N, V and the field list's check boxes in English and Chinese, Alt+F5 after a source change, a double-click for the details
+2026-11-26,screen_walk,r28,300,ok,a protected sheet in English and Chinese: typing, F2, Delete, Ctrl+V, Ctrl+D, a cut, Backspace, Alt+= on locked cells (refused quietly, the red line), an unlocked cell typed
+2026-11-26,screen_walk,r29,300,found,zoom: clicks, typing and the fill handle at 50% and 175%, Ctrl+wheel, the status bar's + / - / slider / percentage
+2026-11-26,screen_walk,r30,300,found,every use of the mouse wheel: the notches a frame (zoom on the sheet and in Page Layout, scrolling)

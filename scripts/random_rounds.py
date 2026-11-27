@@ -239,9 +239,20 @@ def cmd_report(_a) -> int:
         h, n = by_day[day]
         rate = f"{10 * n / h:6.1f}" if h > 0 else "     -"
         print(f"  {day}  {h:6.1f} h  {n:3d} found  {rate}")
-    # the stopping rule: STOP_HOURS of rounds since the last real finding, and none open
-    # kept: decided to stay, with its reason under "Kept on purpose" in docs/excel-parity-backlog.md
+    since, open_ = hours_since_last_finding(runs, findings)
+    print(f"\nopen findings: {len(open_)}" + "".join(f"\n  {f['date']} {f['tool']} {f['seed']}: {f['summary']}" for f in open_))
+    done = since >= STOP_HOURS and not open_
+    print(f"hours of rounds since the last real finding: {since:.1f} (the rule asks {STOP_HOURS:.0f}) -> "
+          f"{'converged: random testing stops finding things' if done else 'not converged: keep fixing classes, no new features (AGENTS.md)'}")
+    return 0
+
+
+def hours_since_last_finding(runs: list[dict], findings: list[dict]) -> tuple[float, list[dict]]:
+    """The stopping rule's numbers: hours of rounds after the round that found the last real finding, and the findings
+    still open (kept: decided to stay, with its reason under "Kept on purpose" in docs/excel-parity-backlog.md)."""
     open_ = [f for f in findings if f["status"] not in ("fixed", "kept")]
+    real = [f for f in findings if f["kind"] == "real"]
+    total = sum(float(r["seconds"] or 0) / 3600 for r in runs)
     # the hours after the round that found the last real finding. A finding names its round by tool and seed (a
     # doc_fuzz stream's seed is its round's times 10000 plus the case); one no round names (found by hand) counts from
     # the day after it. By day alone, every round of the day a finding was made counted 0 hours, however clean
@@ -262,7 +273,9 @@ def cmd_report(_a) -> int:
                 return i
         return -1
     # findings are written in the order they were found: one no round names (found by hand, beside the rounds) is
-    # placed at the round of the finding before it, or at the end of its day's rounds when none before it is placed
+    # placed at the round of the finding before it when that round was the same day, else at the end of its day's
+    # rounds. Placed at the round before it whatever its day, a finding made days after the last round counted every
+    # round since as clean, and the report still read converged with four real bugs found that day (2026-11-26).
     start, anchor = 0, -1
     for f in findings:
         i = round_of(f)
@@ -271,14 +284,11 @@ def cmd_report(_a) -> int:
         if f["kind"] != "real":
             continue
         if i < 0:
-            i = anchor if anchor >= 0 else next((k for k, r in enumerate(runs) if r["date"] > f["date"]), len(runs)) - 1
+            day_end = next((k for k, r in enumerate(runs) if r["date"] > f["date"]), len(runs)) - 1
+            i = anchor if anchor >= 0 and runs[anchor]["date"] == f["date"] else max(anchor, day_end)
         start = max(start, i + 1)
     since = sum(float(r["seconds"] or 0) / 3600 for r in runs[start:]) if real else total
-    print(f"\nopen findings: {len(open_)}" + "".join(f"\n  {f['date']} {f['tool']} {f['seed']}: {f['summary']}" for f in open_))
-    done = since >= STOP_HOURS and not open_
-    print(f"hours of rounds since the last real finding: {since:.1f} (the rule asks {STOP_HOURS:.0f}) -> "
-          f"{'converged: random testing stops finding things' if done else 'not converged: keep fixing classes, no new features (AGENTS.md)'}")
-    return 0
+    return since, open_
 
 
 def main() -> int:

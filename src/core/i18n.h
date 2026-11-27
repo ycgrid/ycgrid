@@ -33,6 +33,9 @@ Lang SavedLanguage();          // the saved choice (may differ from Current() un
 
 const char* Tr(const char* text);
 const wchar_t* TrW(const wchar_t* text);
+// the English text a translation came from (text itself in English or when unknown): the letters a KeyTip takes
+// from a label, which a Chinese label has none of
+const char* SourceOf(const char* text);
 
 }  // namespace yc::i18n
 

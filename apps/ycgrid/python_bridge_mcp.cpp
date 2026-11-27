@@ -452,6 +452,8 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         rb.Set("peek", MV::Bool(st.peek));
         rb.Set("tab", MV::Int(st.selected_tab));
         rb.Set("backstage", MV::Bool(st.backstage));
+        rb.Set("keytips", MV::Int(st.keytip_level));
+        if (!st.legacy_keys.empty()) rb.Set("legacy_keys", MV::Str(st.legacy_keys));
         rb.Set("popup_open", MV::Bool(ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)));
         auto rect = [](const ImRect& r) {  // the centre, in the window's pixels (what ui.input's clicks take)
           MV x = MV::Array();

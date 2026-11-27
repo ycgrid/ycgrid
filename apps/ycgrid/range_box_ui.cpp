@@ -44,6 +44,9 @@ struct Pick {
   std::vector<Rect> seen;
   ImVector<ImGuiPopupData> popups;  // the dialog (and the dialogs under it) put aside
   bool focus = false;
+  // started by a click on the sheet while the box had the keyboard (Excel's RefEdit): that press is handed to the grid
+  // and the dialog comes back when the button goes up
+  bool direct = false, direct_pressed = false;
   // the sheet's selection before picking: put back afterwards, as Excel does (a dialog that reads the selection at OK,
   // Data Validation, applied its rule to the cells picked for its list instead)
   uint32_t saved_sheet = 0, saved_win = 0;
@@ -173,6 +176,20 @@ bool Draw(AppState& s, const char* key, char* buf, size_t size, std::string* str
   } else if (ImGui::InputText("##rb", buf, size, tf, tf ? NoteCaret : nullptr, &key_id)) {
     changed = true;
   }
+  // Excel's RefEdit: while the box has the keyboard, a click on the sheet picks the cells there (a drag a range), the
+  // dialog staying open; only the button did, and a cell clicked for Greater Than's value changed nothing
+  static std::map<ImGuiID, int> active_at;
+  const int frame = ImGui::GetFrameCount();
+  bool direct = false;
+  if (ImGui::IsItemActive()) {
+    active_at[id] = frame;
+  } else if (const auto it = active_at.find(id); it != active_at.end() && it->second >= frame - 1 && ImGui::IsMouseClicked(0) &&
+                                                     !P().active && !P().start && s.snap) {
+    const ImVec2 m = ImGui::GetMousePos();
+    const ImGuiWindow* w = ImGui::GetCurrentWindowRead();
+    const bool in_dialog = w && w->RootWindow && w->RootWindow->Rect().Contains(m);
+    direct = !in_dialog && s.FocusView().cells_rect.Contains(m);
+  }
   ImGui::SameLine(0, sp);
   const float fh = ImGui::GetFrameHeight();
   ImGui::PushFont(ui::F().icons, ImGui::GetFontSize() * 0.95f);
@@ -183,7 +200,8 @@ bool Draw(AppState& s, const char* key, char* buf, size_t size, std::string* str
   ImGui::PopStyleVar();
   ImGui::PopFont();
   if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("%s", TR("Select the cells on the sheet"));
-  if (press) Begin(s, id, buf, size, str, flags, label);
+  if (press || direct) Begin(s, id, buf, size, str, flags, label);
+  if (direct) P().direct = true;
   ImGui::PopID();
   return changed;
 }
@@ -203,6 +221,7 @@ bool RangePicking() { return P().active || P().start; }
 void DrawRangePick(AppState& s) {
   Pick& p = P();
   ImGuiContext& g = *GImGui;
+  const bool just_started = p.start;  // this frame's click started a direct pick: the grid gets it again next frames
   if (p.start) {
     // the end of the frame, outside every popup: put the dialogs aside
     p.start = false;
@@ -210,12 +229,21 @@ void DrawRangePick(AppState& s) {
     p.focus = true;
     p.popups = g.OpenPopupStack;
     if (g.OpenPopupStack.Size > 0) ImGui::ClosePopupToLevel(0, false);
+    if (p.direct) {  // the click the modal dialog kept from the sheet: pressed again for the grid, where the mouse is
+      ImGui::GetIO().MouseClickedTime[ImGuiMouseButton_Left] = -1e9;  // one click, not a double-click that edits the cell
+      ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+      ImGui::GetIO().AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    }
   }
   if (!p.active) return;
   // Enter or Escape anywhere (the sheet has the keyboard while the user selects) brings the dialog back; checked
   // before the selection is read, so a key that also reached the sheet can't change the box
   bool done = !ImGui::GetIO().WantTextInput && (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter) ||
                                                  ImGui::IsKeyPressed(ImGuiKey_Escape));
+  if (p.direct) {  // a click or a drag on the sheet: the dialog is back when the button goes up
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !just_started) p.direct_pressed = true;
+    if (p.direct_pressed && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) done = true;
+  }
   // a new selection on the sheet goes into the box
   if (s.snap && !done) {
     const std::vector<Rect> cur = SelAreas(s);

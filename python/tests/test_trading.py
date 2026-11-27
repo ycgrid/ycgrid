@@ -67,6 +67,23 @@ class TradingTest(unittest.TestCase):
         with self.assertRaisesRegex(trading.Rejected, "orders a second"):
             om.buy("X", 1, 100)
 
+    def test_duplicate_window_refuses_a_double_click(self):
+        """A double-click on an order button sent two orders 0.2 s apart; with duplicate_window the second is refused,
+        while another order, or the same one after the window, goes through."""
+        om = trading.OrderManager(self.gw, risk=trading.RiskLimits(duplicate_window=0.3), log=False)
+        om.buy("X", 2, 100)
+        with self.assertRaisesRegex(trading.Rejected, "same order was sent"):
+            om.buy("X", 2, 100)
+        om.buy("X", 3, 100)  # another quantity
+        om.sell("X", 3, 100)  # another side
+        time.sleep(0.35)
+        om.sell("X", 3, 100)  # the same order after the window
+        self.assertEqual(len(self.gw.sent), 4)
+        plain = trading.OrderManager(FakeGateway(), log=False)  # off by default
+        plain.buy("X", 2, 100)
+        plain.buy("X", 2, 100)
+        self.assertEqual(len(plain.gw.sent), 2)
+
     def test_positions_and_flatten(self):
         a = self.om.buy("X", 3, 100)
         self.gw.fill(self.om._orders[a], price=100)

@@ -122,6 +122,7 @@ struct PlotAxes {
   bool y_set = false;  // limits given from Python: a following plot keeps them instead of fitting y
   double x0 = 0, x1 = 1, y0 = 0, y1 = 1;
   double view[4] = {0, 1, 0, 1};  // the limits drawn last frame (x0, x1, y0, y1), reported in ui.state()
+  float plot_rect[4] = {0, 0, 0, 0};  // the plot area drawn last frame, in window pixels (left, top, right, bottom)
   bool user_view = false;  // the user zoomed / panned or Python set limits: new data stop refitting (double-click fits again)
   double follow = 0;  // seconds (or x units) of the newest data to keep in view; 0 = off
   bool yfit_stable = false;  // following: y changes only when the data near the edges or shrink (no jitter)
@@ -149,6 +150,8 @@ struct PlotAxes {
   ImPlotPoint sel0, sel1;
   double hover_at = 0;
   double synced_x = kNaN;  // the group's cursor drawn in this plot on the last frame (NaN = none)
+  std::string cursor_tag;  // the linked row's tag text when YCGrid chose it (a day), for plot.figures
+  bool labels_staggered = false;  // a heatmap's column labels on two lines (too wide for their columns)
 };
 
 PlotTheme g_draw_theme = PlotTheme::Light;  // the figure being drawn (candle colors)
@@ -1026,6 +1029,26 @@ std::string SyncGroup(const Figure& f) {
 }
 
 // inside BeginPlot / EndPlot
+// The tag of a marked x on a time axis: at local midnight (daily bars) the date alone; "7/2 00:00" read as a time
+// nobody traded at. Empty: the axis's own text (other times, other axes).
+std::string DayTagText(double x, bool time_axis) {
+  if (!time_axis || !std::isfinite(x) || x != std::floor(x)) return {};
+  const std::time_t t = static_cast<std::time_t>(x);
+  std::tm tm{};
+  if (localtime_s(&tm, &t) != 0 || tm.tm_hour || tm.tm_min || tm.tm_sec) return {};
+  char buf[32];
+  std::strftime(buf, sizeof buf, "%Y-%m-%d", &tm);
+  return buf;
+}
+
+// draws the tag; returns its text when YCGrid chose it, else "" (ImPlot's axis text)
+std::string TagTimeX(double x, bool time_axis, ImVec4 col) {
+  std::string day = DayTagText(x, time_axis);
+  if (!day.empty()) ImPlot::TagX(x, col, "%s", day.c_str());
+  else ImPlot::TagX(x, col, true);
+  return day;
+}
+
 void DrawSyncedCursor(const Figure& f, PlotAxes& ax, int a) {
   ax.synced_x = kNaN;
   const std::string grp = SyncGroup(f);
@@ -1047,7 +1070,7 @@ void DrawSyncedCursor(const Figure& f, PlotAxes& ax, int a) {
   cs.LineWeight = 1.0f;
   cs.Flags = ImPlotItemFlags_NoLegend | ImPlotItemFlags_NoFit;
   ImPlot::PlotInfLines("##synced", &sc->x, 1, cs);
-  ImPlot::TagX(sc->x, ImVec4(0.35f, 0.35f, 0.4f, 1), true);
+  TagTimeX(sc->x, ax.time_x, ImVec4(0.35f, 0.35f, 0.4f, 1));
   ax.synced_x = sc->x;
 }
 
@@ -1716,6 +1739,38 @@ io::MV FigureRequest(AppState& s, const std::string& m, const io::MV& p, const s
       fm.Set("follow_paused", MV::Bool(x.follow_paused));
       if (ImGuiWindow* w = ImGui::FindWindowByName(FigureTitle(x).c_str())) fm.Set("docked", MV::Bool(w->DockIsActive));
       fm.Set("persist", MV::Bool(x.persist));
+      // what each plot shows, for tests: its title and items (a line added twice by two threads shows as two)
+      MV axs = MV::Array();
+      for (const PlotAxes& ax : x.axes) {
+        MV am = MV::Map();
+        am.Set("title", MV::Str(ax.title));
+        MV its = MV::Array();
+        for (const PlotItem& it : ax.items) {
+          MV im = MV::Map();
+          im.Set("kind", MV::Str(it.kind));
+          im.Set("label", MV::Str(it.label));
+          its.Push(std::move(im));
+        }
+        am.Set("items", std::move(its));
+        if (!ax.cursor_tag.empty()) am.Set("cursor_tag", MV::Str(ax.cursor_tag));  // the linked row's day
+        if (ax.labels_staggered) am.Set("labels_staggered", MV::Bool(true));
+        MV view = MV::Array(), rect = MV::Array(), hs = MV::Array();  // what it shows and where: a test points at a price
+        for (double v : ax.view) view.Push(MV::Double(v));
+        for (float v : ax.plot_rect) rect.Push(MV::Double(v));
+        am.Set("view", std::move(view));
+        am.Set("rect", std::move(rect));
+        for (const auto& h : ax.handles) {  // drag lines (an order), points, bands: their place and label
+          MV hm = MV::Map();
+          hm.Set("kind", MV::Str(h.kind));
+          hm.Set("label", MV::Str(h.label));
+          hm.Set("x", MV::Double(h.x));
+          hm.Set("y", MV::Double(h.y));
+          hs.Push(std::move(hm));
+        }
+        am.Set("handles", std::move(hs));
+        axs.Push(std::move(am));
+      }
+      fm.Set("axes", std::move(axs));
       a.Push(std::move(fm));
     }
     return a;
@@ -2741,10 +2796,21 @@ void DrawFigures(AppState& s) {
               if (item.kind != "heatmap" || item.labels.empty() || item.has_extent) continue;  // placed in data units: the axes show them
               std::vector<const char*> xl, yl;
               std::vector<double> xt, yt;
+              // labels wider than their column ran together (HONHAIFUBON): every other one drops to a second line, from
+              // last frame's width of a column
+              const double unit_px = ax.view[1] > ax.view[0] ? (ax.plot_rect[2] - ax.plot_rect[0]) / (ax.view[1] - ax.view[0]) : 0.0;
+              float widest = 0.0f;
+              for (int c = 0; c < item.cols_n && static_cast<size_t>(c) < item.labels.size(); ++c)
+                widest = std::max(widest, ImGui::CalcTextSize(item.labels[static_cast<size_t>(c)].c_str()).x);
+              const bool stagger = unit_px > 0 && widest + S(6) > unit_px;
+              ax.labels_staggered = stagger;
+              std::vector<std::string> lowered;
+              lowered.reserve(static_cast<size_t>(std::max(0, item.cols_n)));
               for (int c = 0; c < item.cols_n && static_cast<size_t>(c) < item.labels.size(); ++c) {
-                xl.push_back(item.labels[static_cast<size_t>(c)].c_str());
+                lowered.push_back(stagger && c % 2 ? "\n" + item.labels[static_cast<size_t>(c)] : item.labels[static_cast<size_t>(c)]);
                 xt.push_back(c + 0.5);
               }
+              for (const auto& l : lowered) xl.push_back(l.c_str());
               for (int r = 0; r < item.rows && static_cast<size_t>(item.cols_n + r) < item.labels.size(); ++r) {
                 yl.push_back(item.labels[static_cast<size_t>(item.cols_n + r)].c_str());
                 yt.push_back(item.rows - r - 0.5);
@@ -2755,16 +2821,21 @@ void DrawFigures(AppState& s) {
             const float pxw = ImPlot::GetPlotSize().x;
             const ImPlotRect drawn = ImPlot::GetPlotLimits();
             ax.view[0] = drawn.X.Min, ax.view[1] = drawn.X.Max, ax.view[2] = drawn.Y.Min, ax.view[3] = drawn.Y.Max;
+            {
+              const ImVec2 pp = ImPlot::GetPlotPos(), ps = ImPlot::GetPlotSize();
+              ax.plot_rect[0] = pp.x, ax.plot_rect[1] = pp.y, ax.plot_rect[2] = pp.x + ps.x, ax.plot_rect[3] = pp.y + ps.y;
+            }
             for (size_t i = 0; i < ax.items.size(); ++i) DrawItem(ax.items[i], std::to_string(f.id) + "_" + std::to_string(a) + "_" + ax.items[i].id, pxw);
             // the linked table row
             const double cx = ax.time_x && std::isfinite(cursor) ? SerialToEpoch(cursor) : cursor;
+            ax.cursor_tag.clear();
             if (std::isfinite(cx)) {
               ImPlotSpec cs;
               cs.LineColor = ImVec4(0.85f, 0.2f, 0.2f, 0.9f);
               cs.LineWeight = 1.5f;
               cs.Flags = ImPlotItemFlags_NoLegend;
               ImPlot::PlotInfLines("##cursor", &cx, 1, cs);
-              ImPlot::TagX(cx, ImVec4(0.85f, 0.2f, 0.2f, 1), true);
+              ax.cursor_tag = TagTimeX(cx, ax.time_x, ImVec4(0.85f, 0.2f, 0.2f, 1));
             }
             DrawSyncedCursor(f, ax, static_cast<int>(a));
             if (ltab && ImPlot::IsPlotHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && ImGui::GetIO().MouseDragMaxDistanceSqr[0] < 16)

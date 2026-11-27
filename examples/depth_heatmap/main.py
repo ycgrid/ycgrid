@@ -59,6 +59,7 @@ def run(seconds: float = 0, history: float = 60.0, tick: float = 1.0):
           "Brighter cells: more resting lots. Lines and dots: the last price and the trades, in the same coordinates.")
     header(write(ws, "A4", [["Last", "Best bid size", "Best ask size", "Largest bid wall", "Largest ask wall", "Snapshots"]]))
     fig = plot.figure("TXF market depth", rows=2, link_x=True, size=(980, 680), pos=(60, 150), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     lo, hi = float(book.prices[0]) - tick / 2, float(book.prices[-1]) + tick / 2
     fig[0].set(title="Resting liquidity by price", time=True, ylabel="price", follow=history, ylim=(lo, hi))
     fig[1].set(title="Traded lots per snapshot", time=True, follow=history)

@@ -119,6 +119,7 @@ def report(ws, equity, trades=None, prices=None, benchmark=None, title: str = "B
     # the charts: price with buy / sell marks, equity, drawdown; linked to the trade list
     n = 3 if prices is not None else 2
     fig = plot.figure(title, rows=n, link_x=True, size=(980, 720 if n == 3 else 520))
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     i = 0
     if prices is not None:
         ax = fig[0]

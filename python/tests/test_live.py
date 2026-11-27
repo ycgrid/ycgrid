@@ -1602,6 +1602,86 @@ class UserFlowTest(unittest.TestCase):
         self.assertNotIn("edit", ui.state())
         self.assertEqual(self.ws.Range("B3").Value, 99)
 
+    def test_the_wheel_scrolls_while_a_drag_selects_cells(self):
+        """A drag selecting cells made the grid's item active, and the wheel did nothing until the button went up: a
+        range longer than the screen couldn't be selected by a drag and the wheel, as Excel's can."""
+        from yc import excel, ui
+
+        self.keys("g:A1|w:2|k:c-Home|w:4")
+        x0, y0, x1, y1 = ui.cell_rect("A2")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"m:{x},{y}|w:3|p:{x},{y}|w:3|m:{x},{y + 60}|w:2|W:-10|w:6|m:{x},{y + 80}|w:3|u:|w:4")
+        top = excel.ActiveWindow.ScrollRow
+        self.assertGreater(top, 20, "the sheet scrolled")
+        self.assertGreater(int(ui.state()["selection"].split(":")[1][1:]), top, "and the selection reaches the rows shown")
+        self.keys("k:c-Home|w:4")
+
+    def test_ctrl_wheel_zooms_ten_percent_a_notch(self):
+        """Ctrl+wheel moved the zoom one step a frame whatever the notches: a quick spin of three gave 110%."""
+        from yc import excel, ui
+
+        excel.ActiveWindow.Zoom = 100
+        x0, y0, x1, y1 = ui.cell_rect("D5")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        try:
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:3|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 130)
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:-5|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 80)
+            # Page Layout view: the same steps (it multiplied by 1.1 once a frame: 121%, 133.1%)
+            excel.ActiveWindow.Zoom = 100
+            ui.command("ViewPageLayout")
+            time.sleep(0.4)
+            self.keys(f"m:{x},{y}|w:3|H:ctrl|W:3|w:6|h:|w:3")
+            self.assertEqual(excel.ActiveWindow.Zoom, 130)
+        finally:
+            ui.command("ViewNormal")
+            excel.ActiveWindow.Zoom = 100
+
+    def test_escape_closes_the_dialogs_that_leave_the_sheet_usable(self):
+        """Insert Symbol and Mark Parameter open windows that don't block the sheet: Escape left them open (ui_sweep
+        checked only modal dialogs), and every later command ran beside a Symbol window nobody had asked to keep."""
+        from yc import ui
+
+        for cid, name in (("InsertSymbol", "Symbol###yc_symbol"), ("MarkParameter", "Parameter Cell###yc_param")):
+            self.keys("g:B2|w:2")
+            ui.command(cid)
+            time.sleep(0.5)
+            self.assertIn(name, {w["name"] for w in ui.windows()}, cid)
+            self.keys("k:Escape|w:6")
+            self.assertNotIn(name, {w["name"] for w in ui.windows()}, f"{cid}: Escape closes it")
+
+    def test_a_drag_from_a_click_action_cell_is_no_click(self):
+        """A click action ran on the press: selecting cells by a drag that began on a ladder's size sent an order. It
+        runs on a press and a release on the same cell, as a button does."""
+        from yc import ui
+        from yc.mcp import tools
+
+        name = self.ws.Name
+        self.ws.Range("B2:B6").Value = [[100], [99], [98], [97], [96]]
+        tools._host_ready()
+        r = tools.yc_exec_python(
+            "from yc import excel, interact\n"
+            f"ws = excel.Worksheets({name!r})\n"
+            "ws.Range('E1').Value = 0\n"
+            "def h(ctx):\n"
+            "    c = ws.Range('E1')\n"
+            "    c.Value = (c.Value or 0) + 1\n"
+            "interact.on_click(ws.Range('B2:B6'), h)\n", target="host", timeout_ms=60000)
+        self.assertTrue(r.get("ok"), r)
+        x0, y0, x1, y1 = ui.cell_rect("B3")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        y2 = int(sum(ui.cell_rect("B5")[1::2]) / 2)
+        self.keys(f"m:{x},{y}|w:3|d:{x},{y},{x},{y2}|w:6")  # a drag over the sizes: a selection, no click
+        time.sleep(1.0)
+        self.assertEqual(self.ws.Range("E1").Value, 0)
+        self.assertEqual(ui.state()["selection"], "B3:B5")
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:6")  # a click still is one
+        end = time.time() + 10
+        while time.time() < end and self.ws.Range("E1").Value != 1:
+            time.sleep(0.2)
+        self.assertEqual(self.ws.Range("E1").Value, 1)
+
     def test_regression_by_keyboard(self):
         from yc import excel, ui
 
@@ -1887,6 +1967,19 @@ class HiddenInstanceEndsTest(unittest.TestCase):
             self.assertTrue(ended, "the hidden instance kept running after its script ended")
         finally:
             k32.CloseHandle(ctypes.c_void_p(h))
+
+    def test_launching_a_file_that_cannot_be_opened_raises(self):
+        """yc.launch of a misspelled path returned a hidden YCGrid with a blank Book1, and the script went on working
+        on it; it raises, as Workbooks.Open does, and leaves no YCGrid running."""
+        from yc.errors import ApplicationDefinedError
+
+        path = os.path.join(tempfile.gettempdir(), f"yc_missing_{os.getpid()}.ycg")
+        before = {i.get("pid") for i in yc.find_instances()}
+        with self.assertRaises(ApplicationDefinedError):
+            yc.launch(path, hidden=True, exe=EXE, lang="en")
+        time.sleep(1)
+        left = {i.get("pid") for i in yc.find_instances() if i.get("open_failed")} - before
+        self.assertFalse([pid for pid in left if yc._pid_alive(pid)], "no YCGrid left running")
 
 
 class CrashDumpTest(unittest.TestCase):
@@ -2473,6 +2566,7 @@ class LockTest(unittest.TestCase):
         from yc.constants import ycDockRight
 
         panels = excel.Application.Panels
+        before = max([e["id"] for e in ui.errors()] or [0])  # the Error Log keeps what earlier tests' refusals wrote
         panels.Add("LockTicket", Caption="LockTicket", Dock=ycDockRight, Width=260)
         panels("LockTicket").Controls.Add(1, "lbl", Caption="Buy")
         # placed on the left, away from the panel's splitter at any DPI (the default place can cover it)
@@ -2513,7 +2607,7 @@ class LockTest(unittest.TestCase):
             self.assertFalse(excel.ThisWorkbook.ProtectWindows)
             panels("LockTicket").Locked = True
             self.assertTrue(panels("LockTicket").Locked)
-            self.assertFalse([e for e in ui.errors() if e.get("error")])
+            self.assertFalse([e for e in ui.errors() if e.get("error") and e["id"] > before])
         finally:
             fig.close()
             panels("LockTicket").Delete()

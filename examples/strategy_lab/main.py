@@ -114,7 +114,7 @@ def run(split: float = 0.7):
     fixed, _, _ = backtest(prices.iloc[250:], f, s)
     wfig[0].line(fixed.index, fixed.values, label=f"fixed {f}/{s} (chosen with hindsight)", color="#9e9e9e")
     eq, trades, _ = backtest(prices, f, s)
-    report(fresh_sheet("Lab Report"), eq, trades, prices, title=f"MA {f}/{s}: in and out of sample", name="LabTrades")
+    _, _, rfig = report(fresh_sheet("Lab Report"), eq, trades, prices, title=f"MA {f}/{s}: in and out of sample", name="LabTrades")
     ind = plot.figure(f"Indicators: SMA {f} / {s}, RSI 14", rows=2, link_x=True, size=(900, 560), theme="dark")
     ind[0].candles(prices.index, prices.Open, prices.High, prices.Low, prices.Close, label="Price")
     ind[0].line(prices.index, qm.sma(prices.Close, f), label=f"SMA {f}", color=T["yellow"])
@@ -122,6 +122,12 @@ def run(split: float = 0.7):
     ind[0].vline([oos.index[0]], label="out of sample", color=T["cyan"], width=2)
     ind[1].line(prices.index, qm.rsi(prices.Close, 14), label="RSI 14", color=T["white"])
     ind[1].hline([30, 70], color="#5a5a5a")
+    # docked beside the sheet, the Sharpe heatmap on top and the others as pages under it: floating, each window
+    # opened over the one before and the report covered everything
+    fig.Dock("right", Ratio=0.65)
+    wfig.Dock("bottom", Ratio=0.5, Anchor=fig)
+    ind.Dock("tab", Anchor=wfig)
+    rfig.Dock("tab", Anchor=wfig)
     print(f"[example] best {f}/{s}: Sharpe {st_in.get('Sharpe', float('nan')):.2f} in sample, "
           f"{st_out.get('Sharpe', float('nan')):.2f} out of sample")
     ws.Activate()

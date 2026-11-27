@@ -422,7 +422,8 @@ std::string KeyTipFor(const std::string& cmd) {
     for (const auto& c : rest) {
       if (g_kt_keys.count(c)) continue;
       std::string letters;
-      for (char ch : OneLine(LabelOf(c))) {
+      // the English label's letters, in every language (a Chinese label has none: its KeyTips were AA, AB...)
+      for (char ch : OneLine(i18n::SourceOf(LabelOf(c).c_str()))) {
         if (std::isalnum(static_cast<unsigned char>(ch))) letters += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
       }
       if (letters.empty()) letters = "Y";
@@ -487,6 +488,34 @@ void ItemExtras(const Item& it, const ImRect& r, const char* popup, bool* check 
   }
 }
 
+// Excel 2003's menu keys, which Excel still takes after Alt when no tab has the letter: Alt, E, S, V is Paste Special
+// and its Values, Alt, O, C, A AutoFits columns. People who learned them type them without looking.
+const std::map<std::string, std::string>& LegacyKeys() {
+  static const std::map<std::string, std::string> k = {
+      {"ES", "PasteSpecial"},  {"ED", "DeleteCells"},     {"EL", "DeleteSheet"},     {"EM", "CopySheet"},
+      {"EIS", "FillSeries"},   {"EF", "Find"},            {"EE", "Replace"},         {"EG", "GoTo"},
+      {"EAA", "ClearAll"},     {"EAF", "ClearFormats"},   {"EAC", "ClearContents"},  {"IR", "InsertRows"},
+      {"IC", "InsertColumns"}, {"IW", "InsertSheet"},     {"IE", "InsertCells"},     {"IF", "InsertFunction"},
+      {"IND", "DefineName"},   {"OE", "FormatCellsDialog"}, {"OCA", "AutoFitColumns"}, {"OCW", "ColumnWidth"},
+      {"OCH", "HideColumns"},  {"OCU", "UnhideColumns"},  {"ORA", "AutoFitRows"},    {"ORE", "RowHeight"},
+      {"ORH", "HideRows"},     {"ORU", "UnhideRows"},     {"OHR", "RenameSheet"},    {"DS", "CustomSort"},
+      {"DFF", "ToggleFilter"}, {"DE", "TextToColumns"},   {"DL", "DataValidation"},  {"DB", "Subtotal"},
+      {"DP", "InsertPivotTable"}, {"DGG", "GroupOutline"}, {"DGU", "UngroupOutline"}, {"VZ", "ZoomDialog"}};
+  return k;
+}
+// 0: no such sequence, 1: the start of one, 2: a whole one (cmd set)
+int LegacyMatch(const std::string& typed, std::string* cmd) {
+  int m = 0;
+  for (const auto& [key, c] : LegacyKeys()) {
+    if (key == typed) {
+      *cmd = c;
+      return 2;
+    }
+    if (key.compare(0, typed.size(), typed) == 0) m = 1;
+  }
+  return m;
+}
+
 // typed KeyTip letters: run the match (previous frame's KeyTips); returns true while KeyTips stay on
 void KeyTipInput() {
   ImGuiIO& io = ImGui::GetIO();
@@ -537,18 +566,17 @@ void KeyTipInput() {
   }
   if (ImGui::IsKeyPressed(ImGuiKey_LeftAlt, false) || ImGui::IsKeyPressed(ImGuiKey_RightAlt, false)) alt_tap = true;
   if (other || ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)) alt_tap = alt_tap && !other && !ImGui::IsMouseClicked(0) && !ImGui::IsMouseClicked(1);
-  // Alt + a letter (no Ctrl) goes straight to that tab's KeyTips, like Excel's Alt+H
+  // Alt + a letter (no Ctrl) goes straight to that tab's KeyTips, like Excel's Alt+H, or starts Excel 2003's menu keys
+  // (Alt+E). The tabs register their KeyTips only while KeyTips show, so the letter is matched on the next frame, once
+  // they do: matched at once against none, a held Alt+W did nothing and the F, F that followed were typed into a cell
+  static bool defer = false;
   if (alt_now && !io.KeyCtrl && g_state.keytip_level == 0 && !io.WantTextInput) {
     for (int k = ImGuiKey_A; k <= ImGuiKey_Z; ++k) {
       if (k == ImGuiKey_Q || !ImGui::IsKeyPressed(static_cast<ImGuiKey>(k), false)) continue;
-      const char ch = static_cast<char>('A' + (k - ImGuiKey_A));
-      for (const auto& t : g_kt_prev) {
-        if (t.tab >= 0 && t.key == std::string(1, ch)) {
-          g_state.selected_tab = t.tab;
-          g_state.keytip_level = 2;
-          g_kt_typed.clear();
-        }
-      }
+      g_state.keytip_level = 1;
+      g_kt_typed = std::string(1, static_cast<char>('A' + (k - ImGuiKey_A)));
+      io.InputQueueCharacters.resize(0);
+      defer = true;
     }
   }
   if (!alt_now && alt_tap && (ImGui::IsKeyReleased(ImGuiKey_LeftAlt) || ImGui::IsKeyReleased(ImGuiKey_RightAlt))) {
@@ -560,14 +588,26 @@ void KeyTipInput() {
     g_state.keytip_level = g_state.keytip_level ? 0 : 1;
     g_kt_typed.clear();
   }
-  if (!g_state.keytip_level) return;
+  if (!g_state.keytip_level) {
+    g_state.legacy_keys.clear();
+    return;
+  }
   if (ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1) || g_state.backstage) {
     g_state.keytip_level = 0;
+    g_state.legacy_keys.clear();
     return;
   }
   if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-    if (!g_kt_typed.empty()) g_kt_typed.clear();
+    if (!g_state.legacy_keys.empty()) g_state.keytip_level = 0;  // Excel: Esc cancels the 2003 keys
+    else if (!g_kt_typed.empty()) g_kt_typed.clear();
     else g_state.keytip_level = g_state.keytip_level == 2 ? 1 : 0;
+    g_kt_typed.clear();
+    g_state.legacy_keys.clear();
+    io.InputQueueCharacters.resize(0);
+    return;
+  }
+  if (defer) {  // a held Alt's letter: the tabs' KeyTips are registered by the time it is matched
+    defer = false;
     io.InputQueueCharacters.resize(0);
     return;
   }
@@ -609,6 +649,27 @@ void KeyTipInput() {
     }
     if (t.key.compare(0, g_kt_typed.size(), g_kt_typed) == 0) partial = true;
   }
+  if (!partial && g_state.keytip_level == 1) {  // no tab: Excel 2003's menu keys
+    std::string cmd;
+    const int m = LegacyMatch(g_kt_typed, &cmd);
+    if (m == 2) {
+      g_kt_typed.clear();
+      g_state.legacy_keys.clear();
+      g_state.keytip_level = 0;
+      Exec(cmd);
+      return;
+    }
+    if (m == 1) {
+      g_state.legacy_keys = g_kt_typed;
+      return;
+    }
+    if (!g_state.legacy_keys.empty()) {  // a letter no sequence has: Excel leaves the keys, as Esc
+      g_state.legacy_keys.clear();
+      g_kt_typed.clear();
+      g_state.keytip_level = 0;
+      return;
+    }
+  }
   if (!partial) g_kt_typed.clear();  // no such KeyTip: start over
 }
 
@@ -628,7 +689,9 @@ void MenuKeyTip(const std::string& target, const std::string& label, ImVec2 at) 
   std::string key;
   const auto f = MenuKeyTips().find(id);
   if (f != MenuKeyTips().end() && !taken(f->second)) key = f->second;
-  for (char ch : label) {
+  // the first free letter of the English label, in every language: a Chinese label has none, and Alt, H, L, H, G
+  // reached nothing in the Chinese UI
+  for (char ch : std::string(i18n::SourceOf(label.c_str()))) {
     if (!key.empty()) break;
     const std::string k(1, static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
     if (std::isalnum(static_cast<unsigned char>(ch)) && !taken(k) && !g_kt_reserved.count(k)) key = k;
@@ -2008,7 +2071,15 @@ void DrawTabRow(const ImRect& r) {
   g_state.hovered_tile.clear();  // set again by the tile under the mouse (the ribbon body and its popups are drawn after this)
   g_kt_prev = std::move(g_kt);
   g_kt.clear();
-  KeyTipInput();
+  // a modal dialog owns the keyboard: Alt + a letter there is the dialog's (Excel's underlined keys), never the
+  // ribbon's KeyTips behind it, which took the letters typed next and ran Home's commands under the dialog
+  if (ImGui::GetTopMostPopupModal()) {  // (the ribbon draws before the dialog: "visible" reads false here)
+    g_state.keytip_level = 0;
+    g_state.legacy_keys.clear();
+    g_kt_typed.clear();
+  } else {
+    KeyTipInput();
+  }
   dl->AddRectFilled(r.Min, r.Max, T().ribbon_bg);
   ImGui::PushFont(F().ui, F().ui_size + 0.5f);
   float x = r.Min.x + S(6);
@@ -2052,6 +2123,11 @@ void DrawTabRow(const ImRect& r) {
     if (h.hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !tab.backstage) {
       g_state.collapsed = !g_state.collapsed;
       g_state.peek = false;
+    }
+    if (g_state.keytip_level == 1 && i == 0 && !g_state.legacy_keys.empty()) {
+      std::string typed = "ALT";
+      for (char ch : g_state.legacy_keys) typed += std::string(", ") + ch;
+      ImGui::SetTooltip("%s", (TR("Office 2003 access key: ") + typed + TR(", continue typing the menu key sequence, or press Esc to cancel.")).c_str());
     }
     if (g_state.keytip_level == 1) {
       // File F, Home H, Insert N, Page Layout P, Formulas M, Data A, Review R, View W, Developer L, contextual tabs J + a letter

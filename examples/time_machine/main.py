@@ -12,7 +12,7 @@ import os
 import tempfile
 import time
 
-from yc import replay
+from yc import excel, replay
 
 from ex_util import load_example, thread
 
@@ -25,7 +25,11 @@ def run(seconds: float = 20.0):
     """Builds the ladder and the candles, records everything for `seconds` (paper orders are sent meanwhile), then
     starts the replay of the recording."""
     om = dom_ladder.run(seconds=seconds + 2)
-    live_candles.run(seconds=seconds + 2)
+    _, candles = live_candles.run(seconds=seconds + 2)
+    # the ladder in front with the candles docked beside it: the candles' sheet, opened last, and its floating chart
+    # hid the ladder whose fills the replay is about
+    excel.Worksheets("Ladder").Activate()
+    candles.Dock("right", Ratio=0.5)
     path = os.path.join(tempfile.gettempdir(), "ycgrid_time_machine.yctape")
     replay.record(path, everything=True)
     print(f"[example] recording everything for {seconds:g} s to {path} (orders are sent on the paper exchange)")

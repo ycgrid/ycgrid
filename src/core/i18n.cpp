@@ -303,6 +303,30 @@ const char* Tr(const char* text) {
   return out;
 }
 
+const char* SourceOf(const char* text) {
+  if (!text) return text;
+  State& st = St();
+  if (st.lang == Lang::En) return text;
+  std::lock_guard<std::mutex> lk(st.mu);
+  static std::unordered_map<std::string_view, const char*> rev;  // translation -> its English text
+  if (rev.empty()) {
+    // a translation of several texts ("is greater than", "Greater Than") takes a label's: the one with a capital first,
+    // then the shortest, then the first in order (the same every run)
+    auto better = [](std::string_view a, std::string_view b) {
+      const bool ua = !a.empty() && std::isupper(static_cast<unsigned char>(a[0])), ub = !b.empty() && std::isupper(static_cast<unsigned char>(b[0]));
+      if (ua != ub) return ua;
+      if (a.size() != b.size()) return a.size() < b.size();
+      return a < b;
+    };
+    for (const auto& [en, zh] : st.table) {
+      auto [it, fresh] = rev.emplace(std::string_view(zh), en.data());
+      if (!fresh && better(en, it->second)) it->second = en.data();
+    }
+  }
+  const auto it = rev.find(std::string_view(text));
+  return it != rev.end() ? it->second : text;
+}
+
 const wchar_t* TrW(const wchar_t* text) {
   if (!text) return text;
   State& st = St();

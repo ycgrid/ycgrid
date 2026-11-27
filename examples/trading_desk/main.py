@@ -55,7 +55,9 @@ def run(seconds: float = 0, bar_seconds: float = 5.0, bars_shown: int = 90):
         _state["stop"].set()
         _state["gw"].close()
     gw = trading.PaperGateway(spot=23000, seed=21, step=0.15)
-    om = trading.OrderManager(gw, risk=trading.RiskLimits(max_qty=10, max_position=20, price_band=0.01),
+    # duplicate_window: a double-click on BUY MKT sends one order, not two
+    om = trading.OrderManager(gw, risk=trading.RiskLimits(max_qty=10, max_position=20, price_band=0.01,
+                                                          duplicate_window=0.5),
                               require_operator=False)
     ws = fresh_sheet("Desk", trading=True)
     ws.Cells.Font.Name = "Arial"
@@ -138,18 +140,27 @@ def run(seconds: float = 0, bar_seconds: float = 5.0, bars_shown: int = 90):
     lock = threading.Lock()
     fill_rows: list = []
     realized = {"money": 0.0}
+    # the position and its average price before each fill, kept here: on_fill runs after the order manager has
+    # counted the fill, and a fill that closes the position leaves no average to read there (its profit was lost)
+    book = {"q": 0, "avg": 0.0}
 
     def on_fill(f):
         with lock:
-            q0, avg0 = om.position("TXF"), om.avg_cost("TXF")
             fill_rows.append(f)
             pnl = 0.0
-            # a fill against the position (the position before it already counts it): its realized profit
             signed = f.qty if f.side == "buy" else -f.qty
-            before = q0 - signed
-            if before and (before > 0) != (signed > 0) and avg0 is not None:
-                closed = min(abs(before), abs(signed))
-                pnl = (f.price - (avg0 if q0 else f.price)) * closed * POINT * (1 if before > 0 else -1)
+            q0, avg0 = book["q"], book["avg"]
+            if q0 and (q0 > 0) != (signed > 0):  # a fill against the position: its realized profit
+                closed = min(abs(q0), abs(signed))
+                pnl = (f.price - avg0) * closed * POINT * (1 if q0 > 0 else -1)
+            q1 = q0 + signed
+            if q1 == 0:
+                book["avg"] = 0.0
+            elif q0 == 0 or (q0 > 0) == (signed > 0):  # opened or added to
+                book["avg"] = (avg0 * abs(q0) + f.price * abs(signed)) / abs(q1)
+            elif (q1 > 0) != (q0 > 0):  # through flat to the other side
+                book["avg"] = f.price
+            book["q"] = q1
             realized["money"] += pnl
             fills.update({"#": [len(fill_rows)], "Time": [f.time / 86400 + 25569 - time.timezone / 86400],
                           "Side": [f.side.upper()], "Qty": [f.qty], "Price": [f.price], "P&L": [pnl or None]})
@@ -160,15 +171,22 @@ def run(seconds: float = 0, bar_seconds: float = 5.0, bars_shown: int = 90):
         px = (ctx.get("record") or {}).get("Price")
         return None if px is None else float(px)
 
-    def qty() -> int:
-        try:
-            return max(1, int(qty_cell.Value))
-        except (TypeError, ValueError):
-            return 1
+    def qty():
+        """The quantity typed in B4, or None when it isn't a whole number of lots: a typo sends no order (it sent one
+        lot)."""
+        v = qty_cell.Value
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or v != int(v) or v < 1:
+            return None
+        return int(v)
 
     def send(side, price=None):
+        n = qty()
+        if n is None:
+            excel.Application.StatusBar = f"Order refused: the quantity in B4 ({qty_cell.Value!r}) isn't a whole number of lots"
+            return
         try:
-            om.submit("TXF", side, qty(), price)
+            om.submit("TXF", side, n, price)
+            excel.Application.StatusBar = False
         except trading.Rejected as e:
             excel.Application.StatusBar = f"Order refused: {e}"
 
@@ -237,10 +255,7 @@ def run(seconds: float = 0, bar_seconds: float = 5.0, bars_shown: int = 90):
                 m.step(0.1)
             if now - last_draw >= 0.25:
                 last_draw = now
-                mine = [o for o in om.orders(open_only=True) if o.price is not None]
-                lad.update(tx, *mkt.book(levels=12),
-                           {o.price: o.qty - o.filled for o in mine if o.side == "buy"},
-                           {o.price: o.qty - o.filled for o in mine if o.side == "sell"})
+                lad.update(tx, *mkt.book(levels=12), *Ladder.working(om.orders(open_only=True)))
                 watch.update(watch_rows(tx))
                 q, avg = om.position("TXF"), om.avg_cost("TXF")
                 open_pnl = (tx - avg) * q * POINT if q and avg else 0.0

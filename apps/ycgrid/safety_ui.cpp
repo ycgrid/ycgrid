@@ -439,6 +439,8 @@ void DrawSafetyFrame(AppState& s) {
   if (u.show_param) {
     ImGui::SetNextWindowSize(ImVec2(S(380), 0), ImGuiCond_Appearing);
     if (ImGui::Begin(TR("Parameter Cell###yc_param"), &u.show_param, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+        u.show_param = false;  // Escape is its Cancel, as every dialog's
       const model::Sheet* sh = s.snap ? s.snap->Sheet(u.p_sheet) : nullptr;
       ImGui::Text("%s", ((sh ? sh->name + "!" : std::string()) + core::CellA1(u.p_r, u.p_c)).c_str());
       ImGui::SetNextItemWidth(S(220));

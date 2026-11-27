@@ -20,9 +20,11 @@ EXE = os.environ.get("YCGRID_EXE") or os.path.join(os.path.dirname(__file__), ".
 
 
 class HabitsBase(unittest.TestCase):
+    LANG = "en"
+
     @classmethod
     def setUpClass(cls):
-        cls.proc = yc.launch(hidden=True, exe=EXE, lang="en")
+        cls.proc = yc.launch(hidden=True, exe=EXE, lang=cls.LANG)
         cls.conn = yc.connect(target=cls.proc.pid)
         cls.tmp = tempfile.mkdtemp(prefix="yc_parity_habits_")
 
@@ -150,6 +152,36 @@ class HiddenInstanceTest(HabitsBase):
         self.assertEqual(self.ws.Range("C1").Value, "clicked")
 
 
+class ChineseKeyTipsTest(HabitsBase):
+    """KeyTips in the Traditional Chinese UI, the one people use: an entry without Excel's fixed key took the first
+    letter of its label, and a Chinese label has none, so Alt, H, L, H, G reached nothing (and ribbon commands got
+    AA, AB...). The letters come from the English label in every language."""
+
+    LANG = "zh-TW"
+
+    def test_alt_h_l_h_g_opens_greater_than(self):
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        self.keytips("HLHG", "g:A1:A3|w:2|")
+        self.assertTrue(self.dialog(), "Greater Than")
+        self.keys("k:Escape|w:4")
+
+    def test_a_click_on_the_sheet_fills_the_dialogs_box(self):
+        """Excel's RefEdit: a cell clicked while the box has the keyboard goes into it (only its button did)."""
+        from yc import ui
+
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        self.ws.Range("C1").Value = 2
+        self.keytips("HLHG", "g:A1:A3|w:2|")
+        x0, y0, x1, y1 = ui.cell_rect("C1")
+        x, y = int((x0 + x1) / 2), int((y0 + y1) / 2)
+        self.keys(f"k:c-A|w:2|m:{x},{y}|w:3|c:{x},{y}|w:8|k:Enter|w:8")
+        fc = self.ws.Range("A1:A3").FormatConditions
+        self.assertEqual(fc.Count, 1)
+        self.assertEqual(fc(1).Formula1, "=$C$1")
+        self.assertEqual(ui.state()["selection"], "A1:A3", "the selection put back")
+        self.assertNotIn("edit", ui.state(), "one click, no editor")
+
+
 class KeyTipsTest(HabitsBase):
     def test_alt_h_l_opens_conditional_formatting(self):
         # Excel's fixed KeyTips named ids the ribbon doesn't use (CondFormatMenu): Alt, H, L got two other letters
@@ -181,6 +213,54 @@ class KeyTipsTest(HabitsBase):
         self.keytips("HVV", "g:D1|w:2|")
         self.assertEqual(self.ws.Range("D1").Value, 2)
         self.assertFalse(self.ws.Range("D1").HasFormula)
+
+    def test_excel_2003_menu_keys_still_work(self):
+        """Alt, E, S, V (Paste Special, Values) and Alt, O, C, A did nothing: Excel still takes the 2003 menu keys after
+        Alt when no tab has the letter, and people who learned them type them without looking."""
+        from yc import ui
+
+        self.ws.Range("A1").Formula = "=1+1"
+        self.keys("g:A1|w:2|k:c-C|w:3")
+        self.keytips("ES", "g:D1|w:2|")
+        self.assertTrue(self.dialog(), "Alt, E, S opens Paste Special")
+        self.keys("k:V|w:3|k:Enter|w:6")
+        self.assertEqual(self.ws.Range("D1").Value, 2)
+        self.assertFalse(self.ws.Range("D1").HasFormula)
+        self.keys("k:Escape|w:3")
+        self.ws.Range("B2").Value = "a long piece of text that needs a wide column"
+        self.ws.Columns("B").ColumnWidth = 4
+        self.keytips("OCA", "g:B2|w:2|")
+        self.assertGreater(self.ws.Columns("B").ColumnWidth, 20)
+        self.keys("m:2,2|w:2|k:LeftAlt|w:3|t:E|w:4")  # half a sequence: Excel's hint, then Esc leaves it
+        self.assertEqual(ui.state()["ribbon"].get("legacy_keys"), "E")
+        self.keys("k:Escape|w:4")
+        self.assertFalse(ui.state()["ribbon"].get("legacy_keys"))
+        self.assertEqual(ui.state()["ribbon"]["keytips"], 0)
+
+    def test_alt_held_with_a_tab_letter(self):
+        """Alt held down with W (not tapped) goes to the View tab's KeyTips, as Excel's: a script's chord set only the
+        Alt flag, never the Alt key a keyboard sends, and F, F were typed into the cell."""
+        from yc import excel
+
+        self.keys("g:B2|w:2|m:2,2|w:2|k:a-W|w:4|t:F|w:4|t:F|w:6")
+        try:
+            self.assertTrue(excel.ActiveWindow.FreezePanes)
+            self.assertNotEqual(self.ws.Range("B2").Value, "FF")
+        finally:
+            excel.ActiveWindow.FreezePanes = False
+
+    def test_alt_in_a_dialog_is_not_the_ribbons(self):
+        """Alt in a modal dialog lit the ribbon's KeyTips behind it, and the letters typed next went to them: Alt, H
+        then V in Paste Special pasted from Home's Paste menu under the dialog."""
+        from yc import ui
+
+        self.keys("g:A1|w:2|k:c-C|w:3|g:D1|w:2|k:c-a-V|w:8")
+        d = self.dialog()
+        self.assertTrue(d, "Paste Special")
+        self.keys("k:LeftAlt|w:4|t:H|w:4")
+        self.assertEqual(ui.state()["ribbon"]["keytips"], 0)
+        self.assertEqual(self.dialog(), d)
+        self.keys("k:Escape|w:4")
 
     def test_alt_h_b_a_draws_all_borders(self):
         from yc import excel

@@ -329,17 +329,38 @@ void DrawTradingOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeo
     }
   }
   dl->PopClipRect();
-  // click actions (click-to-trade): a mouse click on a registered range tells Python; arrow keys never do
+  // click actions (click-to-trade): a mouse click on a registered range tells Python; arrow keys never do. A click is
+  // a press and a release on the same cell, as a button's: a drag that starts on a size (selecting cells) sends nothing.
+  // The press is noted per frame for every pane this overlay draws (frozen panes), the release may land in another.
+  static struct {
+    int button = -1;
+    uint32_t sheet = 0;
+    int64_t r = -1, c = -1;
+    int frame = -1;
+  } press;
+  if (press.button >= 0 && press.frame != ImGui::GetFrameCount() && !ImGui::IsMouseDown(press.button) &&
+      !ImGui::IsMouseReleased(press.button))
+    press.button = -1;  // released outside the cells
   if (!s.click_ranges.empty() && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && g.cells.Contains(ImGui::GetMousePos())) {
-    const int button = ImGui::IsMouseClicked(ImGuiMouseButton_Left) ? 0 : ImGui::IsMouseClicked(ImGuiMouseButton_Right) ? 1 : -1;
-    const bool dbl = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+    const ImVec2 p = g.to_sheet(ImGui::GetMousePos());
+    const int64_t r = sh->rows->IndexAt(static_cast<int64_t>(p.y)), c = sh->cols->IndexAt(static_cast<int64_t>(p.x));
+    const int pressed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) ? 0 : ImGui::IsMouseClicked(ImGuiMouseButton_Right) ? 1 : -1;
+    if (pressed >= 0) {
+      press = {pressed, sheet_id, r, c, ImGui::GetFrameCount()};
+      for (const auto& cr : s.click_ranges)  // the cell's own menu stays shut on a right click there
+        if (pressed == 1 && cr.right && cr.sheet == sheet_id && r >= 0 && c >= 0 && cr.rect.Contains(static_cast<uint32_t>(r), static_cast<uint32_t>(c)))
+          s.suppress_cell_menu = true;
+    }
+    int button = -1;
+    if (press.button >= 0 && ImGui::IsMouseReleased(press.button)) {
+      if (press.sheet == sheet_id && press.r == r && press.c == c) button = press.button;
+      press.button = -1;
+    }
+    const bool dbl = button == 0 && ImGui::GetIO().MouseClickedLastCount[0] >= 2;
     if (button >= 0) {
-      const ImVec2 p = g.to_sheet(ImGui::GetMousePos());
-      const int64_t r = sh->rows->IndexAt(static_cast<int64_t>(p.y)), c = sh->cols->IndexAt(static_cast<int64_t>(p.x));
       for (const auto& cr : s.click_ranges) {
         if (cr.sheet != sheet_id || r < 0 || c < 0 || !cr.rect.Contains(static_cast<uint32_t>(r), static_cast<uint32_t>(c))) continue;
         if ((button == 0 && !cr.left) || (button == 1 && !cr.right)) continue;
-        if (button == 1) s.suppress_cell_menu = true;
         if (s.python && s.python->HostReady()) {
           MV pm = CellContextMV(s, sheet_id, static_cast<uint32_t>(r), static_cast<uint32_t>(c));
           pm.Set("id", MV::Int(cr.id));

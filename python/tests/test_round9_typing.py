@@ -238,6 +238,9 @@ class PercentEntryTest(TypingTest):
         self.assertEqual(self.typed("0%", "t:.", "t:5", "k:Enter")[1], 0.005)
         self.assertEqual(self.typed("0%", "t:1", "t:0", "t:0", "k:Enter")[1], 1)
         self.assertEqual(self.typed("0%", "t:1", "t:2", "t:%", "k:Enter")[1], 0.12)  # the % typed takes the place of Excel's
+        # a Chinese IME commits the whole text at once: 12.5% in one frame was the text 12.5%%
+        self.assertEqual(self.typed("0.0%", "t:12.5%", "k:Enter")[1], 0.125)
+        self.assertEqual(self.typed("0.0%", "t:12.5", "k:Enter")[1], 0.125)
         self.assertEqual(self.typed("0%", "t:5", "k:Tab")[1], 0.05)
         self.assertEqual(self.typed("0.00%", "t:7", "k:Enter", value=0.5)[1], 0.07)
         self.assertEqual(self.ws.Range("E1").NumberFormat, "0.00%")

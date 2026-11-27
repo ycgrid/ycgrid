@@ -119,11 +119,13 @@ def sweep_dialogs(exe, failures):
     try:
         sample(excel)
         seen = {}
+        windows = {}  # dialogs that don't block the sheet (Symbol, Find and Replace): a window with Cancel or Close
         for c in ui.commands():  # find the commands that open a dialog
             cid = c["id"]
             if SKIP.search(cid):
                 continue
             conn.request("ui.input", {"script": "g:B2:E41|w:2", "timeout_ms": 5000}, timeout=15)
+            before = {x["name"] for x in ui.windows()}
             try:
                 conn.request("ui.command", {"id": cid}, timeout=20)
             except Exception as e:  # noqa: BLE001 - e.g. refused on a protected sheet: no dialog to check
@@ -134,8 +136,33 @@ def sweep_dialogs(exe, failures):
             d = conn.request("ui.state", {}, timeout=10).get("dialog")
             if d:
                 seen.setdefault(d, cid)
+            for x in ui.windows():
+                if x["name"] not in before and x["name"] not in windows and not x.get("docked"):
+                    labels = {i.get("label", "").split("##")[0] for i in ui.items(x["label"])}
+                    if labels & {"Cancel", "Close"}:
+                        windows[x["name"]] = (cid, x["label"])
             conn.request("ui.input", {"script": "k:Escape|w:3|k:Escape|w:3", "timeout_ms": 5000}, timeout=15)
+            for x in ui.windows():  # what Escape left open: closed here so the next command starts clean
+                if x["name"] in windows and x["name"] not in before:
+                    conn.request("ui.input", {"script": "k:Escape|w:3", "timeout_ms": 5000}, timeout=15)
             sample(excel)
+        for name, (cid, label) in sorted(windows.items()):  # Escape right after it opens closes it, as Excel's dialogs
+            conn.request("ui.input", {"script": "g:B2:E41|w:2", "timeout_ms": 5000}, timeout=15)
+            conn.request("ui.command", {"id": cid}, timeout=20)
+            time.sleep(0.3)
+            if name not in {x["name"] for x in ui.windows()}:
+                continue
+            conn.request("ui.input", {"script": "k:Escape|w:6", "timeout_ms": 5000}, timeout=15)
+            time.sleep(0.3)
+            if name in {x["name"] for x in ui.windows()}:
+                failures.append(f"window {name} ({cid}): Escape doesn't close it")
+                p_items = [i for i in ui.items(label) if i.get("label", "").split("##")[0] in ("Cancel", "Close")]
+                if p_items:  # close it with its own button for the next checks
+                    r = p_items[0]["rect"]
+                    x, y = int((r[0] + r[2]) / 2), int((r[1] + r[3]) / 2)
+                    conn.request("ui.input", {"script": f"m:{x},{y}|w:2|c:{x},{y}|w:4", "timeout_ms": 5000}, timeout=15)
+            sample(excel)
+        print(f"windows: {len(windows)} checked with Escape")
         seen_asserts = conn.request("ui.state", {}).get("imgui_asserts", 0)  # the first pass reports none: commands do
         for d, cid in sorted(seen.items()):
             for key in ("Escape", "Enter"):
@@ -177,6 +204,23 @@ def sweep_examples(exe, out, failures):
             built = example_build.built()
             if not built or errs or p.poll() is not None:
                 failures.append(f"example {name}: {'not built' if not built else [e.get('text', '')[:160] for e in errs]}")
+            # figure windows floating over each other: the one opened first (the screen's own chart) lay under the
+            # others (quick_plot's heatmap covered its ten million points); a screen docks or places them apart
+            figs = [x for x in ui.windows() if "###yc_fig" in x["name"] and not x.get("docked") and x.get("visible", True)]
+            for i, a in enumerate(figs):
+                for b in figs[i + 1:]:
+                    ra, rb = a["rect"], b["rect"]
+                    over = max(0.0, min(ra[2], rb[2]) - max(ra[0], rb[0])) * max(0.0, min(ra[3], rb[3]) - max(ra[1], rb[1]))
+                    if over > 0.25 * min((ra[2] - ra[0]) * (ra[3] - ra[1]), (rb[2] - rb[0]) * (rb[3] - rb[1])):
+                        failures.append(f"example {name}: the figures {a['label']!r} and {b['label']!r} cover each other")
+            # a floating figure over most of the sheet hid the cells the screen shows (backtest_report's statistics and
+            # the trade list meant to be clicked): a screen docks its figures beside the sheet
+            grid = next((x["rect"] for x in ui.windows() if x["name"].startswith("Workbook")), None)
+            for f in figs if grid else []:
+                r = f["rect"]
+                over = max(0.0, min(r[2], grid[2]) - max(r[0], grid[0])) * max(0.0, min(r[3], grid[3]) - max(r[1], grid[1]))
+                if over > 0.4 * (grid[2] - grid[0]) * (grid[3] - grid[1]):
+                    failures.append(f"example {name}: the figure {f['label']!r} floats over {over / ((grid[2] - grid[0]) * (grid[3] - grid[1])):.0%} of the sheet")
         except Exception as e:  # noqa: BLE001
             failures.append(f"example {name}: {e}")
         finally:

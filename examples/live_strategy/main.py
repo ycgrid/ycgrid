@@ -43,6 +43,7 @@ def run(seconds: float = 0, bar_seconds: float = 3.0, fast: int = 5, slow: int =
                      formats={"Time": "hh:mm:ss", "Close": "#,##0"}, flash=["Target"], record=False)
     dark_table(decisions)
     fig = plot.figure(f"Live MA {fast}/{slow}", rows=2, link_x=True, size=(960, 640), pos=(80, 150), theme="dark")
+    fig.Dock("right", Ratio=0.6)  # beside the sheet: floating, it covered the cells the screen shows
     fig[0].set(time=True, follow=bar_seconds * 120, title="Candles, averages and decisions")
     fig[1].set(time=True, follow=bar_seconds * 120, title="Position (contracts)")
     f_item = fig[0].line([], [], label=f"SMA {fast}", color=T["yellow"], width=2)
