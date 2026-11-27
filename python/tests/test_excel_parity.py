@@ -504,6 +504,11 @@ class ExcelParityTest(unittest.TestCase):
         self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4")
         c = self.ws.Range("B3").Comment
         self.assertIn("first line more", c.Text() if callable(getattr(c, "Text", None)) else c.Text)
+        # ...and the caret starts after the note's text, as Excel's: without Ctrl+End the typing went before it
+        # (once another box had had the keyboard, a cell's entry here: ImGui keeps the last box's caret otherwise)
+        self.keys("g:D9|w:2|t:x|k:Enter|w:3|g:B3|w:2|k:s-F2|w:6|t: again|w:2|k:Escape|w:4")
+        c = self.ws.Range("B3").Comment
+        self.assertEqual(c.Text() if callable(getattr(c, "Text", None)) else c.Text, "first line more again")
         # Escape also ends the editing and keeps what was typed
         self.keys("g:C4|w:2|k:s-F2|w:4|t:kept|k:Escape|w:4")
         c = self.ws.Range("C4").Comment

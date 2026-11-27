@@ -51,6 +51,7 @@ struct MiscUi {
   uint32_t note_sheet = 0, note_r = 0, note_c = 0;
   char note_text[2048] = {};
   bool note_inplace = false, note_focus = false;  // the note's yellow box beside its cell, being typed in
+  bool note_caret_end = false;  // the box, once it has the keyboard, puts its caret after the note's text
   bool note_active = false;                        // the box had the keyboard last frame
   std::string note_before;                         // its text when the editing started
   // the note box being sized (a handle: 1..8 from the top-left clockwise) or moved (9) with the mouse
@@ -647,7 +648,18 @@ void DrawNoteEditor(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g
   // Escape ends the editing but keeps what was typed (Excel); ImGui's box would put the old text back
   const bool esc = ImGui::GetActiveID() == ImGui::GetID("##note_inplace") && ImGui::IsKeyPressed(ImGuiKey_Escape, false);
   const std::string typed = esc ? std::string(m.note_text) : std::string();
-  ImGui::InputTextMultiline("##note_inplace", m.note_text, sizeof(m.note_text), ImVec2(sz.x - S(2), sz.y - ImGui::GetTextLineHeight() - S(6)));
+  // Excel: Shift+F2 on a note goes on typing after its text; ImGui's box takes the keyboard with its caret at 0, and
+  // what was typed went before the note
+  auto to_end = [](ImGuiInputTextCallbackData* data) {
+    bool* flag = static_cast<bool*>(data->UserData);
+    if (*flag) {
+      data->CursorPos = data->SelectionStart = data->SelectionEnd = data->BufTextLen;
+      *flag = false;
+    }
+    return 0;
+  };
+  ImGui::InputTextMultiline("##note_inplace", m.note_text, sizeof(m.note_text), ImVec2(sz.x - S(2), sz.y - ImGui::GetTextLineHeight() - S(6)),
+                            ImGuiInputTextFlags_CallbackAlways, to_end, &m.note_caret_end);
   if (esc) std::snprintf(m.note_text, sizeof(m.note_text), "%s", typed.c_str());
   ImGui::PopStyleColor(2);
   const bool active = ImGui::IsItemActive();
@@ -979,6 +991,7 @@ void RegisterMiscCommands(AppState& s) {
     m.note_before = m.note_text;
     m.note_inplace = true;
     m.note_focus = true;
+    m.note_caret_end = true;
   };
   // Format Comment: the note's font, alignment, colors and lines, size (right-click its border, as in Excel)
   R.Add(make("FormatComment", TR("Format Comment..."), ui::icon::Comment, "", TR("Format the note: its font, alignment, fill and line, and size."))).execute = [&s](ui::Command&) {
