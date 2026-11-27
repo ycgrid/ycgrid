@@ -194,6 +194,17 @@ class ChineseKeyTipsTest(HabitsBase):
         excel.Application.DisplayAlerts = False
         excel.Worksheets(added[0]).Delete()
 
+    def test_insert_function_finds_the_common_function_for_a_chinese_word(self):
+        """A search matches the Chinese descriptions only; alphabetical order picked AVEDEV for average and DSUM for
+        adding up. The common functions come first, as Excel recommends them."""
+        from yc import ui
+
+        for word, fn in (("平均", "AVERAGE"), ("日期", "DATE"), ("sum", "SUM")):
+            self.keys("g:C3|w:2|k:s-F3|w:6")
+            self.keys(f"t:{word}|w:3|k:Enter|w:6")
+            self.assertEqual(((ui.state().get("edit") or {}).get("text") or "").split("(")[0], "=" + fn, word)
+            self.keys("k:Escape|w:4|k:Escape|w:4")
+
     def test_a_new_table_is_named_in_chinese(self):
         """Excel's Chinese UI names a table, its generated headers and a PivotTable in Chinese (Table1, Column1 were
         English), and the names work in structured references."""

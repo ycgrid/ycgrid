@@ -3187,6 +3187,32 @@ void DrawInsertFunction(AppState& s) {
     // Most Recently Used: the last one used first, as Excel lists them
     auto rank = [](const formula::FuncHelp* h) { return std::find(g_fn_recent.begin(), g_fn_recent.end(), h->name) - g_fn_recent.begin(); };
     std::sort(list.begin(), list.end(), [&](auto* a, auto* b) { return rank(a) < rank(b); });
+  } else if (!f.empty()) {
+    // a search lists the best matches first, as Excel's recommends them: the name, then a name it starts, then one it
+    // is in, then the descriptions, the functions people use most first and the shortest description next. In the
+    // Chinese UI a search matches the descriptions only, and alphabetical order chose AVEDEV for the Chinese word for
+    // average and DSUM for the one for adding up
+    static const char* const kCommon[] = {"SUM", "AVERAGE", "COUNT", "MAX", "MIN", "IF", "VLOOKUP", "XLOOKUP", "INDEX", "MATCH", "ROUND",
+                                          "SUMIF", "SUMIFS", "COUNTIF", "COUNTIFS", "AVERAGEIF", "IFERROR", "AND", "OR", "DATE", "TODAY", "NOW",
+                                          "YEAR", "MONTH", "DAY", "LEFT", "RIGHT", "MID", "LEN", "TEXT", "CONCAT", "TRIM", "ABS", "STDEV.S", "PMT"};
+    auto tier = [&](const formula::FuncHelp* h) {
+      const std::string n = engine::Lower(h->name);
+      if (n == f) return 0;
+      if (n.rfind(f, 0) == 0) return 1;
+      if (n.find(f) != std::string::npos) return 2;
+      for (const char* c : kCommon) {
+        if (std::strcmp(c, h->name) == 0) return 3;
+      }
+      return 4;
+    };
+    std::sort(list.begin(), list.end(), [&](auto* a, auto* b) {
+      const int ta = tier(a), tb = tier(b);
+      if (ta != tb) return ta < tb;
+      if (ta == 3) return std::find_if(std::begin(kCommon), std::end(kCommon), [&](const char* c) { return std::strcmp(c, a->name) == 0; }) <
+                          std::find_if(std::begin(kCommon), std::end(kCommon), [&](const char* c) { return std::strcmp(c, b->name) == 0; });
+      if (ta == 4 && std::strlen(a->desc) != std::strlen(b->desc)) return std::strlen(a->desc) < std::strlen(b->desc);
+      return std::strcmp(a->name, b->name) < 0;
+    });
   } else {
     std::sort(list.begin(), list.end(), [](auto* a, auto* b) { return std::strcmp(a->name, b->name) < 0; });
   }
