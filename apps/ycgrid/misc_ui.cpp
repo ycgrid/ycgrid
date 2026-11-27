@@ -940,17 +940,27 @@ void DrawMiscWindows(AppState& s) {
   }
   ImGui::SetNextWindowSize(ImVec2(S(280), S(420)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Left);
+  DockAsTaskPane(TR("Clipboard###yc_clipboard"), true, S(280));  // Excel's pane is on the left of the sheets
   if (ImGui::Begin(TR("Clipboard###yc_clipboard"), &m.show_clipboard)) {
     if (ImGui::Button(TR("Clear All"))) s.clip_history.clear();
     ImGui::Separator();
     if (s.clip_history.empty()) ImGui::TextWrapped(TR("Items appear here after you copy cells (up to 24). Click an item to paste it into the active cell."));
     for (size_t i = s.clip_history.size(); i > 0; --i) {
       const std::string& t = s.clip_history[i - 1];
+      // the copied text on a line: a copied cell's text ends in a line break (CR LF), which showed as nothing but
+      // was in the label, and a ## in it (#,##0) cut the rest off as an ImGui id
       std::string preview(core::Utf8Prefix(t, 120));
-      std::replace(preview.begin(), preview.end(), '\t', ' ');
-      std::replace(preview.begin(), preview.end(), '\n', ' ');
+      for (char& ch : preview) {
+        if (ch == '\t' || ch == '\n' || ch == '\r') ch = ' ';
+      }
+      while (!preview.empty() && preview.back() == ' ') preview.pop_back();
       ImGui::PushID(static_cast<int>(i));
-      if (ImGui::Selectable(preview.c_str(), false, 0, ImVec2(0, ImGui::GetTextLineHeight() * 2))) {
+      const ImVec2 at = ImGui::GetCursorScreenPos();
+      const bool picked = ImGui::Selectable("##clipitem", false, 0, ImVec2(0, ImGui::GetTextLineHeight() * 2));
+      const ImRect item(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+      ImGui::GetWindowDrawList()->AddText(at, ImGui::GetColorU32(ImGuiCol_Text), preview.c_str());
+      ui::NoteUiText(preview.c_str(), item);
+      if (picked) {
         // put it back on the system clipboard, then paste (like the Office clipboard in Excel)
         SetClipboardTextUtf8(s.hwnd, t);
         s.has_clip = false;

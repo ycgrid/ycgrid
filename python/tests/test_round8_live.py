@@ -345,6 +345,25 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_task_panes_sit_beside_the_sheets(self):
+        # the Clipboard pane floated over columns A:D and the cells it was for; Excel's task panes sit beside the grid.
+        # Its entries were labeled with the copied text's line break (alpha\r), so nothing found them by their text
+        self.ws.Range("A1:A2").Value = [["alpha"], ["beta"]]
+        yc.ui.command("ClipboardPane")
+        self.keys("w:6|g:A1|w:2|k:c-C|w:4|g:A2|w:2|k:c-C|w:4|k:Escape|w:3")
+        wins = {w["name"].split("###")[-1]: w for w in yc.ui.windows()}
+        pane, grid = wins.get("yc_clipboard"), wins.get("yc_gridhost")
+        self.assertTrue(pane and pane["docked"] and not pane.get("floating"), pane)
+        self.assertLessEqual(pane["rect"][2], grid["rect"][0] + 4, "the pane is beside the sheets, not over them")
+        self.keys("g:C5|w:2")
+        self.click(self.item("##clipitem", "Clipboard")["rect"]) if False else None
+        hits = [i for i in yc.ui.items("") if i["label"] == "alpha" and i["window"] == "Clipboard"]
+        self.assertTrue(hits, "the entry is found by its text")
+        self.click(hits[0]["rect"])
+        self.assertEqual(self.ws.Range("C5").Value, "alpha")
+        yc.ui.command("ClipboardPane")
+        self.keys("w:4")
+
     def test_the_sort_dialog_selects_what_it_sorts(self):
         # Excel selects the cells the Sort dialog sorts behind it (the header row out while My data has headers is on);
         # the sheet went on showing the one cell, and its combo's column names were missing from ui.items

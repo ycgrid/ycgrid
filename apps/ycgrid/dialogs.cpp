@@ -14,6 +14,7 @@
 #include "frame/frame_context.h"
 #include "grid/grid.h"
 #include "ribbon/ribbon.h"
+#include "dock/dock_layout.h"
 #include "theme/theme.h"
 #include "yc_ui_items.h"
 #include "trust.h"
@@ -3372,6 +3373,15 @@ bool BeginModal(const char* title, bool* open, int flags) {
     g_modal_copy = true;
   }
   return true;
+}
+
+void DockAsTaskPane(const char* window_title, bool left, float width) {
+  if (ImGui::FindWindowByName(window_title)) return;  // shown before in this session: where the user left it
+  const ImGuiWindow* grid = ImGui::FindWindowByName("###yc_gridhost");
+  if (!grid || !grid->DockNode) return;  // the sheets aren't docked (a container): it floats
+  const float total = grid->DockNode->Size.x;
+  if (total <= width * 2.0f) return;  // too narrow to share
+  ui::dock::DockBesideWindow(window_title, "###yc_gridhost", left ? 0 : 1, width / total);
 }
 
 void PlaceNewWindow(WindowPlace where) {

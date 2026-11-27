@@ -9412,6 +9412,7 @@ void DrawPropertiesWindow(AppState& s) {
   ui::NoteWindowTitle(wtitle);  // ui.windows() shows the title of now (Format Shape after Format Chart Area)
   ImGui::SetNextWindowSize(ImVec2(S(300), S(460)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Right);
+  DockAsTaskPane(wtitle.c_str(), false, S(300));  // Excel's Format pane is on the right of the sheets
   if (!ImGui::Begin(wtitle.c_str(), &u.show_props)) {
     ImGui::End();
     return;
@@ -11854,6 +11855,7 @@ void DrawSelectionPane(AppState& s) {
   const model::Sheet* sh = s.FocusSheet();
   ImGui::SetNextWindowSize(ImVec2(S(260), S(360)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Right);
+  DockAsTaskPane(TR("Selection###yc_selpane"), false, S(260));  // beside the sheets, as Excel's
   if (!ImGui::Begin(TR("Selection###yc_selpane"), &g_selection_pane)) {
     ImGui::End();
     return;

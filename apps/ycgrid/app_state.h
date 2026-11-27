@@ -810,6 +810,10 @@ bool DlgOkButton(const char* label, const ImVec2& size);
 // Name Box and the formula bar (ImGui's default corner): centered, along the bottom, or at a side below the ribbon
 enum class WindowPlace { Center, Bottom, Left, Right };
 void PlaceNewWindow(WindowPlace where);
+// a task pane (Clipboard, Format, Selection) docked beside the sheets the first time it shows in a session, as Excel's
+// panes sit beside the grid: floating, the Clipboard pane lay over columns A:D and the cells it was for. Call before
+// its Begin; left of the sheets or right, about `width` pixels wide. Moved or floated later, it stays where it is put
+void DockAsTaskPane(const char* window_title, bool left, float width);
 // a dialog's list (Data Analysis tools, chart types) by keyboard, as in Excel: Up / Down, Home / End, and a letter
 // jumps to the next item starting with it. Call before drawing the list; returns true when the choice moved (scroll
 // it into view: ImGui::SetScrollHereY() when drawing the chosen item)
