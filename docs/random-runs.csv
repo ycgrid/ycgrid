@@ -12064,3 +12064,17 @@ date,tool,seed,seconds,result,note
 2026-11-27,screen_walk,r107,300,clean,"Hide two sheets with Alt, H, O, U, S and unhide one from Alt, H, O, U, H with Enter"
 2026-11-27,screen_walk,r108,300,clean,"Insert Function from Shift+F3: search, Enter, Function Arguments with a range typed (the search box's Enter could not be measured in Excel's older dialog)"
 2026-11-27,screen_walk,r109,300,clean,"Insert Copied Cells from Ctrl+Shift+= with D (Shift cells down), then Undo"
+2026-11-27,basics,4848,173,ok,
+2026-11-27,gaps_fuzz,700221,94,ok,
+2026-11-27,chaos,7801,361,ok,
+2026-11-27,doc_fuzz,2400222,121,ok,
+2026-11-27,calc_fuzz,4561,30,ok,
+2026-11-27,formula_fuzz,5542,0,ok,
+2026-11-27,chaos,7802,361,ok,
+2026-11-27,basics,4849,173,ok,
+2026-11-27,gaps_fuzz,700222,94,ok,
+2026-11-27,doc_fuzz,2400223,102,ok,
+2026-11-27,calc_fuzz,4562,2,ok,
+2026-11-27,formula_fuzz,5543,0,ok,
+
+2026-11-27,screen_walk,r110,300,clean,"A company name wrapped with Alt, H, W, the row AutoFit back from Alt, H, O, A and by a double-click on its border, wrap turned off"
