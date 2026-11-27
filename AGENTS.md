@@ -1003,6 +1003,8 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   was checked. A validation list typed into the rule (`AAPL,MSFT`) is the exception: it matches with case, its items
   as written, the entry without the spaces around it (Excel 16, measured). This lesson said "list validation" for both
   without a measurement, and typed lists let `aapl` in.
+  The filter menu's search box is such a criterion too, with a rule of its own (measured): text is found inside the
+  values, a pattern with `*` or `?` is the whole value (`SearchMatches`); a plain `find` there found nothing for `t?`.
 - A setting Excel keeps in the workbook (the calculation mode and iterative calculation: `calc_mode`, `calc_iterate`,
   WKBK key 7) is saved with it and set by opening it (measured 2026-11-16: a file saved manual with iteration opens
   manual with iteration in a new Excel), not only kept in settings.json: a model built on a cycle opened on another machine showed the circular
