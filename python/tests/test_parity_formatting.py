@@ -367,6 +367,12 @@ class FormattingParityTest(unittest.TestCase):
         self.ws.Range("E1").Value = 0.123456789
         self.ws.Range("E1").NumberFormat = "0.00000000"
         self.assertGreater(self.ws.Columns("E").ColumnWidth, 9.5)
+        # Comma Style (a cell style) too: 1234567.891 made a default column 13 wide in Excel 16 (measured)
+        self.ws.Range("G1").Value = 1234567.891
+        self.keys("g:G1|w:3")
+        self.run_cmd("CommaStyle")
+        self.keys("w:4")
+        self.assertAlmostEqual(self.ws.Columns("G").ColumnWidth, 13, delta=1)
 
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),

@@ -12217,3 +12217,7 @@ date,tool,seed,seconds,result,note
 2026-11-27,doc_fuzz,2400245,119,ok,
 2026-11-27,chaos,7825,361,ok,
 2026-11-27,chaos,7826,361,ok,
+2026-11-28,calc_fuzz,4584,26,ok,
+2026-11-28,formula_fuzz,5565,1,ok,
+
+2026-11-28,screen_walk,r115,300,found,"Comma Style (Alt, H, K) and Percent Style (Alt, H, P) on large numbers in default columns"

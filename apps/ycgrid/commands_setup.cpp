@@ -781,8 +781,13 @@ void RegisterCommands(AppState& s) {
     if (Editing(s) || !s.engine) return;
     const auto areas = SelAreas(s);
     const uint32_t sheet = s.focus_sheet;
+    // the Comma style's code widens a column nobody sized, as the other number formats do (Excel 16, measured: a
+    // default column holding 1234567.891 became 13 wide)
+    const auto widen = ColumnsToWidenForFormat(s, sheet, areas, "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)");
+    for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
     s.engine->PostUser(TR("Comma Style"), [=](Document& d) {
       for (const Rect& a : areas) d.ApplyCellStyle(sheet, a, "Comma");
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
     });
   };
   // Excel's number format keys (Ctrl+Shift+~ ! @ # ^)
