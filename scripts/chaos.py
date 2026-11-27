@@ -513,6 +513,14 @@ class Chaos:
                       "right": (g[2] - 22, (g[1] + g[3]) / 2), "top": ((g[0] + g[2]) / 2, g[1] + 22)}[side]
             self.hand_drag(w["rect"][0] + 60, w["rect"][1] + 12, tx, ty)
             return f"dock Error Log {side} -> docked={bool((win('yc_errors') or {}).get('docked'))}"
+        if w.get("floating"):
+            # in a group that floats over the sheets: alone there, it is out of the dock already, and a drag of its tab
+            # moves the group, as ImGui moves a node of one window (seed 7639 reported it stuck)
+            wr = w["rect"]
+            mates = [x for x in ui.windows() if x.get("docked") and x.get("floating") and "yc_errors" not in x["name"] and x.get("rect")
+                     and x["rect"][0] < wr[2] and wr[0] < x["rect"][2] and x["rect"][1] < wr[3] and wr[1] < x["rect"][3]]
+            if not mates:
+                return "Error Log floats alone in its group"
         tab = w.get("tab") or [w["rect"][0], w["rect"][1], w["rect"][0] + 100, w["rect"][1] + 26]
         # what floats over the sheets: a floating window, or a group of docked windows floating as one
         over = [x for x in ui.windows() if x.get("visible", True) and (not x.get("docked") or x.get("floating"))
