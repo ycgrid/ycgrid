@@ -64,6 +64,19 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - A hidden YCGrid whose TEMP folder is missing no longer ends while starting.
 - An array formula entered with Ctrl+Shift+Enter that reads its own cells no longer leaves what reads it uncalculated
   (`{=A1:B3*2}` beside `=VLOOKUP(A1,A1:C9,2,FALSE)` kept 0 where Excel shows #N/A).
+- Tab in a table goes from its last column to the next row's first, and from its last cell adds a row, as in Excel;
+  Tab ending an entry on a protected sheet goes to the next unlocked cell, as Tab on the sheet does.
+- Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PgDn and Ctrl+PgUp move between a dialog's tabs (Format Cells, Find and Replace,
+  Page Setup...).
+- Holding Ctrl and then dragging a sheet tab copies the sheet, as Excel's help describes.
+- Menus over the cells (the filter menu, Paste Options, Auto Fill Options, error checking, Quick Analysis, a
+  PivotTable field's filter, a slicer's menu) keep the UI's size at any zoom.
+- (Select All) in a filter list and Chart Filters shows a mixed box while some values are ticked.
+- Flash Fill takes a word at either end, as Excel does: "2330" out of "Taiwan Semi (2330)" gives "2454" for
+  "MediaTek (2454)".
+- Find All highlights the row clicked.
+- A validation's input message floats over the circles and objects on the cells.
+- Renaming a sheet to a name in use says Excel's message ("That name is already taken. Try a different one.").
 
 ## 0.10.3 (2026-11-25)
 
