@@ -806,6 +806,14 @@ std::string FilterTooltip(AppState& s, const model::Sheet& sh, const model::Auto
   if (sorted) tip += std::string("\n") + (sorted == 2 ? TR("Sorted Descending") : TR("Sorted Ascending"));
   return tip;
 }
+// the input message of the active cell's validation, noted by DrawRuleOverlays and drawn by DrawInputMessage
+struct InputMessage {
+  bool on = false;
+  uint32_t sheet = 0;
+  ImRect cell;
+  std::string title, message;
+};
+InputMessage g_input_msg;
 }  // namespace
 
 void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
@@ -895,18 +903,28 @@ void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
     DrawArrow(dl, b, IM_COL32(0x40, 0x40, 0x40, 255), false);
   }
   if (rule->show_input && (!rule->input_message.empty() || !rule->input_title.empty())) {
-    ImGui::PushFont(ui::F().ui, ui::F().ui_size);
-    const float w = S(200);
-    const ImVec2 p(cell.Min.x + S(12), cell.Max.y + S(6));
-    const ImVec2 ts = ImGui::CalcTextSize(rule->input_message.c_str(), nullptr, false, w - S(12));
-    const float th = rule->input_title.empty() ? 0.0f : ImGui::GetTextLineHeight() + S(2);
-    const ImRect box(p, ImVec2(p.x + w, p.y + ts.y + th + S(12)));
-    dl->AddRectFilled(box.Min, box.Max, IM_COL32(0xFF, 0xFF, 0xE1, 255));
-    dl->AddRect(box.Min, box.Max, IM_COL32(0x76, 0x76, 0x76, 255));
-    if (th > 0) dl->AddText(ui::F().ui_bold, ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5)), IM_COL32(0, 0, 0, 255), rule->input_title.c_str());
-    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5) + th), IM_COL32(0, 0, 0, 255), rule->input_message.c_str(), nullptr, w - S(12));
-    ImGui::PopFont();
+    // drawn last (DrawInputMessage): Excel's input message floats over the circles, tables and objects on the cells
+    g_input_msg = {true, sheet_id, cell, rule->input_title, rule->input_message};
   }
+}
+
+void DrawInputMessage(AppState&, uint32_t sheet_id, const render::OverlayGeom&) {
+  InputMessage m = std::move(g_input_msg);
+  g_input_msg = {};
+  if (!m.on || m.sheet != sheet_id) return;
+  ImDrawList* dl = ImGui::GetWindowDrawList();
+  ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+  const float w = S(200);
+  const ImVec2 p(m.cell.Min.x + S(12), m.cell.Max.y + S(6));
+  const ImVec2 ts = ImGui::CalcTextSize(m.message.c_str(), nullptr, false, w - S(12));
+  const float th = m.title.empty() ? 0.0f : ImGui::GetTextLineHeight() + S(2);
+  const ImRect box(p, ImVec2(p.x + w, p.y + ts.y + th + S(12)));
+  dl->AddRectFilled(box.Min, box.Max, IM_COL32(0xFF, 0xFF, 0xE1, 255));
+  dl->AddRect(box.Min, box.Max, IM_COL32(0x76, 0x76, 0x76, 255));
+  if (th > 0) dl->AddText(ui::F().ui_bold, ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5)), IM_COL32(0, 0, 0, 255), m.title.c_str());
+  dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5) + th), IM_COL32(0, 0, 0, 255), m.message.c_str(), nullptr, w - S(12));
+  ui::NoteUiText((m.title.empty() ? m.message : m.title + "\n" + m.message).c_str(), box);
+  ImGui::PopFont();
 }
 
 void DrawRulePopups(AppState&) {}

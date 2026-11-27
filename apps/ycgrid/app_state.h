@@ -1036,6 +1036,7 @@ void RegisterRuleCommands(AppState& s);
 // mouse, or the open Highlight Cells Rules / Top Bottom dialog's rule; nullptr = none (rules_ui.cpp)
 const model::CfRule* CfPreviewRule(AppState& s, const std::string& hovered);
 void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
+void DrawInputMessage(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
 void DrawRulePopups(AppState& s);
 void DrawRuleDialogs(AppState& s);
 ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32_t c, const std::string& text);

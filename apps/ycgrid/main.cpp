@@ -690,6 +690,7 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
       app::DrawSlicers(g_app, id, g);
     }
     app::DrawSelectObjectsOverlay(g_app, id, g);  // Find & Select > Select Objects
+    app::DrawInputMessage(g_app, id, g);  // a validation's input message floats over the cells' circles and objects
     app::DrawPageViews(g_app, id, g);  // Page Layout covers everything else
   };
   auto& view = *wv;
