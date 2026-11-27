@@ -687,6 +687,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - Typing is not a command: F4 / Ctrl+Y repeat the last command (`AppState::repeat_id`, noted by
   `CommandRegistry::on_run`), and an entry is neither repeated nor ends what they repeat. A "Repeat Typing" written
   as Excel's without a measurement typed a cell's old value over the next cell after F2, Enter, F4.
+- A key that acts on the selection asks whether the selection is in a table: Excel gives a table its own steps
+  (Ctrl+Space its column's data, then the column with its header and totals; Ctrl+A its data, then the table;
+  Ctrl+- and Ctrl+Shift+= its rows or columns without a dialog, `SelectionTable` / `TableRowsCols`), all measured by
+  keys. YCGrid had taken whole columns and opened the Delete dialog there since tables came in. Measure a new key in
+  a table, and on its header and totals rows, before calling it done.
 - Where Tab goes from one cell is `render::TabTarget`, for Tab on the sheet and Tab ending an entry (`MoveActive`)
   alike: a protected sheet's next unlocked cell, a table's next row from its last column, a row added from its last
   cell. Tab after an entry kept a rule of its own and went to the locked cell beside it, and neither knew tables.
