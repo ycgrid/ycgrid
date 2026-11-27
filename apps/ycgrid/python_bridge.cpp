@@ -4634,6 +4634,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       flag("format_stale_values", &c.format_stale_values);
       flag("generate_getpivotdata", &c.generate_getpivotdata);
       flag("generate_table_refs", &c.generate_table_refs);
+      flag("autoformat_hyperlinks", &c.autoformat_hyperlinks);
       const bool threads_were = c.multi_threaded_calc;
       const int count_was = c.calc_thread_count;
       flag("multi_threaded_calc", &c.multi_threaded_calc);
@@ -4667,6 +4668,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       x.Set("format_stale_values", MV::Bool(c.format_stale_values));
       x.Set("generate_getpivotdata", MV::Bool(c.generate_getpivotdata));
       x.Set("generate_table_refs", MV::Bool(c.generate_table_refs));
+      x.Set("autoformat_hyperlinks", MV::Bool(c.autoformat_hyperlinks));
       x.Set("multi_threaded_calc", MV::Bool(c.multi_threaded_calc));
       x.Set("calc_thread_count", MV::Int(c.calc_thread_count));
       x.Set("pool_threads", MV::Int(static_cast<int64_t>(core::PoolSize())));

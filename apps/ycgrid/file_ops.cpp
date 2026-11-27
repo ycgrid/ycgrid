@@ -1202,6 +1202,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       if (ImGui::Checkbox(TR("Ignore Internet and file addresses"), &cfg.spell_ignore_internet)) changed = true;
       if (ImGui::Checkbox(TR("Flag repeated words"), &cfg.spell_repeated)) changed = true;
       if (ImGui::Checkbox(TR("Replace text as you type"), &cfg.autocorrect_replace)) changed = true;
+      if (ImGui::Checkbox(TR("Internet and network paths with hyperlinks"), &cfg.autoformat_hyperlinks)) changed = true;
       DrawAutoCorrectList();  // AutoCorrect's replacements (a deletion applies at once, as in Excel's AutoCorrect dialog)
       jump_here(4);
       ImGui::SeparatorText(TR("Save"));
@@ -1274,7 +1275,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         YC_OPT(generate_getpivotdata) YC_OPT(generate_table_refs)
         YC_OPT(show_quick_analysis) YC_OPT(standard_font) YC_OPT(standard_font_size) YC_OPT(sheets_in_new_workbook) YC_OPT(show_paste_options)
         YC_OPT(show_insert_options) YC_OPT(alert_before_overwriting) YC_OPT(spell_ignore_upper) YC_OPT(spell_ignore_numbers)
-        YC_OPT(spell_ignore_internet) YC_OPT(spell_repeated) YC_OPT(autocorrect_replace)
+        YC_OPT(spell_ignore_internet) YC_OPT(spell_repeated) YC_OPT(autocorrect_replace) YC_OPT(autoformat_hyperlinks)
 #undef YC_OPT
         ApplyCalcThreads();  // Enable multi-threaded calculation, its threads
         s.engine->Post([a = real.auto_calc, t = real.auto_data_tables, x = real.excel_15_digit_input, it = real.iterative, n = real.max_iterations,

@@ -38,6 +38,8 @@ struct Settings {
   std::vector<std::pair<std::string, std::string>> autocorrect;
   std::vector<std::string> autocorrect_removed;  // built-in replacements the user deleted
   bool autocorrect_replace = true;               // Replace text as you type (Application.AutoCorrect.ReplaceText)
+  // AutoFormat As You Type: a web or e-mail address typed becomes a link (Application.AutoFormatAsYouTypeReplaceHyperlinks)
+  bool autoformat_hyperlinks = true;
   // the status bar's selection statistics (right-click the status bar, as in Excel)
   bool status_average = true, status_count = true, status_numerical_count = false, status_min = false, status_max = false, status_sum = true;
   // ... and its other entries, as Excel's Customize Status Bar: the cell mode (Ready / Enter / Edit / Point), Caps Lock,

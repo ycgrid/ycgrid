@@ -4,6 +4,7 @@
 #include "engine/tile_iter.h"
 
 #include <algorithm>
+#include <cctype>
 #include <limits>
 #include <map>
 #include <set>
@@ -141,6 +142,23 @@ core::Rect CurrentRegion(const model::Sheet& sh, uint32_t r, uint32_t c) {
     if (!grew) break;
   }
   return a;
+}
+
+std::string AutoLinkAddress(std::string_view t) {
+  if (t.empty() || t.size() > 2000 || t.find_first_of(" \t\r\n") != std::string_view::npos) return {};
+  std::string low(t);
+  for (char& ch : low) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  auto starts = [&](std::string_view p) { return low.size() > p.size() && low.compare(0, p.size(), p) == 0; };
+  for (std::string_view scheme : {"http://", "https://", "ftp://"}) {
+    if (!starts(scheme)) continue;
+    const std::string_view rest = t.substr(scheme.size());
+    return std::string(t) + (rest.find('/') == std::string_view::npos ? "/" : "");
+  }
+  if (starts("www.")) return "http://" + std::string(t) + (t.find('/') == std::string_view::npos ? "/" : "");
+  if (starts("mailto:")) return std::string(t);
+  const size_t at = t.find('@');
+  if (at != std::string_view::npos && at > 0 && at + 1 < t.size() && t.find('@', at + 1) == std::string_view::npos) return "mailto:" + std::string(t);
+  return {};
 }
 
 bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r) {

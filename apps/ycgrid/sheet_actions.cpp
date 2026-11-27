@@ -676,6 +676,9 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   // what a table does by itself after the typing (growing, filling a calculated column) is a step of its own: the
   // first Ctrl+Z takes back only that (Excel 16, measured by keys)
   const bool defer_growth = true;
+  // AutoFormat As You Type: a web or e-mail address typed into one cell becomes a link with the Hyperlink style, in
+  // a step of its own after the typing (Excel 16: the first Ctrl+Z takes back the link and keeps the text, measured)
+  const std::string link_to = !array && Config().autoformat_hyperlinks ? engine::AutoLinkAddress(text) : std::string();
   auto work = [=](Document& d, std::string* error) {
     d.defer_table_growth = defer_growth;
     d.Begin(label);
@@ -721,6 +724,18 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
     }
     d.Commit();
     d.GrowDeferredTables();
+    if (r_ok && !link_to.empty()) {
+      const model::Sheet* ls = d.S(sheet);
+      const core::Value& v = d.GetValue(sheet, r, c);
+      if (ls && v.IsString() && !ls->links->count((uint64_t{r} << 16) | c)) {
+        d.Begin(TR("Hyperlink"));
+        model::Hyperlink link;
+        link.address = link_to;
+        d.SetHyperlink(sheet, r, c, link);
+        d.ApplyCellStyle(sheet, Rect::Cell(r, c), "Hyperlink");
+        d.Commit();
+      }
+    }
     return r_ok;
   };
   // the engine is busy (recalculating millions of formulas after a reload, a fill a frame before): the entry is handed

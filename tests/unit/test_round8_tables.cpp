@@ -786,3 +786,22 @@ TEST_CASE("Create Table guesses a header row as Excel does", "[table][round8]") 
   t.d.ModifyStyle(t.sheet(), Rect{1, 1, 1, 3}, [](yc::model::Style& x) { x.bold = true; });
   CHECK(yc::engine::GuessHeaderRow(*t.d.wb().styles, *t.d.S(t.sheet()), Rect{1, 1, 5, 3}));
 }
+
+TEST_CASE("AutoFormat As You Type knows a typed address as Excel does", "[hyperlink][round8]") {
+  // Excel 16, measured by keys: each typed text and the link it got (Hyperlinks(1).Address), or none
+  using yc::engine::AutoLinkAddress;
+  CHECK(AutoLinkAddress("http://example.com") == "http://example.com/");
+  CHECK(AutoLinkAddress("https://example.com") == "https://example.com/");
+  CHECK(AutoLinkAddress("ftp://example.com") == "ftp://example.com/");
+  CHECK(AutoLinkAddress("http://example.com/a/b") == "http://example.com/a/b");
+  CHECK(AutoLinkAddress("http://example.com.tw:8080") == "http://example.com.tw:8080/");
+  CHECK(AutoLinkAddress("www.example.com") == "http://www.example.com/");
+  CHECK(AutoLinkAddress("www.example.com/x") == "http://www.example.com/x");
+  CHECK(AutoLinkAddress("mailto:a@b.com") == "mailto:a@b.com");
+  CHECK(AutoLinkAddress("a@b.com") == "mailto:a@b.com");
+  CHECK(AutoLinkAddress("a@b") == "mailto:a@b");
+  CHECK(AutoLinkAddress("example.com").empty());
+  CHECK(AutoLinkAddress("http:/x").empty());
+  CHECK(AutoLinkAddress("buy 2 @ 150").empty());  // a space: not an address
+  CHECK(AutoLinkAddress("").empty());
+}

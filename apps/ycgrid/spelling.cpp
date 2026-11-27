@@ -543,6 +543,7 @@ void DrawSpellingWindow(AppState& s) {
       if (any) SaveSettings();
       ImGui::SeparatorText(TR("AutoCorrect"));
       if (ImGui::Checkbox(TR("Replace text as you type"), &cf.autocorrect_replace)) SaveSettings();
+      if (ImGui::Checkbox(TR("Internet and network paths with hyperlinks"), &cf.autoformat_hyperlinks)) SaveSettings();
       DrawAutoCorrectList();
       if (DlgOkButton(TR("OK"), ImVec2(S(80), 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
       ImGui::EndPopup();

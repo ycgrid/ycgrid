@@ -7,6 +7,8 @@
 #include "model/style.h"
 
 #include <cstdint>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace yc::engine {
@@ -23,6 +25,10 @@ core::Rect CurrentRegion(const model::Sheet& s, uint32_t r, uint32_t c);
 // cell is text over a number below it (or a number over text), or a first row formatted apart from the second (bold,
 // italic, a fill, a font color)
 bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r);
+// AutoFormat As You Type's link for typed text, "" when it isn't an address (Excel 16, measured by keys): http://,
+// https://, ftp:// followed by a host (a "/" added when there is no path), www. (http:// in front), mailto:, and
+// text with one @ (mailto: in front); nothing with a space or a line break in it
+std::string AutoLinkAddress(std::string_view text);
 
 // Ctrl+End: bottom-right corner of the used range
 core::CellPos LastCell(const model::Sheet& s);

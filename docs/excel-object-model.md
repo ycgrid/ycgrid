@@ -15,11 +15,11 @@ macros commonly read or set; **low**: the rest.
 
 ## Summary
 
-1147 of Excel's 1996 members are YCGrid's, 439 are not planned and 410 are open gaps (24 high, 102 medium, 284 low).
+1148 of Excel's 1996 members are YCGrid's, 439 are not planned and 409 are open gaps (24 high, 101 medium, 284 low).
 
 | Object | Excel's members | YCGrid has | Not planned | Gaps: high | medium | low |
 |---|---|---|---|---|---|---|
-| Application | 263 | 111 | 102 | 16 | 27 | 7 |
+| Application | 263 | 112 | 102 | 16 | 26 | 7 |
 | Workbook | 183 | 51 | 96 | 2 | 17 | 17 |
 | Workbooks | 13 | 6 | 5 | 1 | 0 | 1 |
 | Worksheet | 87 | 71 | 10 | 0 | 4 | 2 |
@@ -72,7 +72,7 @@ macros commonly read or set; **low**: the rest.
 | SlicerCache | 29 | 18 | 4 | 0 | 0 | 7 |
 | SparklineGroup | 21 | 17 | 1 | 0 | 0 | 3 |
 | Scenario | 13 | 10 | 1 | 0 | 0 | 2 |
-| **All** | 1996 | 1147 | 439 | 24 | 102 | 284 |
+| **All** | 1996 | 1148 | 439 | 24 | 101 | 284 |
 
 ## Open gaps
 
@@ -91,9 +91,9 @@ macros commonly read or set; **low**: the rest.
 - **Workbooks**: `Close`
 - **Sheets**: `Copy`, `Delete`, `Move`, `PrintOut`, `Visible`
 
-### Medium: File > Options items (Formulas, Advanced, Save, Data) (30)
+### Medium: File > Options items (Formulas, Advanced, Save, Data) (29)
 
-- **Application**: `AutoFormatAsYouTypeReplaceHyperlinks`, `ChartDataPointTrack`, `CopyObjectsWithCells`, `DataEntryMode`, `DefaultFilePath`, `DefaultPivotTableLayoutOptions`, `DisplayClipboardWindow`, `DisplayNoteIndicator`, `DisplayRecentFiles`, `DisplayScrollBars`, `ExtendList`, `MeasurementUnit`, `RecentFiles`, `RollZoom`, `ShowDevTools`, `ShowToolTips`, `WarnOnFunctionNameConflict`
+- **Application**: `ChartDataPointTrack`, `CopyObjectsWithCells`, `DataEntryMode`, `DefaultFilePath`, `DefaultPivotTableLayoutOptions`, `DisplayClipboardWindow`, `DisplayNoteIndicator`, `DisplayRecentFiles`, `DisplayScrollBars`, `ExtendList`, `MeasurementUnit`, `RecentFiles`, `RollZoom`, `ShowDevTools`, `ShowToolTips`, `WarnOnFunctionNameConflict`
 - **Workbook**: `ChartDataPointTrack`, `CreateBackup`, `EnableAutoRecover`, `ReadOnlyRecommended`, `SaveLinkValues`, `UpdateLinks`, `WritePassword`, `WriteReserved`, `WriteReservedBy`
 - **Window**: `AutoFilterDateGrouping`, `GridlineColorIndex`
 - **AutoCorrect**: `AutoExpandListRange`, `AutoFillFormulasInLists`

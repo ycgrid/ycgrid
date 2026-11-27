@@ -29,6 +29,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   a table's cells while typing a formula writes structured references, as in Excel: `=[@Px]*[@Qty]` in the table,
   `Table1[Px]` for a column's data, `Table1[#All]`, `Table1[[#Headers],[Qty]]`; part of a column or another row stays
   cells.
+- AutoFormat As You Type: a web or e-mail address typed into a cell (`http://`, `https://`, `ftp://`, `www.`, `a@b.com`)
+  becomes a link with the Hyperlink style, as in Excel; the first Ctrl+Z takes back the link and keeps the text.
+  File > Options > Proofing turns it off (`Application.AutoFormatAsYouTypeReplaceHyperlinks`).
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and

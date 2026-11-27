@@ -143,6 +143,7 @@ void LoadSettings() {
   Read(j, "proofing", "flag_repeated", &g_settings.spell_repeated);
   Read(j, "proofing", "autocorrect_removed", &g_settings.autocorrect_removed);
   Read(j, "proofing", "autocorrect_replace", &g_settings.autocorrect_replace);
+  Read(j, "proofing", "autoformat_hyperlinks", &g_settings.autoformat_hyperlinks);
   if (j.contains("proofing") && j["proofing"].is_object() && j["proofing"].contains("autocorrect") && j["proofing"]["autocorrect"].is_array()) {
     g_settings.autocorrect.clear();
     for (const auto& e : j["proofing"]["autocorrect"]) {
@@ -326,6 +327,7 @@ bool SaveSettings() {
   section("proofing")["flag_repeated"] = g_settings.spell_repeated;
   section("proofing")["autocorrect_removed"] = g_settings.autocorrect_removed;
   section("proofing")["autocorrect_replace"] = g_settings.autocorrect_replace;
+  section("proofing")["autoformat_hyperlinks"] = g_settings.autoformat_hyperlinks;
   {
     json ac = json::array();
     for (const auto& [a, b] : g_settings.autocorrect) ac.push_back(json::array({a, b}));

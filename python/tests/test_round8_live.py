@@ -458,6 +458,29 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("k:c-Z|w:6")
         self.assertEqual(col(), ["", "", "", ""])
 
+    def test_a_typed_address_becomes_a_link_in_a_step_of_its_own(self):
+        from yc import excel
+
+        # Excel 16, measured by keys: AutoFormat As You Type makes the link and the Hyperlink style; the first Ctrl+Z
+        # takes back the link and keeps the text, the second the text
+        self.keys("m:2,2|g:B2|w:3|t:www.example.com|w:2|k:Enter|w:6")
+        self.assertEqual(self.ws.Hyperlinks.Count, 1)
+        self.assertEqual(self.ws.Hyperlinks(1).Address, "http://www.example.com/")
+        self.assertEqual(self.ws.Range("B2").Style.Name, "Hyperlink")
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(self.ws.Hyperlinks.Count, 0)
+        self.assertEqual(self.ws.Range("B2").Value, "www.example.com")
+        self.keys("k:c-Z|w:6")
+        self.assertIsNone(self.ws.Range("B2").Value)
+        self.keys("g:B3|w:3|t:example.com|w:2|k:Enter|w:6")  # no scheme, no www.: text
+        self.assertEqual(self.ws.Hyperlinks.Count, 0)
+        excel.Application.AutoFormatAsYouTypeReplaceHyperlinks = False
+        try:
+            self.keys("g:B4|w:3|t:a@b.com|w:2|k:Enter|w:6")
+            self.assertEqual(self.ws.Hyperlinks.Count, 0)
+        finally:
+            excel.Application.AutoFormatAsYouTypeReplaceHyperlinks = True
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

@@ -1267,6 +1267,17 @@ class _Application:
         self._edit_options(generate_table_refs=bool(v))
 
     @property
+    def AutoFormatAsYouTypeReplaceHyperlinks(self):  # noqa: N802
+        """AutoCorrect > AutoFormat As You Type > Internet and network paths with hyperlinks: a web address
+        (http://, https://, ftp://, www.) or an e-mail address typed into a cell becomes a link, in an Undo step of its
+        own (Excel's default: on). Only typing: Range.Value from Python never makes one."""
+        return bool(self._edit_options()["autoformat_hyperlinks"])
+
+    @AutoFormatAsYouTypeReplaceHyperlinks.setter
+    def AutoFormatAsYouTypeReplaceHyperlinks(self, v):  # noqa: N802
+        self._edit_options(autoformat_hyperlinks=bool(v))
+
+    @property
     def AlertBeforeOverwriting(self):  # noqa: N802
         """Ask before cells dragged onto others replace what they hold (File > Options > Advanced)."""
         return bool(self._edit_options()["alert_before_overwriting"])
