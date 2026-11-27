@@ -334,6 +334,15 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.ui.state()["active_cell"], "E9")
         self.keys("k:F5|w:6|k:Enter|w:5")  # F5, Enter: back to where the last Go To started
         self.assertEqual(yc.ui.state()["active_cell"], "C3")
+        # ...with the whole selection it left, every area (Excel 16, measured: PreviousSelections(1) after Goto
+        # from B2:B8 is $B$2:$B$8, from A3:A4,A6,A8 the three areas); only the active cell came back
+        self.assertEqual(yc.excel.Application.Selection.Address, "$C$3:$D$4")
+        self.keys("g:A3:A4,A6,A8|w:2|k:c-G|w:6|t:H30|k:Enter|w:5")
+        self.assertEqual(yc.ui.state()["active_cell"], "H30")
+        self.keys("k:F5|w:6|k:Enter|w:5")
+        self.assertEqual(yc.excel.Application.Selection.Address, "$A$3:$A$4,$A$6,$A$8")
+        self.keys("g:B:C|w:2|k:c-G|w:6|t:Z9|k:Enter|w:5|k:F5|w:6|k:Enter|w:5")
+        self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
     def test_custom_autofilter_takes_the_value_typed_at_once(self):

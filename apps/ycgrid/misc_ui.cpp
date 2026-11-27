@@ -1570,7 +1570,6 @@ void DrawMiscDialogs(AppState& s) {
         view.sel.anc_c = view.sel.act_c = areas.back().c0;
         view.sel.mode = render::SelectMode::Cells;
         render::EnsureVisible(sh, view, view.sel.act_r, view.sel.act_c);
-        s.SetStatus(TR("Selected ") + std::to_string(areas.size()) + TR(" areas"));
       }
       close = true;
     }

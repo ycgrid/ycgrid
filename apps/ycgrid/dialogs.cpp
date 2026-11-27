@@ -2130,10 +2130,23 @@ void DrawGoTo(AppState& s) {
   bool close = OkCancel(&ok);
   if ((ok || enter || go) && g_goto[0]) {
     if (const model::Sheet* here = s.FocusSheet()) {
-      const auto& sel = s.FocusView().sel;
-      const std::string cell = core::CellA1(sel.act_r, sel.act_c, true, true);
+      // the whole selection, every area (Excel 16, measured: Application.PreviousSelections(1) after Goto from
+      // B2:B8 is $B$2:$B$8, from A3:A4,A6,A8 all three areas), so F5, Enter selects again what was selected
       const bool other_sheet = std::strchr(g_goto, '!') != nullptr;
-      g_goto_back = other_sheet ? core::QuoteSheetName(here->name) + "!" + cell : cell;
+      const std::string prefix = other_sheet ? core::QuoteSheetName(here->name) + "!" : std::string();
+      std::string back;
+      for (const Rect& a : s.FocusView().sel.areas) {
+        const bool whole_cols = a.r0 == 0 && a.r1 + 1 >= here->row_limit;
+        const bool whole_rows = a.c0 == 0 && a.c1 + 1 >= here->col_limit;
+        std::string t;
+        if (whole_cols && !whole_rows) t = "$" + core::ColumnName(a.c0) + ":$" + core::ColumnName(a.c1);
+        else if (whole_rows && !whole_cols) t = "$" + std::to_string(uint64_t{a.r0} + 1) + ":$" + std::to_string(uint64_t{a.r1} + 1);
+        else t = core::CellA1(a.r0, a.c0, true, true) + (a.IsCell() ? "" : ":" + core::CellA1(a.r1, a.c1, true, true));
+        back += (back.empty() ? "" : ",") + prefix + t;
+      }
+      // a selection too long for the box goes back to its active cell
+      const auto& sel = s.FocusView().sel;
+      g_goto_back = back.size() < sizeof g_goto ? back : prefix + core::CellA1(sel.act_r, sel.act_c, true, true);
     }
     Goto(s, g_goto);
     const std::string r = g_goto;
