@@ -458,6 +458,12 @@ void DrawKeyTipBadge(const std::string& key, ImVec2 at) {
 }
 
 // after an item is drawn (inside its ID scope): its KeyTip, a drop-down a KeyTip asked for, the right-click menu
+// a drop-down opens under its button, left-aligned with it, as Excel's do: set before the popup's Begin. Without it
+// ImGui opens a popup where the mouse is, and one opened from the KeyTips (Alt, H, N) showed in the screen's corner
+void PopupBelow(const ImRect& r) { ImGui::SetNextWindowPos(ImVec2(r.Min.x, r.Max.y + S(2)), ImGuiCond_Appearing); }
+// called inside every drop-down the ribbon shows
+void NoteMenuShown() { g_state.menu_frame = ImGui::GetFrameCount(); }
+
 void ItemExtras(const Item& it, const ImRect& r, const char* popup, bool* check = nullptr) {
   // a drop-down ("##menu", "##gallery"), a combo box ("##fonts", "##sizes", "##formats") or a plain button
   Seen(it.cmd, r, !popup ? "ribbon" : (std::strcmp(popup, "##menu") == 0 || std::strcmp(popup, "##gallery") == 0) ? "dropdown" : "combo");
@@ -910,6 +916,7 @@ void MenuPopup(const char* popup_id, const std::vector<std::string>& menu) {
   }
   if (shown > 24) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, ImGui::GetMainViewport()->Size.y * 0.7f));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     MenuPopupBody(menu);
     ImGui::EndPopup();
   }
@@ -1001,6 +1008,7 @@ namespace {
 void ColorPalettePopup(const char* popup_id, ImU32* color, uint32_t* theme_ref, const std::string& cmd) {
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(S(8), S(8)));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     // Fill Color starts with No Fill, Font Color with Automatic (that is how a fill or a color is taken off)
     const char* none = cmd == "FillColor" ? TR("No Fill") : cmd == "FontColor" ? TR("Automatic") : nullptr;
     uint32_t ref = 0;
@@ -1110,6 +1118,7 @@ void GalleryPopup(const char* popup_id, const std::string& id) {
   // a gallery of pictures taller than the window scrolls (Format as Table)
   if (g_gallery_layouts.count(id)) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, ImGui::GetMainViewport()->Size.y * 0.75f));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const auto lay = g_gallery_layouts.find(id);
     const int ncols = lay != g_gallery_layouts.end() ? lay->second.cols : kPopupCols;
@@ -1487,6 +1496,7 @@ void DrawLarge(const Item& it, ImRect r) {
     ImGui::SetNextWindowPos(ImVec2(r.Min.x, r.Max.y + S(2)), ImGuiCond_Appearing);
     GalleryPopup("##menu", it.gallery);
   } else {
+    PopupBelow(r);
     MenuPopup("##menu", it.menu);
   }
   ItemExtras(it, r, (split || menu) ? "##menu" : nullptr);
@@ -1564,6 +1574,7 @@ void DrawStackItem(const Item& it, ImRect r, bool labels) {
                 OneLine(LabelOf(it.cmd)).c_str());
   }
   g_menu_ran.clear();
+  PopupBelow(r);
   MenuPopup("##menu", it.menu);
   NoteSplitChoice(it);
   ItemExtras(it, r, (split || menu) ? "##menu" : nullptr);
@@ -1616,7 +1627,9 @@ void DrawFontCombo(const Item& it, ImRect r) {
   DrawCaret(dl, ImVec2(r.Max.x - S(kArrowW) * 0.5f - S(1), r.GetCenter().y), T().btn_text);
   if (h.clicked) ImGui::OpenPopup("##fonts");
   ImGui::SetNextWindowSize(ImVec2(S(280), S(380)));
+  PopupBelow(r);
   if (ImGui::BeginPopup("##fonts")) {
+    NoteMenuShown();
     static char filter[128] = "";
     if (ImGui::IsWindowAppearing()) {
       filter[0] = 0;
@@ -1706,7 +1719,9 @@ void DrawSizeCombo(const Item& it, ImRect r) {
   FillState(dl, ImRect(ra.Min + ImVec2(0, S(1)), ra.Max - ImVec2(S(1), S(1))), ha, false);
   DrawCaret(dl, ra.GetCenter(), T().btn_text);
   if (ha.clicked) ImGui::OpenPopup("##sizes");
+  PopupBelow(r);
   if (ImGui::BeginPopup("##sizes")) {
+    NoteMenuShown();
     static const char* kSizes[] = {"8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"};
     for (const char* s : kSizes) {
       if (ImGui::Selectable(s, g_state.font_size == s, 0, ImVec2(S(60), 0))) {
@@ -1732,7 +1747,9 @@ void DrawFormatCombo(const Item& it, ImRect r) {
   dl->PopClipRect();
   DrawCaret(dl, ImVec2(r.Max.x - S(kArrowW) * 0.5f - S(1), r.GetCenter().y), T().btn_text);
   if (h.clicked) ImGui::OpenPopup("##formats");
+  PopupBelow(r);
   if (ImGui::BeginPopup("##formats")) {
+    NoteMenuShown();
     static const char* kFormats[] = {TR("General"), TR("Number"), TR("Currency"), TR("Accounting"), TR("Short Date"), TR("Long Date"), TR("Time"),
                                      TR("Percentage"), TR("Fraction"), TR("Scientific"), TR("Text"), TR("Timestamp (ns)")};
     // each format with the active cell's value in it underneath, as Excel's list shows them
@@ -1813,8 +1830,12 @@ void DrawRowItem(const Item& it, ImRect r, bool compact) {
     else Exec(face.cmd);
   }
   if (ha.clicked) ImGui::OpenPopup(it.kind == ItemKind::ColorSplit ? "##palette" : "##menu");
-  if (it.kind == ItemKind::ColorSplit && it.color) ColorPalettePopup("##palette", it.color, it.theme_ref, it.cmd);
+  if (it.kind == ItemKind::ColorSplit && it.color) {
+    PopupBelow(r);
+    ColorPalettePopup("##palette", it.color, it.theme_ref, it.cmd);
+  }
   g_menu_ran.clear();
+  PopupBelow(r);
   MenuPopup("##menu", it.menu);
   NoteSplitChoice(it);
   ItemExtras(it, r, it.kind == ItemKind::Menu || it.kind == ItemKind::Split ? "##menu" : nullptr);

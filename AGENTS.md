@@ -506,6 +506,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   the Paste Options pictures ignored every letter. A letter acts only while that menu has the keyboard (`IsWindowFocused`, no item active), and only a letter
   no other entry of the menu shares runs its entry (a shared one only moves Excel's highlight). A new menu a person
   opens with a key gets its letters, tested by the keys a person presses.
+- ImGui opens a popup where the mouse is: a drop-down sets its place under its button before its Begin (the ribbon's
+  `PopupBelow`), or one opened from the keyboard shows wherever the mouse was left (Alt, H, N put the Number Format
+  list in the screen's corner). It takes the arrows and Enter too (`St().menu_frame` turns ImGui's keyboard
+  navigation on while one shows), and the Enter that picks an entry is not the sheet's (the active cell moved down).
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in
   the same frame, so the ribbon never collapsed (since the first release). Before adding a key, grep for its chord;
   test the key a person presses and that the state changed (`test_parity_habits.ShortcutsTest`). `check_lessons.py`'s

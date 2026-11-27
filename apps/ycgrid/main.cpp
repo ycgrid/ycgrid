@@ -629,8 +629,11 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
     static const int kEnterDir[4] = {1, 3, 2, 4};
     opt.enter_dir = app::Config().move_after_return ? kEnterDir[std::clamp(app::Config().move_after_return_dir, 0, 3)] : 0;
   }
+  // a ribbon drop-down that Enter just closed by picking an entry (Alt, H, N, Down, Enter) keeps that Enter: the
+  // active cell moved down under the new format
+  const bool ribbon_menu_closing = ImGui::GetFrameCount() - ui::ribbon::St().menu_frame <= 1;
   opt.keyboard = g_app.focus_sheet == id && g_app.focus_win == win && KeyboardTarget() && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) &&
-                 ui::ribbon::St().keytip_level == 0;
+                 ui::ribbon::St().keytip_level == 0 && !ribbon_menu_closing;
   if (g_app.marquee) {
     opt.copy_marquee = &g_app.marquee_rect;
     opt.copy_sheet = g_app.marquee_sheet;
@@ -2549,8 +2552,10 @@ void RenderFrame() {
   if (!g_script.empty()) FeedScript();
   if (g_script_mouse_set) ImGui::GetIO().AddMouseViewportEvent(ScriptViewportAt(g_script_mouse));
   // in a dialog, Tab goes through every control and Space ticks a check box, as in Excel (Enter stays the default
-  // button); elsewhere the keys belong to the grid
-  if (g_app.dialog != app::Dialog::None || app::ContextMenuOpen()) ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  // button); in a drop-down of the ribbon the arrows move and Enter picks (Alt, H, N, Down, Enter); elsewhere the keys
+  // belong to the grid
+  const bool ribbon_menu = ImGui::GetFrameCount() - ui::ribbon::St().menu_frame <= 1;
+  if (g_app.dialog != app::Dialog::None || app::ContextMenuOpen() || ribbon_menu) ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   else ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
   // a dialog or menu open as the frame starts: an Escape now closes it and nothing else (Excel: the first Escape puts
   // the context menu or dialog away, the copied cells stay outlined). Read before NewFrame, where ImGui's keyboard

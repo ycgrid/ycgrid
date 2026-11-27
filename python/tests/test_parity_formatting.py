@@ -312,6 +312,23 @@ class FormattingParityTest(unittest.TestCase):
         self.click("OK")
         self.assertEqual(self.ws.Range("A1").FormatConditions(1).DupeUnique, 0)  # xlUnique
 
+    def test_number_format_list_from_the_keytips(self):
+        # Alt, H, N, arrows, Enter, as in Excel: the list opened where the mouse was (the screen's corner from the
+        # KeyTips), the arrows did nothing in it, and the Enter that picked also moved the active cell down
+        from yc import ui
+
+        self.ws.Range("B2").Value = 0.256
+        self.keys("m:2,2|w:2|g:B2|w:2|k:Alt|w:3|t:H|w:3|t:N|w:6")
+        combo = self.ribbon("NumberFormat")
+        general = self.find("General", nth=0)["rect"]
+        self.assertLess(abs(general[0] - combo[0]), 20, "the list drops under its box")
+        self.assertGreater(general[1], combo[3] - 2)
+        self.keys("k:DownArrow|w:2|" * 7 + "k:Enter|w:6")
+        self.assertEqual(self.ws.Range("B2").NumberFormat, "0.00%")
+        self.assertEqual(ui.state()["active_cell"], "B2")
+        self.keys("t:5|k:Enter|w:4")  # the sheet has the keyboard again
+        self.assertEqual(self.ws.Range("B2").Value, 0.05)
+
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
         # and for Between a quarter and three quarters of the way, rounded (measured)

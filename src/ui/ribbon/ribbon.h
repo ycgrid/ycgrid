@@ -203,6 +203,9 @@ struct State {
   int keytip_level = 0;
   // the frame a dialog that isn't modal (Find and Replace) last had the keyboard: Alt + a letter is the dialog's then
   int dialog_keys_frame = -10;
+  // the frame a drop-down of the ribbon (a menu, a gallery, a combo's list) last showed: the arrow keys and Enter move
+  // in it and pick, as in Excel's (Alt, H, N, arrows, Enter), not on the sheet behind it
+  int menu_frame = -10;
   std::string legacy_keys;  // Excel 2003's menu keys typed so far after Alt ("ES"), shown as Excel shows them
   // measurements
   double last_cpu_ms = 0.0;

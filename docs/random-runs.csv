@@ -11861,3 +11861,29 @@ date,tool,seed,seconds,result,note
 2026-11-27,screen_walk,r88,300,clean,"Which dialogs change the selection behind them (Subtotal, Advanced Filter, PivotTable, Consolidate, Text to Columns) and what Escape leaves"
 2026-11-27,screen_walk,r89,300,clean,"Names in English and Chinese: a name typed in the Name Box, F3 Paste Name in a formula, the name typed to go there, Ctrl+Shift+F3 from the top row"
 2026-11-27,screen_walk,r90,300,found,"Home > Fill > Series from Alt, H, F, I, S on one cell: Columns, step 3, stop 10, measured with DataSeries in Excel"
+2026-11-27,doc_fuzz,2400192,90,ok,
+2026-11-27,calc_fuzz,4532,2,ok,
+2026-11-27,formula_fuzz,5513,0,ok,
+2026-11-27,gaps_fuzz,700193,95,ok,
+2026-11-27,chaos,7772,361,ok,
+2026-11-27,basics,4820,172,fail,basics_4820.txt
+2026-11-27,doc_fuzz,2400193,128,ok,
+2026-11-27,calc_fuzz,4533,15,ok,
+2026-11-27,formula_fuzz,5514,0,ok,
+2026-11-27,chaos,7773,361,ok,
+2026-11-27,basics,4821,169,fail,basics_4821.txt
+2026-11-27,gaps_fuzz,700194,91,ok,
+2026-11-27,doc_fuzz,2400194,124,ok,
+2026-11-27,calc_fuzz,4534,31,ok,
+2026-11-27,formula_fuzz,5515,0,ok,
+2026-11-27,chaos,7774,360,ok,
+2026-11-27,basics,4822,169,fail,basics_4822.txt
+2026-11-27,gaps_fuzz,700195,90,ok,
+2026-11-27,doc_fuzz,2400195,112,ok,
+2026-11-27,calc_fuzz,4535,2,ok,
+2026-11-27,formula_fuzz,5516,0,ok,
+2026-11-27,chaos,7775,361,ok,
+2026-11-27,gaps_fuzz,700196,99,ok,
+2026-11-27,basics,4823,163,fail,basics_4823.txt
+
+2026-11-27,screen_walk,r91,300,found,"The Number Format list from Alt, H, N: where it opens, the arrows and Enter, the active cell after it"
