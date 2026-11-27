@@ -1526,6 +1526,12 @@ void DrawFormatCells(AppState& s) {
       if (e.wrap != b.wrap) x.wrap = e.wrap;
       if (e.shrink != b.shrink) x.shrink = e.shrink;
     }, font_changed ? &font : nullptr);  // a new font name is measured too
+    // a number format that shows numbers wider widens a column nobody sized, as the ribbon's formats do (Excel 16)
+    std::vector<std::pair<uint32_t, int32_t>> widen;
+    if (numfmt_changed && code != "General") {
+      widen = ColumnsToWidenForFormat(s, sheet, areas, code);
+      for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+    }
     s.engine->PostUser(TR("Format Cells"), [=](Document& d) {
       auto& tbl = d.wb_mut().styles.mut();
       const uint32_t numfmt_id = numfmt_changed ? (code == "General" ? 0u : tbl.InternString(code)) : 0u;
@@ -1589,6 +1595,7 @@ void DrawFormatCells(AppState& s) {
         // a single cell row / column: no inside line was asked for, its outline edges came from the rim passes
       }
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
     });
   }
   EndDialog(s, close);

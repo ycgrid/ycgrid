@@ -12221,3 +12221,18 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5565,1,ok,
 
 2026-11-28,screen_walk,r115,300,found,"Comma Style (Alt, H, K) and Percent Style (Alt, H, P) on large numbers in default columns"
+2026-11-28,gaps_fuzz,700245,101,ok,
+2026-11-28,doc_fuzz,2400246,156,ok,
+2026-11-28,basics,4872,176,ok,
+2026-11-28,doc_fuzz,2400247,95,ok,
+2026-11-28,calc_fuzz,4585,30,ok,
+2026-11-28,formula_fuzz,5566,0,ok,
+2026-11-28,basics,4873,169,ok,
+2026-11-28,gaps_fuzz,700246,93,ok,
+2026-11-28,chaos,7827,375,ok,
+2026-11-28,doc_fuzz,2400248,90,ok,
+2026-11-28,calc_fuzz,4586,3,ok,
+2026-11-28,formula_fuzz,5567,0,ok,
+2026-11-28,chaos,7828,361,fail,chaos_7828.txt
+
+2026-11-28,screen_walk,r116,300,found,"Format Cells (Ctrl+1) Number with the 1000 separator on 1234567.891 in a default column"

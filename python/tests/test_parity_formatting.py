@@ -373,6 +373,17 @@ class FormattingParityTest(unittest.TestCase):
         self.run_cmd("CommaStyle")
         self.keys("w:4")
         self.assertAlmostEqual(self.ws.Columns("G").ColumnWidth, 13, delta=1)
+        # Format Cells' Number tab too (it showed 1,234,567.89 as ######## in a default column)
+        self.ws.Range("I1").Value = 1234567.891
+        self.keys("g:I1|w:3|k:c-1|w:8")
+        from yc import ui
+        self.click("Number")  # the Number tab (the dialog opens on the tab used last)
+        cat = [i for i in ui.items() if i["label"] == "Number" and i["rect"][1] > self.find("Number")["rect"][3]]
+        self.click_rect(cat[0]["rect"])
+        self.click("Use 1000 Separator (,)")
+        self.click("OK")
+        self.assertEqual(self.ws.Range("I1").NumberFormat, "#,##0.00")
+        self.assertGreater(self.ws.Columns("I").ColumnWidth, 10)
 
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
         # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
