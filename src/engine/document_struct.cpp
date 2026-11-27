@@ -1439,8 +1439,10 @@ bool ValidSheetName(std::string_view n, std::string* error) {
 
 uint32_t Document::AddSheet(std::string name, int32_t index) {
   if (RefuseStructure()) return 0;
-  if (name.empty()) name = wb_.NextSheetName();
-  if (wb_.FindSheet(name) >= 0 || !ValidSheetName(name, nullptr)) name = wb_.NextSheetName();
+  // a new sheet is named in the UI's language, as a new workbook's first sheet is (Excel names it with
+  // the translated word too); the Chinese UI named the first sheet in Chinese and every later one Sheet<n>
+  if (name.empty()) name = wb_.NextSheetName(TR("Sheet"));
+  if (wb_.FindSheet(name) >= 0 || !ValidSheetName(name, nullptr)) name = wb_.NextSheetName(TR("Sheet"));
   Sheet s;
   s.id = wb_.next_sheet_id++;
   s.name = std::move(name);

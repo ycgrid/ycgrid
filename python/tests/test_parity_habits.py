@@ -181,6 +181,19 @@ class ChineseKeyTipsTest(HabitsBase):
         self.assertEqual(ui.state()["selection"], "A1:A3", "the selection put back")
         self.assertNotIn("edit", ui.state(), "one click, no editor")
 
+    def test_a_new_sheet_is_named_in_chinese_too(self):
+        """The first sheet was named in Chinese and every one inserted after it Sheet<n> (Shift+F11, Python's Add)."""
+        from yc import excel
+
+        word = "工作表"
+        before = {excel.Worksheets(i).Name for i in range(1, excel.Worksheets.Count + 1)}
+        self.keys("k:s-F11|w:6")
+        added = [excel.Worksheets(i).Name for i in range(1, excel.Worksheets.Count + 1) if excel.Worksheets(i).Name not in before]
+        self.assertEqual(len(added), 1)
+        self.assertTrue(added[0].startswith(word), ascii(added[0]))
+        excel.Application.DisplayAlerts = False
+        excel.Worksheets(added[0]).Delete()
+
 
 class KeyTipsTest(HabitsBase):
     def test_alt_h_l_opens_conditional_formatting(self):
