@@ -4109,9 +4109,9 @@ void DrawFilterPopupBody(AppState& s, const PivotTable& p, int area) {
     ImGui::Checkbox(TR("Select Multiple Items"), &u.filter_multi);
     return;
   }
-  bool all = true;
-  for (size_t i = 0; i < u.filter_items.size(); ++i) all = all && (!matches(i) || u.filter_on[i]);
-  if (ImGui::Checkbox(q.empty() ? TR("(Select All)") : TR("(Select All Search Results)"), &all)) {
+  bool all = true, any = false;
+  for (size_t i = 0; i < u.filter_items.size(); ++i) all = all && (!matches(i) || u.filter_on[i]), any = any || (matches(i) && u.filter_on[i]);
+  if (CheckboxMixed(q.empty() ? TR("(Select All)") : TR("(Select All Search Results)"), &all, any && !all)) {
     for (size_t i = 0; i < u.filter_items.size(); ++i) {
       if (matches(i)) u.filter_on[i] = static_cast<char>(all ? 1 : 0);
     }

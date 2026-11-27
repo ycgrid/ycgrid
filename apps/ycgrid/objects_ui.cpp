@@ -9192,7 +9192,7 @@ void DrawChartFiltersMenu(AppState& s, ObjSel o, const ChartObj& ch) {
     ImGui::Spacing();
     ImGui::TextUnformatted(TR("CATEGORIES"));
     bool all_on = ch.hidden_cats.empty();
-    if (ImGui::Checkbox(TR("(Select All)"), &all_on)) {
+    if (CheckboxMixed(TR("(Select All)"), &all_on, !all_on && ch.hidden_cats.size() < v.cats.size())) {
       const int n = static_cast<int>(v.cats.size());
       PostChartEdit(s, o, TR("Chart Filters"), [all_on, n](ChartObj& c) {
         c.hidden_cats.clear();

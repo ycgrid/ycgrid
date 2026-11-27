@@ -632,9 +632,9 @@ void DrawFilterPopup(AppState& s) {
       f.found_checked.assign(f.values.size(), 1);
     }
     if (q.empty()) {
-      bool all = f.blanks_checked || !f.blanks_present;
-      for (char c : f.checked) all = all && c;
-      if (ImGui::Checkbox(TR("(Select All)"), &all)) {
+      bool all = f.blanks_checked || !f.blanks_present, any = f.blanks_present && f.blanks_checked;
+      for (char c : f.checked) all = all && c, any = any || c;
+      if (CheckboxMixed(TR("(Select All)"), &all, any && !all)) {
         std::fill(f.checked.begin(), f.checked.end(), static_cast<char>(all));
         f.blanks_checked = all;
       }
@@ -650,11 +650,11 @@ void DrawFilterPopup(AppState& s) {
       }
       if (f.blanks_present) ImGui::Checkbox(TR("(Blanks)"), &f.blanks_checked);
     } else {
-      bool all = true;
+      bool all = true, any = false;
       for (size_t i = 0; i < f.values.size(); ++i) {
-        if (Lower(f.values[i]).find(q) != std::string::npos) all = all && f.found_checked[i];
+        if (Lower(f.values[i]).find(q) != std::string::npos) all = all && f.found_checked[i], any = any || f.found_checked[i];
       }
-      if (ImGui::Checkbox(TR("(Select All Search Results)"), &all)) {
+      if (CheckboxMixed(TR("(Select All Search Results)"), &all, any && !all)) {
         for (size_t i = 0; i < f.values.size(); ++i) {
           if (Lower(f.values[i]).find(q) != std::string::npos) f.found_checked[i] = all;
         }

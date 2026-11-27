@@ -105,7 +105,8 @@ def resolve_errors(ids, note: str = "") -> int:
 def items(window: str = "") -> list:
     """[YC] Tests: the labelled controls on the screen now (buttons, check boxes, radio buttons, text boxes, menu items,
     list entries...) as dicts {label, id, window, rect [x0, y0, x1, y1], disabled} (id: the label with its "##" part,
-    for controls with no visible text); window filters by part of the window title and then lists its unlabelled
+    for controls with no visible text), and for a check box or a checkable menu item `checked`: True, False or "mixed"
+    (a (Select All) over some ticked items); window filters by part of the window title and then lists its unlabelled
     controls too (color swatches, drawn buttons: label and id ""), in no particular order. Click one with ui.input
     "c:x,y" as a person does. The first call turns the recording on."""
     got = _rq("ui.items", window=str(window))

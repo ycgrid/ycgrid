@@ -332,6 +332,7 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         x.Set("id", MV::Str(it.id));
         x.Set("window", MV::Str(it.window));
         x.Set("disabled", MV::Bool(it.disabled));
+        if (it.checked >= 0) x.Set("checked", it.checked == 2 ? MV::Str("mixed") : MV::Bool(it.checked == 1));
         MV r = MV::Array();
         for (float v : {it.rect.Min.x, it.rect.Min.y, it.rect.Max.x, it.rect.Max.y}) r.Push(MV::Double(v));
         x.Set("rect", std::move(r));

@@ -175,7 +175,8 @@ is none of those below is a key (`k:` by convention). `--keys "..."` on the comm
   (submenus too), gallery tiles and Backstage entries on the screen now, as `{cmd, where, rect}`; `where` is
   `"ribbon"`, `"dropdown"` (click near its right edge or bottom to open its menu), `"combo"`, `"menu"`, `"submenu"`
   (hover it to open), `"tile"` or `"backstage"`. Click a tab first (positions in `ui.state()["ribbon"]["tabs"]`).
-  `ui.items(window="")` lists the controls drawn in the last frame, `{label, id, window, rect, disabled}`: dialog
+  `ui.items(window="")` lists the controls drawn in the last frame, `{label, id, window, rect, disabled}`, and
+  `checked` (True, False or `"mixed"`) for a check box or checkable menu item: dialog
   buttons (`"Replace All"`), check boxes, list entries, sheet tabs (label = the sheet's name), the status bar's REC
   chip (`id == "##rec_chip"`); with a window filter it also lists that window's unlabelled controls (color swatches).
   Clicking these is how `scripts\feature_check.py` reaches every command (§8).

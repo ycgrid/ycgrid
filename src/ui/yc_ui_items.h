@@ -18,6 +18,7 @@ struct UiItem {
   std::string window;  // the window it is in (its title, "##id" parts removed)
   ImRect rect;         // window pixels
   bool disabled = false;
+  int checked = -1;  // a check box or a checkable menu item: 0 empty, 1 ticked, 2 mixed; -1 not one
 };
 
 void RecordUiItems(bool on);

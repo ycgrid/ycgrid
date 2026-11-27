@@ -418,6 +418,33 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("A2:A6").Value], ["A2317", "A2330", "B2454", "C2603", "T"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_select_all_shows_mixed_when_some_values_are_ticked(self):
+        # (Select All) read empty while 2026's dates were ticked, where Excel shows its filled square
+        self.ws.Range("A1").Value = "Date"
+        self.ws.Range("A2:A4").Formula = [["=DATE(2025,12,30)"], ["=DATE(2026,1,2)"], ["=DATE(2026,2,3)"]]
+        self.ws.Range("A2:A4").NumberFormat = "yyyy/m/d"
+        self.ws.Range("A1:A4").AutoFilter()
+
+        def box(label):
+            found = [i for i in yc.ui.items("") if i.get("label") == label]
+            self.assertTrue(found, label)
+            return found[0]
+
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6")
+        try:
+            self.assertIs(box("(Select All)").get("checked"), True)
+            r = box("2025")["rect"]
+            x, y = int(r[0] + 8), int((r[1] + r[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4")
+            self.assertIs(box("2025").get("checked"), False)
+            self.assertEqual(box("(Select All)").get("checked"), "mixed")
+            r = box("(Select All)")["rect"]
+            x, y = int(r[0] + 8), int((r[1] + r[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4")
+            self.assertIs(box("2025").get("checked"), True, "a click on the mixed box ticks every value")
+        finally:
+            self.keys("k:Escape|w:3")
+
     def test_menus_over_the_cells_keep_the_ui_font_when_zoomed(self):
         # the sheet draws its overlays in the cells' font, zoomed: the filter menu and the Paste Options menu grew with
         # the zoom (headings 30 pixels high at 200%), where Excel's menus keep their size

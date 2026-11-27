@@ -3432,6 +3432,13 @@ void PlaceNewWindow(WindowPlace where) {
   ImGui::SetNextWindowPos(pos, ImGuiCond_FirstUseEver, pivot);
 }
 
+bool CheckboxMixed(const char* label, bool* all, bool mixed) {
+  if (mixed) ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, true);
+  const bool clicked = ImGui::Checkbox(label, all);
+  if (mixed) ImGui::PopItemFlag();
+  return clicked;
+}
+
 bool BeginDlgTabBar(const char* id) {
   if (!ImGui::BeginTabBar(id)) return false;  // lesson-ok: dlg-tabs the one place that calls it
   ImGuiContext& g = *GImGui;

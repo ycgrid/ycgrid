@@ -821,6 +821,9 @@ bool DlgListKeys(int* sel, int count, const std::function<const char*(int)>& lab
 // a dialog's tab bar: ImGui::BeginTabBar, and Ctrl+Tab / Ctrl+PgDn go to the next tab, Ctrl+Shift+Tab / Ctrl+PgUp to the
 // one before (Excel's dialogs); every dialog's tabs use it
 bool BeginDlgTabBar(const char* id);
+// a check box over several others ((Select All)): ticked when all are, empty when none, mixed otherwise (Excel's filled
+// square); a click on a mixed one ticks it
+bool CheckboxMixed(const char* label, bool* all, bool mixed);
 void FinishModalCopy(AppState& s);  // once a frame, after the dialogs
 void RegisterUiCustomCommands(AppState& s);
 void UpdateUiCustom(AppState& s);
