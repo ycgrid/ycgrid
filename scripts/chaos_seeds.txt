@@ -23,3 +23,4 @@
 7609  zh-TW  714  # figures docked one after another split the pane by their ratio until it was under a pixel; a splitter dragged there failed ImGui's docking check (abort in a debug build)
 
 7718  en  420  # a protected sheet refused typing and pastes, noted in the Error Log as Excel says it in a box: chaos counted each refusal as a problem (entries now marked refusal)
+7828  en  360  # the Error Log dropped back into its own floating group (tool)

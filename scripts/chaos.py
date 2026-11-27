@@ -565,7 +565,9 @@ class Chaos:
             # one comes out, and a point near the sheets' edge then lay on the tab bar of a figure docked under them,
             # where it docks as a tab (seed 5679: the sheets were 50 px tall); sheets too short to aim at: double-click
             g = grid["rect"]
-            floating = [x["rect"] for x in over]
+            # and not over its own group when that floats over the sheets: dropped back on it, it docks there again (seed
+            # 7828 dropped the Error Log inside its own floating group and reported it stuck)
+            floating = [x["rect"] for x in over] + ([w["rect"]] if w.get("floating") and w.get("rect") else [])
             dy = min(max(g[1] + 60, ty + 150), g[3] - 60, 860)
             for px, py in [(g[0] + min(60, (g[2] - g[0]) / 5), dy), (g[2] - min(60, (g[2] - g[0]) / 5), dy),
                            (g[0] + min(60, (g[2] - g[0]) / 5), g[3] - 60), (g[2] - min(60, (g[2] - g[0]) / 5), g[3] - 60)]:
