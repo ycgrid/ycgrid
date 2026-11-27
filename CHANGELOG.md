@@ -104,6 +104,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - In a table, Ctrl+Space selects the column's data, then the column with its header and totals, then the sheet's
   column; Shift+Space the table's row before the sheet's; Ctrl+A (and Ctrl+Shift+Space) the data, then the whole
   table, then the sheet, as in Excel.
+- Ctrl+Enter over a column beside a table, its header cell included, types the data cells as entered: they were
+  all the header's text.
 
 ## 0.10.3 (2026-11-25)
 

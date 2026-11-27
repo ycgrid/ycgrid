@@ -12739,3 +12739,20 @@ date,tool,seed,seconds,result,note
 2026-11-28,screen_walk,r134,1500,found,"Ctrl+- and Ctrl+Shift+= in a table over one cell, a row, a column, blocks, the header and the whole table, and its cell menu's Insert and Delete, measured in Excel by keys and UI Automation"
 2026-11-28,chaos,7908,361,ok,
 2026-11-28,gaps_fuzz,700325,99,ok,
+2026-11-28,doc_fuzz,2400329,87,ok,
+2026-11-28,calc_fuzz,4665,16,ok,
+2026-11-28,formula_fuzz,5646,0,ok,
+2026-11-28,basics,4953,160,ok,
+2026-11-28,chaos,7909,361,ok,
+2026-11-28,gaps_fuzz,700326,93,ok,
+2026-11-28,doc_fuzz,2400330,101,ok,
+2026-11-28,calc_fuzz,4666,30,ok,
+2026-11-28,formula_fuzz,5647,0,ok,
+2026-11-28,basics,4954,165,ok,
+2026-11-28,chaos,7910,361,ok,
+2026-11-28,gaps_fuzz,700327,96,ok,
+2026-11-28,doc_fuzz,2400331,90,ok,
+2026-11-28,calc_fuzz,4667,3,ok,
+2026-11-28,formula_fuzz,5648,0,ok,
+
+2026-11-28,screen_walk,r135,900,found,"Writes beside a table that grow it: typing under it and right of it, Ctrl+Enter over the row below and the column beside it (with its header cell and without), Ctrl+D, Ctrl+R, measured in Excel by keys"

@@ -487,6 +487,34 @@ bool RefusePartOfArray(AppState& s, uint32_t sheet, const std::vector<Rect>& are
   return false;
 }
 
+// Ctrl+Enter fills the selection from the active cell. An entry that grew a table over the active cell made it a
+// header, whose text is the entry's as text: the fill then starts from the first cell of the selection that isn't a
+// header, typed again there, so the data cells get the entry as typed (1 Ctrl+Enter over E2:E6 beside a table: E2 the
+// header "1", E3:E6 the number 1, Excel 16 measured by keys); the header is made text again at Commit
+static bool FillSourceCell(Document& d, uint32_t sheet, const std::vector<Rect>& areas, std::string_view text, bool r1c1, uint32_t* r, uint32_t* c) {
+  const model::Sheet* s = d.S(sheet);
+  if (!s || s->tables->empty()) return true;
+  auto header = [&](uint32_t hr, uint32_t hc) {
+    for (const model::Table& t : *s->tables) {
+      if (t.header && t.range.r0 == hr && t.range.c0 <= hc && hc <= t.range.c1) return true;
+    }
+    return false;
+  };
+  if (!header(*r, *c)) return true;
+  for (const Rect& a : areas) {
+    for (uint32_t rr = a.r0; rr <= a.r1 && rr - a.r0 < 2; ++rr) {  // a table's header row is one row
+      for (uint32_t cc = a.c0; cc <= a.c1; ++cc) {
+        if (header(rr, cc)) continue;
+        std::string ignored;
+        if (!d.SetInput(sheet, rr, cc, text, &ignored, engine::kSrcUser, r1c1)) return false;
+        *r = rr, *c = cc;
+        return true;
+      }
+    }
+  }
+  return true;  // every cell filled is a header: they all take the active cell's text
+}
+
 // Ctrl+Enter: the format the entry gave its cell (5%, a date, =TODAY()) goes to every cell filled, as in Excel
 void FillEntryFormat(Document& d, uint32_t sheet, uint32_t r, uint32_t c, uint32_t before, const std::vector<Rect>& areas) {
   const model::Sheet* s = d.S(sheet);
@@ -630,8 +658,10 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
       std::string err;
       const uint32_t fmt0 = d.S(sheet) ? d.wb().styles->Get(d.S(sheet)->GetStyle(r, c)).numfmt : 0;
       if (!d.SetInput(sheet, r, c, text, &err, engine::kSrcUser, r1c1)) return;
-      d.FillFrom(sheet, r, c, areas);
-      FillEntryFormat(d, sheet, r, c, fmt0, areas);
+      uint32_t fr = r, fc = c;
+      if (!FillSourceCell(d, sheet, areas, text, r1c1, &fr, &fc)) return;
+      d.FillFrom(sheet, fr, fc, areas);
+      FillEntryFormat(d, sheet, fr, fc, fmt0, areas);
     });
     s.SetStatus(TR("Filling ") + std::to_string(fill_cells) + TR(" cells..."), 3.0);
     e.active = false;
@@ -652,7 +682,10 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
     for (const uint32_t g : group) {
       if (!r_ok) break;
       std::string ignored;
-      if (d.SetInput(g, r, c, text, &ignored, engine::kSrcUser, r1c1) && array) d.FillFrom(g, r, c, areas);
+      if (d.SetInput(g, r, c, text, &ignored, engine::kSrcUser, r1c1) && array) {
+        uint32_t fr = r, fc = c;
+        if (FillSourceCell(d, g, areas, text, r1c1, &fr, &fc)) d.FillFrom(g, fr, fc, areas);
+      }
     }
     // fonts inside the text: follow the edits, or go away when the cell no longer holds text
     if (r_ok && !array) {
@@ -676,8 +709,11 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
     }
     if (r_ok && array) {
-      d.FillFrom(sheet, r, c, areas);
-      FillEntryFormat(d, sheet, r, c, fmt_before, areas);
+      uint32_t fr = r, fc = c;
+      if (FillSourceCell(d, sheet, areas, text, r1c1, &fr, &fc)) {
+        d.FillFrom(sheet, fr, fc, areas);
+        FillEntryFormat(d, sheet, fr, fc, fmt_before, areas);
+      }
     }
     d.Commit();
     return r_ok;

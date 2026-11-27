@@ -286,6 +286,21 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(excel.ActiveSheet.ListObjects(1).Range.Address, "$B$2:$D$6")
         self.assertEqual(excel.ActiveSheet.Range("B4").Value, "S4")
 
+    def test_ctrl_enter_over_a_new_table_column_types_the_data_cells(self):
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        self.ws.Range("E2:E6").Select()
+        # 1 Ctrl+Enter beside the table grows it: E2 becomes the header "1", E3:E6 the number 1 (Excel 16, measured by
+        # keys); the header made from the entry was copied as text into every cell
+        self.keys("m:2,2|w:3|t:1|w:2|k:c-Enter|w:6")
+        self.assertEqual(self.ws.ListObjects(1).Range.Address, "$B$2:$E$6")
+        self.assertEqual([self.ws.Range(f"E{r}").Value for r in range(2, 7)], ["1", 1, 1, 1, 1])
+        self.keys("k:c-Z|w:6")
+        self.assertEqual(self.ws.ListObjects(1).Range.Address, "$B$2:$D$6")
+        self.assertEqual([self.ws.Range(f"E{r}").Value for r in range(2, 7)], [None] * 5)
+
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
         x, y = self.tab(self.other)
         self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")
