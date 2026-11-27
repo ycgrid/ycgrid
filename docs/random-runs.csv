@@ -11920,3 +11920,17 @@ date,tool,seed,seconds,result,note
 2026-11-27,screen_walk,r96,300,clean,"Format Painter double-clicked (locked) over three cells, Escape, then a single click painting once, and Undo"
 2026-11-27,screen_walk,r97,300,clean,"Ctrl+T, Ctrl+Shift+T and a totals cell switched to Average from Alt+Down on a trade list"
 2026-11-27,screen_walk,r98,300,found,"Customize Status Bar: Minimum, Maximum and Numerical Count switched on over a column with text"
+2026-11-27,doc_fuzz,2400200,101,ok,
+2026-11-27,calc_fuzz,4540,31,ok,
+2026-11-27,formula_fuzz,5521,0,ok,
+2026-11-27,basics,4828,169,fail,basics_4828.txt
+2026-11-27,chaos,7780,362,ok,
+2026-11-27,gaps_fuzz,700201,82,ok,
+2026-11-27,doc_fuzz,2400201,109,ok,
+2026-11-27,calc_fuzz,4541,2,ok,
+2026-11-27,formula_fuzz,5522,0,ok,
+2026-11-27,chaos,7781,361,ok,
+2026-11-27,gaps_fuzz,700202,88,ok,
+2026-11-27,basics,4829,174,fail,basics_4829.txt
+
+2026-11-27,screen_walk,r99,300,found,"Sheets from the keyboard: Shift+F11, Alt, H, O, R to rename, Ctrl+PgDn / Ctrl+PgUp, Alt, H, O, M with (move to end) and Create a copy"

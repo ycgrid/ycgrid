@@ -195,6 +195,17 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(self.ws.Range("C1").Value2, 5)
         self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)
 
+    def test_ctrl_page_down_leaves_the_sheet_it_leaves_where_it_was(self):
+        # Ctrl+PgDn also paged the sheet it left: back on it, the active cell was a screen further down each time
+        from yc import excel
+
+        self.keys("g:B3|w:2|k:c-PageDown|w:4")
+        self.assertEqual(excel.Application.ActiveSheet.Name, self.other.Name)
+        self.keys("k:c-PageUp|w:4")
+        self.assertEqual(excel.Application.ActiveSheet.Name, self.ws.Name)
+        self.assertEqual(excel.Application.ActiveCell.Address, "$B$3")
+        self.assertEqual(excel.Application.ActiveWindow.ScrollRow, 1)
+
     def test_ctrl_enter_gives_every_cell_the_entry_format(self):
         self.keys("g:F2:F5|w:2|t:5%|k:c-Enter|w:5")
         self.assertEqual([self.ws.Range(f"F{r}").Text for r in range(2, 6)], ["5%"] * 4)  # F3:F5 showed 0.05

@@ -3519,7 +3519,9 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     }
     if (arrow) view.end_mode = false;
     const int64_t page = std::max<int64_t>(1, view.vis_rows - 1);
-    if (key_pressed(ImGuiKey_PageDown) && !no_rows) {  // (every row hidden: Page Down / Up stay, measured)
+    // Ctrl+PgDn / Ctrl+PgUp switch sheets (main.cpp) and don't also page the sheet they leave: its active cell went a
+    // screen down at every switch
+    if (key_pressed(ImGuiKey_PageDown) && !no_rows && !io.KeyCtrl) {  // (every row hidden: Page Down / Up stay, measured)
       if (io.KeyAlt) {
         ScrollBy(view.h, *sheet.cols, fc_end, col_limit, std::max<int64_t>(1, view.vis_cols - 1));
         move_to(er, view.h.first, shift);
@@ -3528,7 +3530,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         move_to(std::min<int64_t>(row_limit - 1, er + page), ec, shift);
       }
     }
-    if (key_pressed(ImGuiKey_PageUp) && !no_rows) {
+    if (key_pressed(ImGuiKey_PageUp) && !no_rows && !io.KeyCtrl) {
       if (io.KeyAlt) {
         ScrollBy(view.h, *sheet.cols, fc_end, col_limit, -std::max<int64_t>(1, view.vis_cols - 1));
         move_to(er, view.h.first, shift);
