@@ -12057,3 +12057,10 @@ date,tool,seed,seconds,result,note
 2026-11-27,basics,4847,152,ok,
 
 2026-11-27,screen_walk,r106,300,clean,"Fifteen of Excel's dialogs read through UI Automation for their letters; Create Table, Zoom, Subtotal and Move or Copy given theirs (part of the open access keys finding)"
+2026-11-27,doc_fuzz,2400221,87,ok,
+2026-11-27,calc_fuzz,4560,13,ok,
+2026-11-27,formula_fuzz,5541,0,ok,
+
+2026-11-27,screen_walk,r107,300,clean,"Hide two sheets with Alt, H, O, U, S and unhide one from Alt, H, O, U, H with Enter"
+2026-11-27,screen_walk,r108,300,clean,"Insert Function from Shift+F3: search, Enter, Function Arguments with a range typed (the search box's Enter could not be measured in Excel's older dialog)"
+2026-11-27,screen_walk,r109,300,clean,"Insert Copied Cells from Ctrl+Shift+= with D (Shift cells down), then Undo"
