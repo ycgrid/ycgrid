@@ -12034,3 +12034,15 @@ date,tool,seed,seconds,result,note
 2026-11-27,gaps_fuzz,700217,88,ok,
 
 2026-11-27,screen_walk,r104,300,found,"Row and column menus from the keyboard: Shift+Space or Ctrl+Space, Shift+F10, then R, H, U, I, D, W; Excel's menus read through UI Automation"
+2026-11-27,basics,4844,164,ok,
+2026-11-27,doc_fuzz,2400218,100,ok,
+2026-11-27,calc_fuzz,4557,16,ok,
+2026-11-27,formula_fuzz,5538,0,ok,
+2026-11-27,chaos,7798,361,ok,
+2026-11-27,gaps_fuzz,700218,90,ok,
+2026-11-27,basics,4845,173,ok,
+2026-11-27,doc_fuzz,2400219,89,ok,
+2026-11-27,calc_fuzz,4558,29,ok,
+2026-11-27,formula_fuzz,5539,0,ok,
+
+2026-11-27,screen_walk,r105,300,found,"Sort and Remove Duplicates from the keyboard, their letters read from Excel 16 through UI Automation (Add Level A, Delete Level D, My data has headers H; Select All A, Unselect All U, My data has headers M)"

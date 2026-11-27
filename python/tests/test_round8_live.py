@@ -464,6 +464,27 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("B2:B4").Value], ["Buy", "Buy", "Sell"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_sort_and_remove_duplicates_take_excels_letters(self):
+        # Excel 16's letters, read through UI Automation's AccessKey: Sort's Add Level A, Delete Level D, My data has
+        # headers H; Remove Duplicates' Select All A, Unselect All U, My data has headers M. None of them worked
+        self.ws.Range("A1:C4").Value = [["Sym", "Side", "Qty"], ["B", "Buy", 3], ["A", "Sell", 5], ["B", "Buy", 3]]
+        checked = lambda label: [i.get("checked") for i in yc.ui.items("") if i["label"] == label]
+        self.keys("g:B3|w:2|x:CustomSort|w:8|k:A|w:4")
+        self.assertTrue([i for i in yc.ui.items("") if i["id"] == "##col1"], "A adds a level")
+        self.keys("k:D|w:4")
+        self.assertFalse([i for i in yc.ui.items("") if i["id"] == "##col1"], "D deletes it")
+        self.keys("k:a-H|w:4")
+        self.assertEqual(checked("My data has headers"), [False])
+        self.assertEqual(yc.excel.Application.Selection.Address, "$A$1:$C$4")
+        self.keys("k:Escape|w:4|g:B3|w:2|x:RemoveDuplicates|w:8|k:U|w:4")
+        self.assertEqual(checked("Sym") + checked("Side") + checked("Qty"), [False, False, False])
+        self.keys("k:A|w:4")
+        self.assertEqual(checked("Sym") + checked("Side") + checked("Qty"), [True, True, True])
+        self.keys("k:M|w:4")  # without headers the columns are named by their letters
+        self.assertEqual(checked("My data has headers"), [False])
+        self.keys("k:Escape|w:4")
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):
         # Shift+F10 with whole rows selected opened the cell's menu (no Row Height, Hide, Unhide); Excel 16 opens the
         # row menu, and the column menu for whole columns (read through UI Automation), each with its letters

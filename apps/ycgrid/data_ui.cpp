@@ -891,10 +891,12 @@ void DrawDataDialogs(AppState& s) {
     const model::Sheet* sh = s.FocusSheet();
     const Rect r = d.rd_rect;
     ImGui::TextWrapped("%s", TR("To delete duplicate values, select one or more columns that contain duplicates."));
-    if (ImGui::Button(TR("Select All"))) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 1);
+    // Excel 16's letters (UI Automation's AccessKey): Select All A, Unselect All U, My data has headers M
+    if (ImGui::Button(TR("Select All")) || DlgKey(ImGuiKey_A)) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 1);
     ImGui::SameLine();
-    if (ImGui::Button(TR("Unselect All"))) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 0);
+    if (ImGui::Button(TR("Unselect All")) || DlgKey(ImGuiKey_U)) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 0);
     ImGui::SameLine();
+    if (DlgKey(ImGuiKey_M)) d.rd_header = !d.rd_header;
     ImGui::Checkbox(TR("My data has headers"), &d.rd_header);
     if (ImGui::BeginChild("##cols", ImVec2(S(380), S(160)), ImGuiChildFlags_Borders)) {
       for (uint32_t c = r.c0; c <= r.c1 && c - r.c0 < d.rd_cols.size(); ++c) {

@@ -1635,18 +1635,19 @@ void DrawMiscDialogs(AppState& s) {
     const Rect r = m.sort_rect;
     const auto& tbl = *s.snap->wb.styles;
     m.sort_sel = std::clamp(m.sort_sel, 0, std::max(0, static_cast<int>(m.levels.size()) - 1));
-    // the tool bar
-    if (ImGui::Button(TR("Add Level")) && m.levels.size() < 64) {
+    // the tool bar, with Excel 16's letters (its dialog's AccessKey through UI Automation): Add Level A, Delete Level D,
+    // Copy Level C, Options O, My data has headers H
+    if ((ImGui::Button(TR("Add Level")) || DlgKey(ImGuiKey_A)) && m.levels.size() < 64) {
       m.levels.insert(m.levels.begin() + m.sort_sel + 1, MiscUi::Level{});
       ++m.sort_sel;
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(m.levels.size() <= 1);
-    if (ImGui::Button(TR("Delete Level"))) m.levels.erase(m.levels.begin() + m.sort_sel);
+    if ((ImGui::Button(TR("Delete Level")) || (m.levels.size() > 1 && DlgKey(ImGuiKey_D)))) m.levels.erase(m.levels.begin() + m.sort_sel);
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(m.levels.empty() || m.levels.size() >= 64);
-    if (ImGui::Button(TR("Copy Level"))) {
+    if (ImGui::Button(TR("Copy Level")) || (!m.levels.empty() && m.levels.size() < 64 && DlgKey(ImGuiKey_C))) {
       const MiscUi::Level copy = m.levels[static_cast<size_t>(m.sort_sel)];
       m.levels.insert(m.levels.begin() + m.sort_sel + 1, copy);
       ++m.sort_sel;
@@ -1670,7 +1671,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::EndDisabled();
     ImGui::SameLine();
     bool open_options = false;
-    if (ImGui::Button(TR("Options..."))) {
+    if (ImGui::Button(TR("Options...")) || DlgKey(ImGuiKey_O)) {
       m.sort_case_edit = m.sort_case;
       m.sort_ltr_edit = m.sort_ltr;
       open_options = true;  // the Sort Options dialog; the Sort dialog comes back with its levels
@@ -1678,6 +1679,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::SameLine(S(470));
     bool header_box = (m.sort_header || m.sort_table) && !m.sort_ltr;
     ImGui::BeginDisabled(m.sort_table != 0 || m.sort_ltr);  // a table's header row never moves; left to right has none
+    if (!m.sort_table && !m.sort_ltr && DlgKey(ImGuiKey_H)) m.sort_header = !m.sort_header;
     if (ImGui::Checkbox(TR("My data has headers"), &header_box) && !m.sort_table) m.sort_header = header_box;
     ImGui::EndDisabled();
     ImGui::TextDisabled(TR("Range: %s:%s"), core::CellA1(r.r0, r.c0).c_str(), core::CellA1(r.r1, r.c1).c_str());
