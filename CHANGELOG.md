@@ -122,6 +122,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   added, a header row with a year or set in bold over text is taken as the header.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
+- The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text
+  without them is still found inside the values.
 
 ## 0.10.3 (2026-11-25)
 

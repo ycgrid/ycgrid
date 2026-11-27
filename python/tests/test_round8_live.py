@@ -425,6 +425,19 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("k:c-Z|w:6")
         self.assertEqual(self.ws.Range("B2").Comment.Text(), "abc")
 
+    def test_the_filter_search_box_takes_wildcards_as_the_whole_value(self):
+        # Excel 16, measured through its filter menu: text is found inside the values, a pattern with * or ? is matched
+        # against the whole value; YCGrid looked for "t?" inside them and found nothing
+        syms = ["Sym", "TXF", "MTX", "TE", "txo", "2330", "TXF", "ABC"]
+        for text, want in (("tx", ["TXF", "MTX", "txo", "TXF"]), ("t?", ["TE"]), ("*x", ["MTX"]), ("23", ["2330"])):
+            if self.ws.AutoFilterMode:
+                self.ws.AutoFilterMode = False
+            self.ws.Range("A1:B8").Value = [[s, i] for i, s in enumerate(syms)]
+            self.ws.Range("A1:B8").AutoFilter()
+            self.keys(f"m:2,2|g:A1|w:3|k:a-DownArrow|w:8|k:E|w:4|t:{text}|w:6|k:Enter|w:8")
+            shown = [self.ws.Cells(r, 1).Text for r in range(2, 9) if not self.ws.Rows(r).Hidden]
+            self.assertEqual(shown, want, text)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

@@ -34,6 +34,16 @@
 
 namespace yc::app {
 
+// the filter menu's search box (Excel 16, measured through its menu): text without a wildcard is found inside a value
+// (tx finds TXF, MTX, txo); with * or ? it is the whole value (t? finds TE, not TXF; *x finds MTX)
+static bool SearchMatches(const std::string& q, const std::string& value) {
+  if (q.empty()) return true;
+  const std::string v = engine::Lower(value);
+  if (q.find_first_of("*?") == std::string::npos) return v.find(q) != std::string::npos;
+  size_t start = 0, len = 0;
+  return engine::WildFind(q, v, 0, true, &start, &len);
+}
+
 using engine::Document;
 using ui::S;
 
@@ -675,16 +685,16 @@ void DrawFilterPopup(AppState& s) {
     } else {
       bool all = true, any = false;
       for (size_t i = 0; i < f.values.size(); ++i) {
-        if (Lower(f.values[i]).find(q) != std::string::npos) all = all && f.found_checked[i], any = any || f.found_checked[i];
+        if (SearchMatches(q, f.values[i])) all = all && f.found_checked[i], any = any || f.found_checked[i];
       }
       if (CheckboxMixed(TR("(Select All Search Results)"), &all, any && !all)) {
         for (size_t i = 0; i < f.values.size(); ++i) {
-          if (Lower(f.values[i]).find(q) != std::string::npos) f.found_checked[i] = all;
+          if (SearchMatches(q, f.values[i])) f.found_checked[i] = all;
         }
       }
       ImGui::Checkbox(TR("Add current selection to filter"), &f.add_current);
       for (size_t i = 0; i < f.values.size(); ++i) {
-        if (Lower(f.values[i]).find(q) == std::string::npos) continue;
+        if (!SearchMatches(q, f.values[i])) continue;
         bool v = f.found_checked[i] != 0;
         ImGui::PushID(static_cast<int>(i));
         if (CellTextCheckbox(f.values[i], &v)) f.found_checked[i] = v;
@@ -698,7 +708,7 @@ void DrawFilterPopup(AppState& s) {
   bool any = false;
   if (!f.searched.empty()) {
     for (size_t i = 0; i < f.values.size() && !any; ++i) {
-      any = (Lower(f.values[i]).find(f.searched) != std::string::npos && f.found_checked[i]) || (f.add_current && f.checked[i]);
+      any = (SearchMatches(f.searched, f.values[i]) && f.found_checked[i]) || (f.add_current && f.checked[i]);
     }
     any = any || (f.add_current && f.blanks_present && f.blanks_checked);
   } else {
@@ -715,7 +725,7 @@ void DrawFilterPopup(AppState& s) {
       // OK while searching: the ticked results are shown (with what the filter showed before, when adding to it)
       fc.kind = 1;
       for (size_t i = 0; i < f.values.size(); ++i) {
-        const bool found = Lower(f.values[i]).find(f.searched) != std::string::npos && f.found_checked[i];
+        const bool found = SearchMatches(f.searched, f.values[i]) && f.found_checked[i];
         if (found || (f.add_current && f.checked[i])) fc.values.push_back(f.values[i]);
       }
       fc.blanks = f.add_current && f.blanks_checked;

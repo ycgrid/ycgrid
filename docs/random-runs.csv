@@ -12884,3 +12884,17 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5667,0,ok,
 
 2026-11-28,screen_walk,r141,900,found,"Notes from the keyboard: Shift+F2, typing, Enter, Escape, Shift+F2 on a note, Backspace over all of it, measured in Excel by keys"
+2026-11-28,gaps_fuzz,700347,97,ok,
+2026-11-28,chaos,7931,361,ok,
+2026-11-28,basics,4974,193,ok,
+2026-11-28,doc_fuzz,2400352,92,ok,
+2026-11-28,calc_fuzz,4687,30,ok,
+2026-11-28,formula_fuzz,5668,0,ok,
+2026-11-28,gaps_fuzz,700348,92,ok,
+2026-11-28,chaos,7932,361,ok,
+2026-11-28,basics,4975,170,ok,
+2026-11-28,doc_fuzz,2400353,85,ok,
+2026-11-28,calc_fuzz,4688,3,ok,
+2026-11-28,formula_fuzz,5669,0,ok,
+
+2026-11-28,screen_walk,r142,900,found,"The filter menu's search box from Alt+Down, E: letters, a whole value, t?, *x, digits, measured in Excel through UI Automation"
