@@ -12243,3 +12243,20 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5568,0,ok,
 
 2026-11-28,screen_walk,r117,300,clean,"Typed numbers that take a format (1,234,567.89, 123456.789%) widen their column as in Excel (measured by keys posted to its sheet window)"
+2026-11-28,basics,4875,161,ok,
+2026-11-28,chaos,7829,361,ok,
+2026-11-28,gaps_fuzz,700248,91,ok,
+2026-11-28,doc_fuzz,2400250,98,ok,
+2026-11-28,calc_fuzz,4588,32,ok,
+2026-11-28,formula_fuzz,5569,0,ok,
+2026-11-28,basics,4876,173,ok,
+2026-11-28,chaos,7830,362,ok,
+2026-11-28,gaps_fuzz,700249,99,ok,
+2026-11-28,doc_fuzz,2400251,91,ok,
+2026-11-28,calc_fuzz,4589,3,ok,
+2026-11-28,formula_fuzz,5570,0,ok,
+2026-11-28,chaos,7831,363,ok,
+2026-11-28,gaps_fuzz,700250,98,ok,
+2026-11-28,basics,4877,162,ok,
+
+2026-11-28,screen_walk,r118,300,clean,"A PivotTable from Alt, N, V and Enter on a trade list, fields ticked in the field list (a number field goes to Values, as in Excel)"
