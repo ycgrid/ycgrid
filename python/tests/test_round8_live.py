@@ -574,6 +574,11 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertIn("OK", [i["label"] for i in yc.ui.items("")])
         self.assertNotIn("Insert Function", yc.ui.state()["clipped_windows"])
         self.keys("k:Escape|w:3|k:Escape|w:3")
+        # New Name: an invalid name's error, shown after OK, pushed OK and Cancel under the dialog's edge (chaos 7873)
+        self.keys("g:C2|w:2|x:DefineName|w:8|k:c-A|t:1bad name|k:Enter|w:6")
+        self.assertIn("OK", [i["label"] for i in yc.ui.items("")])
+        self.assertNotIn("New Name", " ".join(yc.ui.state()["clipped_windows"]))
+        self.keys("k:Escape|w:3|k:Escape|w:3")
         # Function Arguments: the help of range_lookup (two lines) cut OK and Cancel under the dialog's edge
         self.keys('g:C2|w:2|t:=VLOOKUP(|w:3|k:c-A|w:8|t:"y"|k:Tab|w:2|t:A1:B3|k:Tab|w:2|t:2|k:Tab|w:2|t:FALSE|w:6')
         self.assertNotIn("Function Arguments", yc.ui.state()["clipped_windows"])

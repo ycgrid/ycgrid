@@ -664,7 +664,9 @@ void DrawNameDialogs(AppState& s) {
     RangeBox(s, "name.refers", n.refers, sizeof(n.refers), 0, RangeBox_Formula | RangeBox_Equals | RangeBox_Sheet, TR("Refers to:"));
     ImGui::EndDisabled();
     ImGui::TextDisabled("%s", TR("Select the cells with the button, or type a value or a formula."));
+    // the error's line is kept when there is none: appearing after OK, it pushed OK and Cancel under the dialog's edge
     if (!n.error.empty()) ImGui::TextColored(ImVec4(0.8f, 0.1f, 0.1f, 1), "%s", n.error.c_str());
+    else ImGui::Dummy(ImVec2(1, ImGui::GetTextLineHeight()));
     bool close = false;
     const bool enter = (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && !comment_active;
     const bool ok_pressed = ImGui::Button(TR("OK"), ImVec2(S(80), 0)) || enter;
