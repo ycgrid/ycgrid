@@ -483,8 +483,8 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   next frame, once the tabs' are there; matched at once against none, it did nothing. ui.input's chords hold the
   modifier keys too (`ImGuiKey_LeftAlt`), as Windows sends them: with only the flag, no test pressed Alt as a person.
 - A menu people open from the keyboard takes Excel's letters (its underlined ones): Alt+Down, E, a few letters, Enter
-  filters a list, and Shift+F10, V pastes values; the filter menu and the cell, column and row menus ignored every
-  letter. A letter acts only while that menu has the keyboard (`IsWindowFocused`, no item active), and only a letter
+  filters a list, Shift+F10, V and Ctrl+V, Ctrl, V paste values; the filter menu, the cell, column and row menus and
+  the Paste Options pictures ignored every letter. A letter acts only while that menu has the keyboard (`IsWindowFocused`, no item active), and only a letter
   no other entry of the menu shares runs its entry (a shared one only moves Excel's highlight). A new menu a person
   opens with a key gets its letters, tested by the keys a person presses.
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in

@@ -314,6 +314,9 @@ class ExcelParityTest(unittest.TestCase):
         self.keys("k:LeftCtrl|w:4")
         self.click("Transpose")
         self.assertEqual((self.ws.Range("A3").Value, self.ws.Range("A4").Formula), (2, "=A3*10"))
+        # Ctrl+V, Ctrl, V: Excel's letters in the options (Values (V)) did nothing
+        self.keys("k:Escape|w:3|g:A1:B1|w:2|k:c-C|w:2|g:A7|w:2|k:c-V|w:6|k:LeftCtrl|w:4|k:V|w:6")
+        self.assertEqual((self.ws.Range("B7").Formula, self.ws.Range("B7").Value), ("20", 20))
 
     def test_dropping_cells_onto_data_asks_first(self):
         from yc import ui
