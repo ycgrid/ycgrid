@@ -329,6 +329,15 @@ class FormattingParityTest(unittest.TestCase):
         fc = self.ws.Range("A1").FormatConditions(1)
         self.assertEqual((fc.Formula1, fc.Formula2), ("=24", "=67"))
 
+    def test_text_that_contains_proposes_the_active_cells_text(self):
+        # Excel 16 starts the box with the active cell's text (measured: MSFT with B3 active in B2:B4)
+        self.ws.Range("B2:B4").Value = [["AAPL"], ["MSFT"], ["TSLA"]]
+        self.keys("g:B2:B4|w:2|k:Enter|w:3")  # B3 active
+        self.run_cmd("CfTextContains")
+        self.keys("w:4|k:Enter|w:5")
+        fc = self.ws.Range("B2").FormatConditions(1)
+        self.assertEqual(fc.Text, "MSFT")
+
     # ---- 15, 16. rule details from Python ----
     def test_text_operators_and_scale_points(self):
         from yc import excel

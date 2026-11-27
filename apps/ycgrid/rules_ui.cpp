@@ -7,6 +7,7 @@
 // - ribbon commands and dialogs: highlight rules, top/bottom N, data bars, color scales, formula rules, rules manager, data validation
 #include "app_state.h"
 #include "core/i18n.h"
+#include "core/utf8.h"
 
 #include "commands/command_registry.h"
 #include "engine/navigate.h"
@@ -1308,6 +1309,17 @@ void RegisterRuleCommands(AppState& s) {
       u.cf_preset = 0;
       u.cf_dupe = 0;
       u.cf_period = 1;
+      // Text That Contains starts with the active cell's text (Excel 16, measured: MSFT with B3 active in B2:B4)
+      if (kind == 5) {
+        if (const model::Sheet* sh = s.FocusSheet()) {
+          const auto& sel = s.FocusView().sel;
+          const core::Value& v = sh->GetValue(sel.act_r, sel.act_c);
+          if (v.IsString()) {
+            const std::string_view text = core::Utf8Prefix(v.str(), sizeof(u.cf_v1) - 1);
+            std::snprintf(u.cf_v1, sizeof(u.cf_v1), "%.*s", static_cast<int>(text.size()), text.data());
+          }
+        }
+      }
       // Excel starts the value boxes with values from the selection's numbers (Excel 16, measured): halfway
       // between the lowest and the highest, and for Between a quarter and three quarters of the way, rounded to
       // whole numbers (3 and 88 give 45.5, then 24 and 67)

@@ -11805,3 +11805,24 @@ date,tool,seed,seconds,result,note
 2026-11-27,screen_walk,r83,300,clean,"Remove Duplicates from Alt, A, M on a trade list: rows kept, the message, Undo; selection after OK measured (Excel keeps the cell)"
 2026-11-27,screen_walk,r84,300,clean,"Format shortcuts Ctrl+Shift+$ % ^ # @ ! ~ and Format Cells: Percentage with one decimal, Number with separators and red parentheses"
 2026-11-27,screen_walk,r85,300,found,"Highlight Cells Rules from Alt, H, L, H, G: the proposed values against Excel measured over 15 data sets"
+2026-11-27,chaos,7764,361,ok,
+2026-11-27,calc_fuzz,4524,16,ok,
+2026-11-27,formula_fuzz,5505,0,ok,
+2026-11-27,basics,4812,167,fail,basics_4812.txt
+2026-11-27,gaps_fuzz,700185,94,ok,
+2026-11-27,doc_fuzz,2400185,104,ok,
+2026-11-27,doc_fuzz,2400184,327,ok,
+2026-11-27,calc_fuzz,4525,32,ok,
+2026-11-27,formula_fuzz,5506,0,ok,
+2026-11-27,chaos,7765,362,ok,
+2026-11-27,gaps_fuzz,700186,92,ok,
+2026-11-27,basics,4813,163,fail,basics_4813.txt
+2026-11-27,doc_fuzz,2400186,119,ok,
+2026-11-27,calc_fuzz,4526,2,ok,
+2026-11-27,formula_fuzz,5507,0,ok,
+2026-11-27,gaps_fuzz,700187,93,ok,
+2026-11-27,chaos,7766,361,ok,
+2026-11-27,basics,4814,173,fail,basics_4814.txt
+2026-11-27,doc_fuzz,2400187,111,ok,
+
+2026-11-27,screen_walk,r86,300,found,"Text That Contains and Equal To from a list of tickers: the proposed text measured in Excel"
