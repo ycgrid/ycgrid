@@ -1610,6 +1610,54 @@ bool InsertCopiedAt(AppState& s, const Rect& at, int what) {
   return true;
 }
 
+const model::Table* SelectionTable(AppState& s, Rect* area) {
+  const model::Sheet* sh = s.FocusSheet();
+  const auto& sel = s.FocusView().sel;
+  if (!sh || sh->tables->empty() || sel.areas.size() != 1 || sel.mode != render::SelectMode::Cells) return nullptr;
+  const Rect a = sel.areas.back();
+  for (const model::Table& t : *sh->tables) {
+    if (t.range.Contains(a.r0, a.c0) && t.range.Contains(a.r1, a.c1)) {
+      if (area) *area = a;
+      return &t;
+    }
+  }
+  return nullptr;
+}
+
+bool TableRowsCols(AppState& s, bool insert, int what) {
+  Rect a{};
+  const model::Table* t = SelectionTable(s, &a);
+  if (!t || !s.engine) return false;
+  if (RefuseReadOnlyUi(s)) return true;
+  s.repeat_command.clear();
+  EndCopyMode(s);  // Excel: an insert or delete ends cut / copy mode
+  s.last_insert = AppState::LastInsert{};
+  const uint32_t sheet = s.focus_sheet, id = t->id;
+  std::vector<uint32_t> lines;  // the table's data rows or columns the selection takes, as indexes
+  if (what == 1) {
+    const Rect d = t->Data();
+    for (uint32_t r = std::max(a.r0, d.r0); d.r0 <= d.r1 && r <= std::min(a.r1, d.r1); ++r) lines.push_back(r - d.r0);
+  } else {
+    for (uint32_t c = a.c0; c <= a.c1; ++c) lines.push_back(c - t->range.c0);
+  }
+  if (lines.empty()) return true;  // the header or totals row alone: nothing (Excel 16, measured)
+  const char* label = what == 1 ? (insert ? TR("Insert Table Rows") : TR("Delete Table Rows"))
+                                : (insert ? TR("Insert Table Columns") : TR("Delete Table Columns"));
+  s.engine->PostUser(label, [=](Document& d) {
+    if (insert) {
+      // as many lines as are selected, above (left of) the first one
+      for (size_t i = 0; i < lines.size(); ++i) {
+        if (!(what == 1 ? d.TableInsertRow(sheet, id, lines.front()) : d.TableInsertColumn(sheet, id, lines.front()))) break;
+      }
+    } else {
+      for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+        if (!(what == 1 ? d.TableDeleteRow(sheet, id, *it) : d.TableDeleteColumn(sheet, id, *it))) break;
+      }
+    }
+  });
+  return true;
+}
+
 void InsertOrDelete(AppState& s, bool insert, int what) {
   if (!s.engine) return;
   s.repeat_command.clear();
@@ -1617,6 +1665,21 @@ void InsertOrDelete(AppState& s, bool insert, int what) {
   if (areas.empty()) return;
   const auto mode = s.FocusView().sel.mode;
   const model::Sheet* sh = s.FocusSheet();
+  // in a table Ctrl+- and Ctrl+Shift+= insert and delete its rows or columns without a dialog: columns when the
+  // selection is taller than wide, else rows; deleting across every column deletes rows, and the whole table its
+  // cells (Excel 16, measured by keys posted to its sheet window)
+  Rect ta{};
+  if (what == 0 && !(insert && CopyModeOn(s))) {
+    if (const model::Table* t = SelectionTable(s, &ta)) {
+      if (!insert && ta == t->range) {
+        what = 4;
+      } else {
+        const bool all_cols = ta.c0 == t->range.c0 && ta.c1 == t->range.c1;
+        TableRowsCols(s, insert, ta.Rows() > ta.Cols() && (insert || !all_cols) ? 2 : 1);
+        return;
+      }
+    }
+  }
   // whole rows / columns selected any way (header, Name Box, Go To, Python) insert and delete rows / columns
   const Rect sa = areas.back();
   const bool all_rows = sh && sa.r0 == 0 && sa.r1 >= sh->row_limit - 1, all_cols = sh && sa.c0 == 0 && sa.c1 >= sh->col_limit - 1;

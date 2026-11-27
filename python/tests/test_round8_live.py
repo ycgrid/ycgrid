@@ -240,6 +240,52 @@ class UiOpsRound8Test(unittest.TestCase):
         # outside the table they work as before
         self.assertEqual(presses("F4", "c-Space", 1), ["$F:$F"])
 
+    def test_insert_and_delete_in_a_table_act_on_its_rows_and_columns(self):
+        from yc import excel
+
+        excel.Application.DisplayAlerts = False
+
+        def run(sel, script, act="C4"):
+            while excel.Worksheets.Count > 1:
+                excel.Worksheets(excel.Worksheets.Count).Delete()
+            ws = excel.Worksheets.Add(After=excel.Worksheets(1))
+            ws.Activate()
+            ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+            for r in range(3, 7):
+                ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+            ws.Range("F2").Value = "side"
+            ws.Range("F4").Value = "keep4"
+            ws.ListObjects.Add(1, ws.Range("B2:D6"), None, 1)
+            ws.Range(sel).Select()
+            ws.Range(act).Activate()
+            self.keys(f"m:2,2|w:3|{script}|w:6")
+            self.assertFalse(yc.ui.state().get("dialog"), (sel, script))
+            lo = ws.ListObjects(1) if ws.ListObjects.Count else None
+            col_b = [ws.Range(f"B{r}").Value for r in range(3, 8)]
+            return (lo.Range.Address if lo else None), col_b, ws.Range("F4").Value, ws.Range("E4").Value
+
+        # Ctrl+- and Ctrl+Shift+= in a table, without a dialog: columns when the selection is taller than wide, else
+        # rows; deleting across every column deletes rows; only the table's cells move (Excel 16, measured by keys)
+        rows_gone = ("$B$2:$D$5", ["S3", "S5", "S6", None, None], "keep4", None)
+        self.assertEqual(run("C4", "k:c-Minus"), rows_gone)
+        self.assertEqual(run("B4:D4", "k:c-Minus"), rows_gone)
+        self.assertEqual(run("C4:D4", "k:c-Minus"), rows_gone)
+        self.assertEqual(run("C3:C5", "k:c-Minus"), ("$B$2:$C$6", ["S3", "S4", "S5", "S6", None], None, "keep4"))
+        self.assertEqual(run("B3:D6", "k:c-Minus")[:2], ("$B$2:$D$3", [None, None, None, None, None]))
+        self.assertEqual(run("C3:D4", "k:c-Minus")[:2], ("$B$2:$D$4", ["S5", "S6", None, None, None]))
+        self.assertEqual(run("C2", "k:c-Minus", "C2")[0], "$B$2:$D$6")  # the header row alone: nothing
+        self.assertEqual(run("C4", "k:c-s-Equal")[:2], ("$B$2:$D$7", ["S3", None, "S4", "S5", "S6"]))
+        self.assertEqual(run("C3:D4", "k:c-s-Equal")[0], "$B$2:$D$8")
+        self.assertEqual(run("B3:D6", "k:c-s-Equal")[0], "$B$2:$G$6")
+        # the cell menu's Insert and Delete are the table's in a table: Shift+F10, I, A and D, C
+        self.assertEqual(run("C4", "k:s-F10|w:4|k:I|w:4|k:A")[0], "$B$2:$D$7")
+        self.assertEqual(run("C4", "k:s-F10|w:4|k:D|w:4|k:C")[0], "$B$2:$C$6")
+        # Undo takes a table row back in one step
+        run("C3:D4", "k:c-Minus")
+        self.keys("k:c-Z|w:5")
+        self.assertEqual(excel.ActiveSheet.ListObjects(1).Range.Address, "$B$2:$D$6")
+        self.assertEqual(excel.ActiveSheet.Range("B4").Value, "S4")
+
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):
         x, y = self.tab(self.other)
         self.keys(f"g:B1|w:2|t:hello|w:2|m:{x},{y}|w:3|c:{x},{y}|w:5")

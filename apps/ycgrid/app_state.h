@@ -615,6 +615,11 @@ void EditInsertText(AppState& s, const std::string& text);  // typed at the care
 std::string NowTimeText();
 void ClearSelection(AppState& s, int what);  // 0 contents, 1 formats, 2 all
 void InsertOrDelete(AppState& s, bool insert, int what);  // what: 0 by selection, 1 entire row, 2 entire column, 3 shift down/up, 4 shift right/left
+// the table the selection (one area) lies in, or null: Insert / Delete then act on its rows or columns, as in Excel
+const model::Table* SelectionTable(AppState& s, Rect* area = nullptr);
+// Insert Table Rows Above / Table Columns to the Left and Delete Table Rows / Columns over the selection's lines of
+// its table (what: 1 rows, 2 columns); false when the selection isn't in a table
+bool TableRowsCols(AppState& s, bool insert, int what);
 void AutoSum(AppState& s, const char* fn);
 // Application.EnableLargeOperationAlert: true when it asked (the operation runs again on Yes)
 bool AskBeforeLargeOperation(AppState& s, uint64_t cells, std::function<void()> again);

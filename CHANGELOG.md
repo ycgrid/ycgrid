@@ -21,6 +21,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   turns a paste into values (each Paste Options picture takes its letter, named in its tip: Values (V)).
 - Inserting a table, a chart or another object opens its tab (Table Design, Chart Design...), and the tab before it
   comes back when the selection leaves the object, as in Excel.
+- Insert Table Rows Above, Insert Table Columns to the Left, Delete Table Rows and Delete Table Columns: in a table
+  the cell menu's Insert and Delete offer them (Shift+F10, I, A adds a row above), and Ctrl+- and Ctrl+Shift+= act on
+  the table's rows (its columns for a selection taller than wide) without a dialog, moving only the table's cells, as
+  in Excel.
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and

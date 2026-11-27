@@ -280,6 +280,9 @@ void SyncCommandState(AppState& s) {
     enable("DeleteRows", !pr || pr->delete_rows);
     enable("DeleteColumns", !pr || pr->delete_columns);
     enable("DeleteCells", !pr || pr->delete_rows || pr->delete_columns);
+    // a table's rows and columns: only while the selection is in one (a protected sheet's tables don't change)
+    const bool sel_table = !pr && SelectionTable(s) != nullptr;
+    for (const char* id : {"InsertTableRowsAbove", "InsertTableColumnsLeft", "DeleteTableRows", "DeleteTableColumns"}) enable(id, sel_table);
     for (const char* id : {"SortAscending", "SortDescending", "CustomSort", "SortCellColorTop", "SortFontColorTop", "SortIconTop"}) enable(id, !pr || pr->sort);
     for (const char* id : {"NewComment", "InsertComment"}) enable(id, !pr || pr->objects);
   }
@@ -814,6 +817,15 @@ void RegisterCommands(AppState& s) {
   add(Make("DeleteCells", TR("Delete"), icon::DeleteCells, "Ctrl+-")).execute = [&s](Command&) { InsertOrDelete(s, false, 0); };
   add(Make("DeleteRows", TR("Delete Sheet Rows"))).execute = [&s](Command&) { InsertOrDelete(s, false, 1); };
   add(Make("DeleteColumns", TR("Delete Sheet Columns"))).execute = [&s](Command&) { InsertOrDelete(s, false, 2); };
+  // a table's own rows and columns (Excel's menus show them while the selection is in a table)
+  add(Make("InsertTableRowsAbove", TR("Insert Table Rows Above"), nullptr, "", TR("Insert table rows above the selected ones; the cells beside the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, true, 1); };
+  add(Make("InsertTableColumnsLeft", TR("Insert Table Columns to the Left"), nullptr, "", TR("Insert table columns left of the selected ones; the cells above and below the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, true, 2); };
+  add(Make("DeleteTableRows", TR("Delete Table Rows"), nullptr, "", TR("Delete the table rows of the selection; the cells beside the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, false, 1); };
+  add(Make("DeleteTableColumns", TR("Delete Table Columns"), nullptr, "", TR("Delete the table columns of the selection; the cells above and below the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, false, 2); };
   // like Excel: Shift+F11, Home > Insert > Insert Sheet and the tab menu put the new sheet before the active one; the
   // (+) button after it (NewSheetAfter)
   auto insert_sheet = [&s](bool after) {

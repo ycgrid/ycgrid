@@ -159,11 +159,15 @@ MergeStyles: Styles.Merge
 InsertCells: Range.Insert
 InsertRows: Range.EntireRow, Range.Insert
 InsertColumns: Range.EntireColumn, Range.Insert
+InsertTableRowsAbove: ListRows.Add
+InsertTableColumnsLeft: ListColumns.Add
 InsertSheet: Worksheets.Add
 NewSheetAfter: Worksheets.Add
 DeleteCells: Range.Delete
 DeleteRows: Range.EntireRow, Range.Delete
-DeleteColumns: Range.EntireColumn, Range.Delete
+DeleteColumns: Range.EntireColumn, Range.Delete
+DeleteTableRows: ListRow.Delete
+DeleteTableColumns: ListColumn.Delete
 DeleteSheet: Worksheet.Delete
 FormatCellsMenu: Range.RowHeight, Range.ColumnWidth
 RowHeight: Range.RowHeight

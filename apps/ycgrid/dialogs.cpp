@@ -29,6 +29,7 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <tuple>
 
 namespace yc::app {
 
@@ -3930,9 +3931,22 @@ void DrawContextMenus(AppState& s) {
       MenuCmd("FormatCellsDialog", TR("Format Cells..."));
     } else {
     if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
-    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_F, "FormatCellsDialog"},
-             {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
-            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
+    // in a table Insert and Delete are submenus of its rows and columns (Excel 16's menu, read through UI Automation:
+    // Insert I > Table Columns to the Left L, Table Rows Above A; Delete D > Table Columns C, Table Rows R)
+    const bool table_menu = !CopyModeOn(s) && SelectionTable(s) != nullptr;
+    static int sub_opened = -1;  // the letter that opens a submenu isn't also one of its own
+    if (table_menu) {
+      const ImGuiIO& kio = ImGui::GetIO();
+      const bool own = ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl && !kio.KeyAlt && !kio.KeyShift;
+      if (own && ImGui::IsKeyPressed(ImGuiKey_I, false)) ImGui::OpenPopup(TR("Insert")), sub_opened = ImGui::GetFrameCount();
+      if (own && ImGui::IsKeyPressed(ImGuiKey_D, false)) ImGui::OpenPopup(TR("Delete")), sub_opened = ImGui::GetFrameCount();
+      letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+              {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
+    } else {
+      letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_F, "FormatCellsDialog"},
+               {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+              {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
+    }
     clip_items();
     // a #SPILL! formula: what is in its way can be selected (Excel's error button)
     if (s.snap) {
@@ -3944,8 +3958,27 @@ void DrawContextMenus(AppState& s) {
         break;
       }
     }
-    MenuCmd("InsertCells", !CopyModeOn(s) ? TR("Insert...") : s.clip->cut ? TR("Insert Cut Cells...") : TR("Insert Copied Cells..."));
-    MenuCmd("DeleteCells", TR("Delete..."));
+    if (table_menu) {
+      auto sub = [&](const char* title, std::initializer_list<std::tuple<const char*, const char*, ImGuiKey>> entries) {
+        if (!ImGui::BeginMenu(title)) return;
+        const ImGuiIO& kio = ImGui::GetIO();
+        const bool own = ImGui::GetFrameCount() != sub_opened && ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl &&
+                         !kio.KeyAlt && !kio.KeyShift;
+        for (const auto& [id, label, key] : entries) {
+          MenuCmd(id, label);
+          if (own && ImGui::IsKeyPressed(key, false)) {
+            ImGui::CloseCurrentPopup();
+            Exec(id);
+          }
+        }
+        ImGui::EndMenu();
+      };
+      sub(TR("Insert"), {{"InsertTableColumnsLeft", TR("Table Columns to the Left"), ImGuiKey_L}, {"InsertTableRowsAbove", TR("Table Rows Above"), ImGuiKey_A}});
+      sub(TR("Delete"), {{"DeleteTableColumns", TR("Table Columns"), ImGuiKey_C}, {"DeleteTableRows", TR("Table Rows"), ImGuiKey_R}});
+    } else {
+      MenuCmd("InsertCells", !CopyModeOn(s) ? TR("Insert...") : s.clip->cut ? TR("Insert Cut Cells...") : TR("Insert Copied Cells..."));
+      MenuCmd("DeleteCells", TR("Delete..."));
+    }
     MenuCmd("ClearContents");
     ImGui::Separator();
     DrawCellMenuFilter(s);  // Filter > by Selected Cell's Value / Color / Font Color (Excel)
