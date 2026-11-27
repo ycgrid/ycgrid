@@ -439,12 +439,23 @@ void DrawFilterPopup(AppState& s) {
   // Excel words the sort by the column's kind of data
   const char* asc = f.col_date ? TR("Sort Oldest to Newest") : f.col_num ? TR("Sort Smallest to Largest") : TR("Sort A to Z");
   const char* desc = f.col_date ? TR("Sort Newest to Oldest") : f.col_num ? TR("Sort Largest to Smallest") : TR("Sort Z to A");
-  // Excel's letters in the menu (its underlined ones, the same in every language): S sorts ascending, O descending,
-  // C clears the column's filter, E goes to the search box (Alt+Down, E, a few letters, Enter is how people filter
-  // from the keyboard). Only while the menu itself has the keyboard: not in the search box or an open submenu
+  // Excel's letters in the menu (its underlined ones, the same in every language; read through UI Automation's
+  // AccessKey in Excel 16): S sorts ascending, O descending, T and I open Sort by Color and Filter by Color, C clears
+  // the column's filter, F opens Number / Text / Date Filters, E goes to the search box (Alt+Down, E, a few letters,
+  // Enter is how people filter from the keyboard). Only while that menu itself has the keyboard: not in the search
+  // box, and a submenu's letters only while it is open
   const ImGuiIO& kio = ImGui::GetIO();
+  // the letter that opens a submenu is not also the submenu's (F opens Number Filters, whose F is Custom Filter)
+  static int opened_frame = -1;
+  auto menu_letter = [&](ImGuiKey k) {
+    return ImGui::GetFrameCount() != opened_frame && ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl &&
+           !kio.KeyAlt && !kio.KeyShift && ImGui::IsKeyPressed(k, false);
+  };
   const bool letters = ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl && !kio.KeyAlt && !kio.KeyShift;
   auto letter = [&](ImGuiKey k) { return letters && ImGui::IsKeyPressed(k, false); };
+  const bool colors = !f.fills.empty() || !f.fonts.empty();
+  if (colors && letter(ImGuiKey_T)) ImGui::OpenPopup(TR("Sort by Color")), opened_frame = ImGui::GetFrameCount();
+  if ((colors || !f.icons.empty()) && letter(ImGuiKey_I)) ImGui::OpenPopup(TR("Filter by Color")), opened_frame = ImGui::GetFrameCount();
   if (letter(ImGuiKey_E)) f.focus_search = true;
   if (ImGui::Selectable(asc) || letter(ImGuiKey_S)) {
     SortRange(s, f.sheet, data, col, false, 0, 0, f.table);
@@ -558,12 +569,16 @@ void DrawFilterPopup(AppState& s) {
     apply(fc);
   };
   const char* menu = f.col_date ? TR("Date Filters") : f.col_num ? TR("Number Filters") : TR("Text Filters");
+  if (letter(ImGuiKey_F)) ImGui::OpenPopup(menu), opened_frame = ImGui::GetFrameCount();
   if (ImGui::BeginMenu(menu)) {
+    // the submenu's letters (Excel 16's AccessKey); a letter two entries share (O in Number Filters, A in Date
+    // Filters) only moves Excel's highlight, so it runs nothing here
+    auto key = [&](ImGuiKey k) { return k != ImGuiKey_None && menu_letter(k); };
     if (f.col_date) {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Before..."))) custom(4);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Before...")) || key(ImGuiKey_B)) custom(4);
       if (ImGui::MenuItem(TR("After..."))) custom(2);
-      if (ImGui::MenuItem(TR("Between..."))) custom(3, 5, true);
+      if (ImGui::MenuItem(TR("Between...")) || key(ImGuiKey_W)) custom(3, 5, true);
       ImGui::Separator();
       static const std::pair<const char*, int> kDyn[] = {
           {TR("Tomorrow"), 3}, {TR("Today"), 1}, {TR("Yesterday"), 2}, {nullptr, 0},
@@ -571,9 +586,16 @@ void DrawFilterPopup(AppState& s) {
           {TR("Next Month"), 9}, {TR("This Month"), 7}, {TR("Last Month"), 8}, {nullptr, 0},
           {TR("Next Quarter"), 12}, {TR("This Quarter"), 10}, {TR("Last Quarter"), 11}, {nullptr, 0},
           {TR("Next Year"), 15}, {TR("This Year"), 13}, {TR("Last Year"), 14}, {nullptr, 0}, {TR("Year to Date"), 16}};
-      for (const auto& [label, code] : kDyn) {
+      // Tomorrow T, Today O, Yesterday D, Next Week K, This Week H, Last Week L, Next Month M, This Month S, Last
+      // Month N, Next Quarter Q, This Quarter U, Last Quarter R, Next Year X, This Year I, Last Year Y (Year to Date
+      // shares A with After)
+      static const ImGuiKey kDynKey[] = {ImGuiKey_T, ImGuiKey_O, ImGuiKey_D, ImGuiKey_None, ImGuiKey_K, ImGuiKey_H, ImGuiKey_L, ImGuiKey_None,
+                                         ImGuiKey_M, ImGuiKey_S, ImGuiKey_N, ImGuiKey_None, ImGuiKey_Q, ImGuiKey_U, ImGuiKey_R, ImGuiKey_None,
+                                         ImGuiKey_X, ImGuiKey_I, ImGuiKey_Y, ImGuiKey_None, ImGuiKey_None};
+      for (size_t i = 0; i < std::size(kDyn); ++i) {
+        const auto& [label, code] = kDyn[i];
         if (!label) ImGui::Separator();
-        else if (ImGui::MenuItem(label)) dynamic(code);
+        else if (ImGui::MenuItem(label) || key(kDynKey[i])) dynamic(code);
       }
       if (ImGui::BeginMenu(TR("All Dates in the Period"))) {
         static const char* kQ[] = {TR("Quarter 1"), TR("Quarter 2"), TR("Quarter 3"), TR("Quarter 4")};
@@ -589,34 +611,34 @@ void DrawFilterPopup(AppState& s) {
         ImGui::EndMenu();
       }
     } else if (f.col_num) {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Does Not Equal..."))) custom(1);
-      if (ImGui::MenuItem(TR("Greater Than..."))) custom(2);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Does Not Equal...")) || key(ImGuiKey_N)) custom(1);
+      if (ImGui::MenuItem(TR("Greater Than...")) || key(ImGuiKey_G)) custom(2);
       if (ImGui::MenuItem(TR("Greater Than Or Equal To..."))) custom(3);
-      if (ImGui::MenuItem(TR("Less Than..."))) custom(4);
-      if (ImGui::MenuItem(TR("Less Than Or Equal To..."))) custom(5);
-      if (ImGui::MenuItem(TR("Between..."))) custom(3, 5, true);
-      if (ImGui::MenuItem(TR("Top 10..."))) {
+      if (ImGui::MenuItem(TR("Less Than...")) || key(ImGuiKey_L)) custom(4);
+      if (ImGui::MenuItem(TR("Less Than Or Equal To...")) || key(ImGuiKey_Q)) custom(5);
+      if (ImGui::MenuItem(TR("Between...")) || key(ImGuiKey_W)) custom(3, 5, true);
+      if (ImGui::MenuItem(TR("Top 10...")) || key(ImGuiKey_T)) {
         f.t_top = 0;
         f.t_count = 10;
         f.t_pct = 0;
         ImGui::CloseCurrentPopup();
         s.OpenDialog(Dialog::Top10Filter);
       }
-      if (ImGui::MenuItem(TR("Above Average"))) dynamic(33);
+      if (ImGui::MenuItem(TR("Above Average")) || key(ImGuiKey_A)) dynamic(33);
       if (ImGui::MenuItem(TR("Below Average"))) dynamic(34);
     } else {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Does Not Equal..."))) custom(1);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Does Not Equal...")) || key(ImGuiKey_N)) custom(1);
       ImGui::Separator();
-      if (ImGui::MenuItem(TR("Begins With..."))) custom(6);
-      if (ImGui::MenuItem(TR("Ends With..."))) custom(8);
+      if (ImGui::MenuItem(TR("Begins With...")) || key(ImGuiKey_I)) custom(6);
+      if (ImGui::MenuItem(TR("Ends With...")) || key(ImGuiKey_T)) custom(8);
       ImGui::Separator();
-      if (ImGui::MenuItem(TR("Contains..."))) custom(10);
-      if (ImGui::MenuItem(TR("Does Not Contain..."))) custom(11);
+      if (ImGui::MenuItem(TR("Contains...")) || key(ImGuiKey_A)) custom(10);
+      if (ImGui::MenuItem(TR("Does Not Contain...")) || key(ImGuiKey_D)) custom(11);
     }
     ImGui::Separator();
-    if (ImGui::MenuItem(TR("Custom Filter..."))) custom(f.op1, f.op2, true);
+    if (ImGui::MenuItem(TR("Custom Filter...")) || key(ImGuiKey_F)) custom(f.op1, f.op2, true);
     ImGui::EndMenu();
   }
   {

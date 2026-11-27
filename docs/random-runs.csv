@@ -11996,3 +11996,19 @@ date,tool,seed,seconds,result,note
 
 2026-11-27,screen_walk,r101,300,clean,"Ctrl+; and Ctrl+Shift+; in one cell and apart, Ctrl+' and Ctrl+Shift+' from the cell above"
 2026-11-27,screen_walk,r102,300,found,"Outline from the keyboard: Alt+Shift+Right on cells (the Rows dialog) and whole rows, the level buttons, Alt+Shift+Left over collapsed rows, measured in Excel with Clear Outline"
+2026-11-27,calc_fuzz,4551,23,ok,
+2026-11-27,formula_fuzz,5532,1,ok,
+2026-11-27,gaps_fuzz,700212,101,ok,
+2026-11-27,doc_fuzz,2400212,146,ok,
+2026-11-27,basics,4839,168,ok,
+2026-11-27,doc_fuzz,2400213,86,ok,
+2026-11-27,calc_fuzz,4552,29,ok,
+2026-11-27,formula_fuzz,5533,0,ok,
+2026-11-27,basics,4840,155,ok,
+2026-11-27,gaps_fuzz,700213,97,ok,
+2026-11-27,chaos,7793,375,ok,
+2026-11-27,doc_fuzz,2400214,101,ok,
+2026-11-27,calc_fuzz,4553,2,ok,
+2026-11-27,formula_fuzz,5534,0,ok,
+
+2026-11-27,screen_walk,r103,300,found,"The filter menu from the keyboard on a volume column: Alt+Down, F, T (Top 10), F, A (Above Average), and Text Filters' Contains; Excel's letters read through UI Automation"

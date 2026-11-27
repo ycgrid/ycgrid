@@ -464,6 +464,22 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual([r[0] for r in self.ws.Range("B2:B4").Value], ["Buy", "Buy", "Sell"])
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_filter_submenus_take_excels_letters(self):
+        # F (Number / Text / Date Filters) did nothing, nor the submenus' letters (Excel 16's AccessKey, read through
+        # UI Automation): Alt+Down, F, T is Top 10, F, A Above Average; in Text Filters A is Contains
+        self.ws.Range("A1:B13").Value = [["Sym", "Vol"]] + [[f"S{i}", i * 10] for i in range(1, 13)]
+        self.ws.Range("A1:B13").AutoFilter()
+        hidden = lambda: [r for r in range(2, 14) if self.ws.Rows(r).Hidden]
+        self.keys("g:B1|w:2|k:a-DownArrow|w:6|k:F|w:4|k:T|w:6|k:Enter|w:6")
+        self.assertEqual(hidden(), [2, 3])
+        self.keys("g:B1|w:2|k:a-DownArrow|w:6|k:F|w:4|k:A|w:6")
+        self.assertEqual(hidden(), [2, 3, 4, 5, 6, 7])
+        self.keys("g:A1|w:2|k:a-DownArrow|w:6|k:F|w:4|k:A|w:6")  # Contains...: the Custom AutoFilter dialog
+        self.assertIn("Custom AutoFilter", [i["label"] for i in yc.ui.items("")])
+        self.keys("t:S1|k:Enter|w:6")
+        self.assertEqual(hidden(), [2, 3, 4, 5, 6, 7, 8, 9, 10])  # S1, S10, S11, S12 (with Vol above average)
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_the_filter_menu_takes_excels_letters(self):
         # Alt+Down, E, a few letters, Enter: Excel's letters in the filter menu (S, O sort, C clears, E searches) did
         # nothing, and what was typed went nowhere

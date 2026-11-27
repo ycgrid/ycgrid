@@ -298,7 +298,15 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   when the probe attaches to its thread (`AttachThreadInput`), sets Ctrl / Shift in the shared keyboard state
   (`SetKeyboardState`), posts `WM_KEYDOWN` / `WM_KEYUP` and puts the state back. In PowerShell set
   `Application.CutCopyMode = False` by late binding (`InvokeMember`): the interop type refuses False and 0. Measuring a
-  paste uses Windows' clipboard: ask the user first.
+  paste uses Windows' clipboard: ask the user first. Alt goes in the state too (VK_MENU) with `WM_SYSKEYDOWN` /
+  `WM_SYSKEYUP`; try a chord whose effect is known first (Alt+PgDn moves a screen right).
+- A hidden Excel's menus and dialogs are windows of their own (`NetUIToolWindow` for the filter menu, `NUIDialog`
+  for Sort, Remove Duplicates, the highlight rules) and are in UI Automation, though the sheet isn't: each entry's
+  `AccessKey` is Excel's letter (the filter menu's S, O, T, C, I, F; Number Filters' E, N, G, O, L, Q, W, T, A, O, F),
+  a submenu opens through `ExpandCollapsePattern.Expand`, and a dialog's OK or Cancel through `InvokePattern` from a
+  second thread (a job) while `CommandBars.ExecuteMso` waits for it; read the result through COM after. Its edit
+  boxes give no text: press OK and read what the command made (`FormatConditions(1).Formula1`). Compare names by
+  character codes ([char]0x78BA): a script file PowerShell 5.1 reads without a BOM loses its Chinese.
 - A change to the number format engine must keep every case of tests/unit/excel_measured_formats.inc (TEXT of 159
   codes x 18 values measured in Excel 16): a fix for one code that breaks another fails the build. A test that
   disagrees with a measurement is wrong, not Excel: change it only after measuring, and say "measured" beside it.
