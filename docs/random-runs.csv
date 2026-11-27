@@ -12236,3 +12236,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,7828,361,fail,chaos_7828.txt
 
 2026-11-28,screen_walk,r116,300,found,"Format Cells (Ctrl+1) Number with the 1000 separator on 1234567.891 in a default column"
+2026-11-28,basics,4874,159,ok,
+2026-11-28,gaps_fuzz,700247,99,ok,
+2026-11-28,doc_fuzz,2400249,93,ok,
+2026-11-28,calc_fuzz,4587,15,ok,
+2026-11-28,formula_fuzz,5568,0,ok,
+
+2026-11-28,screen_walk,r117,300,clean,"Typed numbers that take a format (1,234,567.89, 123456.789%) widen their column as in Excel (measured by keys posted to its sheet window)"
