@@ -368,6 +368,21 @@ class UiOpsRound8Test(unittest.TestCase):
         finally:
             excel.Application.GenerateTableRefs = 1
 
+    def test_a_validation_warning_answers_no_to_enter(self):
+        # Excel 16's Warning alert (read through UI Automation): "This value doesn't match the data validation
+        # restrictions defined for this cell." and Continue?, with No as the default button, so Enter goes back to the
+        # entry; YCGrid's default was Yes and Enter took the value. A hidden instance answers what Enter would.
+        self.ws.Range("A1").Validation.Add(1, 2, 1, "1", "5")  # whole number 1..5, xlValidAlertWarning
+        self.ws.Range("A1").Value = 3
+        n = len(yc.ui.errors())
+        self.keys("m:2,2|g:A1|w:3|t:9|w:2|k:Enter|w:6")
+        texts = [str(e.get("text")) for e in yc.ui.errors()[n:]]
+        self.assertTrue(any(t.startswith("This value doesn't match the data validation restrictions defined for this cell.") for t in texts), texts)
+        self.assertTrue(yc.ui.state().get("edit"), "No goes back to the entry")
+        self.assertEqual(self.ws.Range("A1").Value, 3)
+        self.keys("k:Escape|w:4")
+        self.assertEqual(self.ws.Range("A1").Value, 3)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

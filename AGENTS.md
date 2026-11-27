@@ -573,6 +573,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - A shortcut written on a command (`Make("PickFromList", ..., "Alt+Down")`) is only its label: the key works once
   the shortcut table or a handler runs it. Test the key a person presses, not the menu: Alt+Down did nothing.
 - An editor opened by a double-click must not treat that same click as "clicked away" on its first frame.
+- A question's default button is Excel's, measured: the button Enter presses decides what a quick Enter does. A
+  validation Warning offered Yes as its default and took an order size outside its rule, where Excel 16 defaults to
+  No (its alert's buttons and focus read through UI Automation: `HasKeyboardFocus`). A hidden instance answers what
+  Enter would, so a test sees the default.
 - A switch that stops editing (read-only mode, whatever turns it on: the button, the idle timeout, Python) drops the
   entry in progress as Escape does, and offers no drags it would refuse: an entry left open took every later click as
   a reference and every key as text, and Enter only answered "There's a problem with this formula"; a drag asked
@@ -829,6 +833,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   back by hand in `RestoreFrom` (the default font a theme's fonts set, the theme's effects): Undo of a theme left
   its font. A new such value is restored there, and its command notes the step (`NoteTouched`, through a
   Document method, never a direct store write in a `PostUser`, which leaves no Undo step).
+- A row is hidden by its height being 0, whatever set it (Hide, `RowHeight = 0`, a drag): what reads hidden rows
+  (SUBTOTAL 101-111, AGGREGATE, `FilterShownRuns`) is marked by every path that can make a height 0 or not 0
+  (`SetRowHeight` and `HideRows` alike); the height path marked nothing, and 9 measured replays failed.
 - A change to rows or columns only (a width, a height, hiding) is not a write to their cells: it goes through
   `MarkRowsColsChanged`, never `MarkChanged`, which takes written cells out of the spills over them. Undo of a
   column width cut B3's spill down to typed values and B3 showed #SPILL!. Setting the size a row or column already has

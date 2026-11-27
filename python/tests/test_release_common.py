@@ -638,7 +638,7 @@ class ReleaseCommonTest(unittest.TestCase):
         n_err = len(ui.errors())
         self.keys("g:I2|w:2|t:Short|k:Enter|w:4|k:Escape|w:3|k:Escape|w:3")
         msgs = [e.get("text", "") for e in ui.errors()[n_err:]]  # a hidden instance answers the message box by itself
-        self.assertTrue(any("isn't in the list" in m for m in msgs), msgs)
+        self.assertTrue(any("doesn't match the data validation restrictions" in m for m in msgs), msgs)
         self.assertEqual(ws.Range("I2").Value, "Hold")
         ui.clear_errors()
         # number formats people set

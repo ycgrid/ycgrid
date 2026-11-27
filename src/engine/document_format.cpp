@@ -584,13 +584,25 @@ void Document::SetRowHeight(uint32_t sheet, uint32_t r0, uint32_t r1, int32_t px
   if (r0 > r1) return;
   // the same height again (a click on a row border without a drag) changes nothing and leaves no Undo step: a
   // double-click to AutoFit made two, "Row Height" and "AutoFit Row Height" (Excel: one)
-  bool same = true;
-  for (uint32_t r = r0; r <= r1 && same; ++r) same = s->rows->Size(r) == std::max(0, px);
+  bool same = true, hides = false;  // hides: a row goes from shown to hidden (height 0) or back
+  for (uint32_t r = r0; r <= r1; ++r) {
+    const int32_t was = s->rows->Size(r);
+    same = same && was == std::max(0, px);
+    hides = hides || ((was == 0) != (px <= 0));
+    if (!same && hides) break;
+  }
   if (same) return;
   auto& d = s->rows.mut();
   for (uint32_t r = r0; r <= r1; ++r) d.Set(r, std::max(0, px));
   NoteDims(sheet, true, r0, r1);
-  changes_.push_back(CellChange{sheet, Rect{r0, 0, r1, core::kMaxCols - 1}, kSrcUser});
+  const Rect band{r0, 0, r1, core::kMaxCols - 1};
+  // a height of 0 hides the row as Hide does: SUBTOTAL 101-111 and AGGREGATE read it (Excel 16, measured: =SUBTOTAL(
+  // 103,B3) is 0 once row 3's RowHeight is 0); a row that stays shown changes nothing a formula reads
+  if (hides) {
+    MarkRowsColsChanged(sheet, band);
+    return;
+  }
+  changes_.push_back(CellChange{sheet, band, kSrcUser});
   wb_.dirty = true;
 }
 

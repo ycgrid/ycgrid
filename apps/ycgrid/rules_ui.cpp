@@ -966,6 +966,9 @@ ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32
   if (!rule || !rule->show_error) return ValidationResult::Accept;
   std::string msg;
   if (engine::ValidateInput(s.snap->wb, sheet, r, c, text, *rule, &msg)) return ValidationResult::Accept;
+  // a rule without a message of its own says Excel's one sentence, whatever the reason (Excel 16, read through UI
+  // Automation from its alert); the reason stays the engine's for Python
+  if (rule->error_message.empty()) msg = TR("This value doesn't match the data validation restrictions defined for this cell.");
   const std::string title = rule->error_title.empty() ? std::string("YCGrid") : rule->error_title;
   switch (rule->alert) {
     case model::DvAlert::Stop: {
@@ -973,7 +976,9 @@ ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32
       return a == IDRETRY ? ValidationResult::Retry : ValidationResult::Cancel;
     }
     case model::DvAlert::Warning: {
-      const int a = AppMessageBox(s, msg + TR("\n\nDo you want to continue?"), title, MB_YESNOCANCEL | MB_ICONWARNING, IDYES);
+      // No is the default button, as Excel's (Enter goes back to the entry, measured): a quick Enter doesn't take a
+      // value outside the rule; a hidden instance answers what Enter would
+      const int a = AppMessageBox(s, msg + TR("\n\nDo you want to continue?"), title, MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON2, IDNO);
       return a == IDYES ? ValidationResult::Accept : a == IDNO ? ValidationResult::Retry : ValidationResult::Cancel;
     }
     default: {

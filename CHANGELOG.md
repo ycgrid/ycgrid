@@ -114,6 +114,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   `Table1[[Qty]:[Px]]`), as Excel writes them.
 - A value typed, entered with Ctrl+Enter or filled right beside a table grows it in an Undo step of its own: the first
   Ctrl+Z takes back the growth and keeps the value, as in Excel (Table AutoExpansion).
+- A data validation Warning answers No to Enter, as Excel's (back to the entry), instead of taking the value; an alert
+  without a message of its own says Excel's "This value doesn't match the data validation restrictions defined for
+  this cell."
+- A row hidden by a height of 0 (`RowHeight = 0`) is left out of SUBTOTAL at once: the formula kept counting it.
 
 ## 0.10.3 (2026-11-25)
 

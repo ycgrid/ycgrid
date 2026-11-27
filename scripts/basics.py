@@ -543,7 +543,7 @@ ALLOWED = [
     ("*", "cmd:ImportText", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
     ("*", "cmd:InsertPicture", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
     ("*", "cmd:SheetBackground", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
-    ("list", "*", r"isn't in the list", "a value the cell's list validation doesn't hold: Excel stops it too"),
+    ("list", "*", r"isn't in the list|doesn't match the data validation", "a value the cell's list validation doesn't hold: Excel stops it too"),
     ("protected*", "table_create", r"table can't be created", "a table on a protected sheet: Excel refuses too"),
     ("*", "paste*", r"can't do that to a merged cell",
      "a paste onto part of a merged cell (a Merge & Center earlier in a sequence, then the copy pasted over a corner of "
