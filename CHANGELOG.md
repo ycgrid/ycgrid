@@ -112,6 +112,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   all the header's text.
 - A formula in a table keeps its table's name in references other than one column's (`Table1[[#Headers],[Qty]]`,
   `Table1[[Qty]:[Px]]`), as Excel writes them.
+- A value typed, entered with Ctrl+Enter or filled right beside a table grows it in an Undo step of its own: the first
+  Ctrl+Z takes back the growth and keeps the value, as in Excel (Table AutoExpansion).
 
 ## 0.10.3 (2026-11-25)
 

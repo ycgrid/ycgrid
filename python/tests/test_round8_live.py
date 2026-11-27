@@ -297,8 +297,11 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("m:2,2|w:3|t:1|w:2|k:c-Enter|w:6")
         self.assertEqual(self.ws.ListObjects(1).Range.Address, "$B$2:$E$6")
         self.assertEqual([self.ws.Range(f"E{r}").Value for r in range(2, 7)], ["1", 1, 1, 1, 1])
+        # the first Ctrl+Z takes back the growth (Excel 16, measured on x Ctrl+Enter under a table), the second the entry
         self.keys("k:c-Z|w:6")
         self.assertEqual(self.ws.ListObjects(1).Range.Address, "$B$2:$D$6")
+        self.assertEqual([self.ws.Range(f"E{r}").Value for r in range(3, 7)], [1, 1, 1, 1])
+        self.keys("k:c-Z|w:6")
         self.assertEqual([self.ws.Range(f"E{r}").Value for r in range(2, 7)], [None] * 5)
 
     def test_text_being_typed_is_entered_when_another_tab_is_clicked(self):

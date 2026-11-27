@@ -678,3 +678,34 @@ TEST_CASE("A formula in a table drops its own name only from one-column referenc
   t.Set("C4", "=SUM(Table1[[Name]:[Qty]])");
   CHECK(t.F("C4") == "=SUM(Table1[[Name]:[Qty]])");
 }
+
+TEST_CASE("A table's growth after typing beside it is an Undo step of its own", "[table][round8]") {
+  // Excel 16, measured by keys: x typed under a table grows it, and the first Ctrl+Z takes back the growth only (x
+  // stays), the second the typing; a formula grows it at once (its structured references read the grown table)
+  yctest::Doc t;
+  const uint32_t id = SalesTable(t);  // A1:C4
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 4, 0, "d"));
+  t.d.Commit();
+  CHECK(TableOf(t, id).range.r1 == 3);  // not yet
+  t.d.GrowDeferredTables();
+  CHECK_FALSE(t.d.defer_table_growth);
+  CHECK(TableOf(t, id).range.r1 == 4);
+  CHECK(t.d.UndoDepth() == 2);
+  REQUIRE(t.d.Undo());
+  CHECK(TableOf(t, id).range.r1 == 3);
+  CHECK(t.V("A5").str() == "d");
+  REQUIRE(t.d.Undo());
+  CHECK(t.V("A5").IsEmpty());
+  // a formula: one step, the table grown with it
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 0, 3, "=1+1"));
+  t.d.Commit();
+  t.d.GrowDeferredTables();
+  CHECK(TableOf(t, id).range.c1 == 3);
+  CHECK(t.d.UndoDepth() == 1);
+}

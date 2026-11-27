@@ -1056,6 +1056,12 @@ void Document::FillFrom(uint32_t sheet, uint32_t r, uint32_t c, const std::vecto
   if (one.rows != 1 || one.cols != 1) return;
   const ClipCell& cell = one.cells[0];
   const auto* f = cell.formula ? static_cast<const formula::CompiledFormula*>(cell.formula.get()) : nullptr;
+  // Ctrl+Enter beside a table whose growth waits (defer_table_growth): the cells filled are the entry's too
+  if (defer_table_growth && S(sheet) && !S(sheet)->tables->empty()) {
+    for (const Rect& a : areas) {
+      if (deferred_growth_.size() < 4096) deferred_growth_.emplace_back(sheet, a);
+    }
+  }
   uint64_t total = 0;
   for (const Rect& a : areas) total += a.Count();
   // undone with the whole version: undoing millions of cells one region at a time took the screen for a second

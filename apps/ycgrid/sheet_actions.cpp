@@ -673,7 +673,11 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   const std::string label = TR("Typing \"") + shown + TR("\" in ") + core::CellA1(r, c);
   std::vector<uint32_t> group = GroupTargets(s, sheet);  // grouped sheets: the same entry in the same cells (Excel)
   group.erase(group.begin());
+  // a value typed beside a table grows it in a step of its own after the typing's: the first Ctrl+Z takes back only
+  // the growth (Excel 16, measured by keys); a formula grows it at once
+  const bool defer_growth = !formula::LooksLikeFormula(text);
   auto work = [=](Document& d, std::string* error) {
+    d.defer_table_growth = defer_growth;
     d.Begin(label);
     d.param_commit = param;
     const uint32_t fmt_before = d.S(sheet) ? d.wb().styles->Get(d.S(sheet)->GetStyle(r, c)).numfmt : 0;
@@ -716,6 +720,7 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
       }
     }
     d.Commit();
+    d.GrowDeferredTables();
     return r_ok;
   };
   // the engine is busy (recalculating millions of formulas after a reload, a fill a frame before): the entry is handed
@@ -2089,8 +2094,12 @@ void FillSelection(AppState& s, int dir) {
       if (a.r0 == a.r1 && a.r0 > 0) d.FillDown(sheet, Rect{a.r0 - 1, a.c0, a.r1, a.c1}, false);  // Ctrl+D on a single row: copy the row above
       else d.FillDown(sheet, a);
     } else if (dir == 1) {
+      // Fill Right beside a table grows it in a step of its own after the fill's (Excel 16's first Ctrl+Z takes back
+      // the growth only; Fill Down's one Ctrl+Z takes back both, measured by keys): the next post makes it
+      d.defer_table_growth = true;
       if (a.c0 == a.c1 && a.c0 > 0) d.FillRight(sheet, Rect{a.r0, a.c0 - 1, a.r1, a.c1}, false);
       else d.FillRight(sheet, a);
+      d.defer_table_growth = false;
     } else if (dir == 2 && d.FillDownShown(sheet, a, true)) {
       // a filtered list: the bottom row went into the rows it shows only (Excel, as Fill Down)
     } else {
@@ -2098,6 +2107,7 @@ void FillSelection(AppState& s, int dir) {
     }
    }
   });
+  if (dir == 1) s.engine->PostUser(TR("Table AutoExpansion"), [](Document& d) { d.GrowDeferredTables(); });
 }
 
 

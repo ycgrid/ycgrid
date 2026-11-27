@@ -760,9 +760,33 @@ bool Document::SetTableTotal(uint32_t sheet, uint32_t id, uint32_t column, int f
 
 // typing next to a table makes it bigger (Excel's AutoCorrect "include new rows and columns in table"); a block
 // written below or right of it (a paste, Python's Range.Value) grows it once to take the whole block
+void Document::GrowDeferredTables() {
+  defer_table_growth = false;
+  if (deferred_growth_.empty()) return;
+  const std::vector<std::pair<uint32_t, Rect>> list = std::move(deferred_growth_);
+  deferred_growth_.clear();
+  Begin(TR("Table AutoExpansion"));
+  for (const auto& [sheet, w] : list) {
+    // the cells the write wrote are its own, whichever of its parts noted them (Ctrl+Enter: the active cell, then the
+    // fill over the others)
+    std::vector<Rect> written;
+    for (const auto& [sh2, w2] : list) {
+      if (sh2 == sheet) written.push_back(w2);
+    }
+    growth_written_ = &written;
+    AutoExpandTable(sheet, w);
+    growth_written_ = nullptr;
+  }
+  Commit();
+}
+
 void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
   const Sheet* s = S(sheet);
   if (!s || s->tables->empty() || ProtectionApplies(sheet)) return;
+  if (defer_table_growth) {
+    if (deferred_growth_.size() < 4096) deferred_growth_.emplace_back(sheet, w);
+    return;
+  }
   for (const Table& t : *s->tables) {
     const bool below = !t.totals && w.r0 == t.range.r1 + 1 && w.c0 >= t.range.c0 && w.c0 <= t.range.c1;
     const bool right = w.c0 == t.range.c1 + 1 && w.r0 >= t.range.r0 && w.r0 <= t.range.r1;
@@ -779,6 +803,7 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
       bool other = false;
       auto counts = [&](uint32_t rr, uint32_t cc) {
         if (other || w.Contains(rr, cc)) return;
+        if (growth_written_ && std::any_of(growth_written_->begin(), growth_written_->end(), [&](const Rect& x) { return x.Contains(rr, cc); })) return;
         uint32_t ar = 0, ac = 0;
         if (!s->spills->empty() && s->SpillAt(rr, cc, &ar, &ac) && (ar != rr || ac != cc)) return;
         other = true;
