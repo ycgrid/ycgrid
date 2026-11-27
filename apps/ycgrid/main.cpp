@@ -1222,6 +1222,23 @@ void DrawStatusBar(const ImRect& r, double last_frame_ms) {
   const float rw = ImGui::CalcTextSize(right.c_str()).x;
   const float right_x = zoom_left - rw;
   dl->AddText(ImVec2(right_x, ty), t.statusbar_text, right.c_str());
+  // a click on a statistic copies its value, as Excel's (Sum: 18 puts 18 on the clipboard); each is listed for tests
+  {
+    std::string before;
+    for (int i = 0; i < 6; ++i) {
+      if (!shown[i] || stat_text[i].empty()) continue;
+      const std::string item = std::string(stat_names[i]) + ": " + stat_text[i];
+      const float x0 = right_x + ImGui::CalcTextSize(before.c_str()).x;
+      const ImRect hit(ImVec2(x0, r.Min.y), ImVec2(x0 + ImGui::CalcTextSize(item.c_str()).x, r.Max.y));
+      ui::NoteUiItem(item.c_str(), hit);
+      if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(hit.Min, hit.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        app::SetClipboardTextUtf8(g_app.hwnd, stat_text[i]);
+        g_app.has_clip = false;  // the cells copied before are no longer what a paste pastes
+        g_app.SetStatus(TR("Copied to clipboard"), 2.0);
+      }
+      before += item + "    ";
+    }
+  }
   // right-click: Excel's Customize Status Bar, each statistic with its value
   if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(r.Min, r.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) ImGui::OpenPopup("##yc_status_menu");
   if (ImGui::BeginPopup("##yc_status_menu")) {

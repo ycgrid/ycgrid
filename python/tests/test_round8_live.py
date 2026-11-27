@@ -345,6 +345,16 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_a_click_on_a_status_bar_statistic_copies_it(self):
+        # Excel 365: a click on Sum: 18 in the status bar copies 18; YCGrid's statistics were text only
+        self.ws.Range("A1:A3").Value = [[3], [5], [10]]
+        self.keys("g:A1:A3|w:4")
+        hits = [i for i in yc.ui.items("") if i["label"] == "Sum: 18"]
+        self.assertTrue(hits, "the Sum statistic is listed")
+        self.click(hits[0]["rect"])
+        self.keys("g:C1|w:2|k:c-V|w:5")
+        self.assertEqual(self.ws.Range("C1").Value, 18)
+
     def test_the_outline_buttons_are_listed_and_clicked(self):
         # the outline's level buttons and +/- were drawn only: ui.items didn't list them, so no test clicked them
         self.ws.Range("A1:A6").Value = [["Q1"], ["Jan"], ["Feb"], ["Mar"], ["Q2"], ["Apr"]]
