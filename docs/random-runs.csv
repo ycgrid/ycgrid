@@ -12046,3 +12046,14 @@ date,tool,seed,seconds,result,note
 2026-11-27,formula_fuzz,5539,0,ok,
 
 2026-11-27,screen_walk,r105,300,found,"Sort and Remove Duplicates from the keyboard, their letters read from Excel 16 through UI Automation (Add Level A, Delete Level D, My data has headers H; Select All A, Unselect All U, My data has headers M)"
+2026-11-27,chaos,7799,361,ok,
+2026-11-27,basics,4846,157,ok,
+2026-11-27,gaps_fuzz,700219,96,ok,
+2026-11-27,doc_fuzz,2400220,95,ok,
+2026-11-27,calc_fuzz,4559,2,ok,
+2026-11-27,formula_fuzz,5540,0,ok,
+2026-11-27,chaos,7800,361,ok,
+2026-11-27,gaps_fuzz,700220,96,ok,
+2026-11-27,basics,4847,152,ok,
+
+2026-11-27,screen_walk,r106,300,clean,"Fifteen of Excel's dialogs read through UI Automation for their letters; Create Table, Zoom, Subtotal and Move or Copy given theirs (part of the open access keys finding)"

@@ -486,6 +486,7 @@ void DrawTableDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::CreateTable, TR("Create Table###yc_dlg_createtable"), 340)) {
     ImGui::TextUnformatted(TR("Where is the data for your table?"));
     RangeBox(s, "table.create", u.range, sizeof(u.range), 0, RangeBox_Equals, TR("Where is the data for your table?"));
+    if (DlgKey(ImGuiKey_M)) u.headers = !u.headers;  // Excel 16's letter (UI Automation's AccessKey)
     ImGui::Checkbox(TR("My table has headers"), &u.headers);
     bool close = false;
     const bool ok_pressed = DlgOkButton(TR("OK"), ImVec2(S(80), 0));

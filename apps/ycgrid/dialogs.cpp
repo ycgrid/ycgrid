@@ -2403,6 +2403,7 @@ void DrawMoveCopySheet(AppState& s) {
     }
   }
   ImGui::EndChild();
+  if (DlgKey(ImGuiKey_C)) g_move_copy = !g_move_copy;  // Excel 16's letter (UI Automation's AccessKey)
   ImGui::Checkbox(TR("Create a copy"), &g_move_copy);
   bool ok = false;
   bool close = OkCancel(&ok);
@@ -2587,12 +2588,16 @@ void DrawZoom(AppState& s) {
   static int pct = 100;
   static bool fit = false;  // Excel's "Fit selection": the zoom that shows the selected cells
   if (ImGui::IsWindowAppearing()) pct = static_cast<int>(s.FocusView().zoom * 100 + 0.5f), fit = false;
-  for (int z : {200, 100, 75, 50, 25}) {
+  // Excel 16's letters (UI Automation's AccessKey of its Zoom dialog): 0 200%, 1 100%, 7 75%, 5 50%, 2 25%, F Fit
+  // selection, C the Custom box
+  static const std::pair<int, ImGuiKey> kZooms[] = {{200, ImGuiKey_0}, {100, ImGuiKey_1}, {75, ImGuiKey_7}, {50, ImGuiKey_5}, {25, ImGuiKey_2}};
+  for (const auto& [z, key] : kZooms) {
     char label[16];
     std::snprintf(label, sizeof(label), "%d%%", z);
-    if (ImGui::RadioButton(label, !fit && pct == z)) pct = z, fit = false;
+    if (ImGui::RadioButton(label, !fit && pct == z) || DlgKey(key)) pct = z, fit = false;
   }
-  if (ImGui::RadioButton(TR("Fit selection"), fit)) fit = true;
+  if (ImGui::RadioButton(TR("Fit selection"), fit) || DlgKey(ImGuiKey_F)) fit = true;
+  if (DlgKey(ImGuiKey_C)) ImGui::SetKeyboardFocusHere();
   ImGui::SetNextItemWidth(S(100));
   if (ImGui::InputInt(TR("Custom %"), &pct)) fit = false;
   pct = std::clamp(pct, 10, 400);

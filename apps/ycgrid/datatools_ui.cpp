@@ -222,13 +222,18 @@ void DrawSubtotal(AppState& s) {
     }
   }
   ImGui::EndChild();
+  // Excel 16's letters (UI Automation's AccessKey of its Subtotal dialog): Replace current subtotals C, Page break
+  // between groups P, Summary below data S, Remove All R
+  if (DlgKey(ImGuiKey_C)) u.st_replace = !u.st_replace;
+  if (DlgKey(ImGuiKey_P)) u.st_breaks = !u.st_breaks;
+  if (DlgKey(ImGuiKey_S)) u.st_below = !u.st_below;
   ImGui::Checkbox(TR("Replace current subtotals"), &u.st_replace);
   ImGui::Checkbox(TR("Page break between groups"), &u.st_breaks);
   ImGui::Checkbox(TR("Summary below data"), &u.st_below);
   ImGui::Separator();
   const uint32_t sheet = s.focus_sheet;
   const Rect list = u.st_list;
-  if (ImGui::Button(TR("Remove All"), ImVec2(S(90), 0))) {
+  if (ImGui::Button(TR("Remove All"), ImVec2(S(90), 0)) || DlgKey(ImGuiKey_R)) {
     if (!RefuseReadOnlyUi(s)) {
       s.engine->Call([&](Document& d) {
         d.Begin(TR("Remove Subtotals"));

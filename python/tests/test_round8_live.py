@@ -485,6 +485,26 @@ class DialogsRound8Test(unittest.TestCase):
         self.keys("k:Escape|w:4")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_table_zoom_subtotal_and_move_or_copy_take_excels_letters(self):
+        # Excel 16's letters (UI Automation's AccessKey): Create Table's My table has headers M (Alt+M from its range
+        # box), Zoom's 7 for 75%, Subtotal's Summary below data S, Move or Copy's Create a copy C
+        checked = lambda label: [i.get("checked") for i in yc.ui.items("") if i["label"] == label]
+        self.ws.Range("A1:B3").Value = [["Sym", "Qty"], ["A", 1], ["B", 2]]
+        self.keys("g:A1|w:2|k:c-T|w:8|k:a-M|w:4")
+        self.assertEqual(checked("My table has headers"), [False])
+        self.keys("k:Escape|w:4|x:ZoomDialog|w:8|k:7|w:3|k:Enter|w:6")
+        self.assertEqual(yc.excel.ActiveWindow.Zoom, 75)
+        yc.excel.ActiveWindow.Zoom = 100
+        self.keys("g:A1|w:2|x:Subtotal|w:8")
+        before = checked("Summary below data")
+        self.keys("k:S|w:4")
+        self.assertEqual(checked("Summary below data"), [not before[0]])
+        self.keys("k:Escape|w:4")
+        n = yc.excel.Worksheets.Count
+        self.keys("x:CopySheet|w:8|k:C|w:3|k:Enter|w:6")
+        self.assertEqual(yc.excel.Worksheets.Count, n + 1)
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_shift_f10_on_whole_rows_or_columns_opens_their_menu(self):
         # Shift+F10 with whole rows selected opened the cell's menu (no Row Height, Hide, Unhide); Excel 16 opens the
         # row menu, and the column menu for whole columns (read through UI Automation), each with its letters
