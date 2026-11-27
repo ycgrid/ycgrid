@@ -12639,3 +12639,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400313,85,ok,
 2026-11-28,chaos,7893,361,ok,
 2026-11-28,chaos,7894,361,ok,
+2026-11-28,calc_fuzz,4650,24,ok,
+2026-11-28,formula_fuzz,5631,1,ok,
+2026-11-28,gaps_fuzz,700311,103,ok,
+2026-11-28,doc_fuzz,2400314,150,ok,
+
+2026-11-28,screen_walk,r129,300,found,"Pick From Drop-down List from Alt+Down in a column of Buy / Sell, chosen with Down and Enter, measured in Excel by keys"
+2026-11-28,screen_walk,r130,600,clean,"56 dialogs walked with Tab and Down in the Chinese UI, checked for a part cut off"

@@ -1775,6 +1775,13 @@ class UserFlowTest(unittest.TestCase):
         v.Add(3, 1, 1, "Buy,Sell")   # xlValidateList
         self.keys("g:B2|w:2|k:a-DownArrow|w:8|k:DownArrow|w:3|k:DownArrow|w:3|k:Enter|w:6")   # Alt+Down opens the list
         self.assertEqual(self.ws.Range("B2").Value, "Sell")
+        # Pick From Drop-down List (a cell without a list): Excel 16 begins on no entry, the first Down takes the
+        # first one (measured by keys); the Down of Alt+Down counted too and the list began on the first entry
+        self.ws.Range("E1:E4").Value = [["Side"], ["Buy"], ["Sell"], ["Buy"]]
+        for n, want in ((1, "Buy"), (2, "Sell")):
+            self.ws.Range("E5").ClearContents()
+            self.keys("m:2,2|w:2|g:E5|w:2|k:a-DownArrow|w:6" + "|k:DownArrow|w:3" * n + "|k:Enter|w:6")
+            self.assertEqual(self.ws.Range("E5").Value, want, n)
         self.keys("g:C5|w:2|k:a-DownArrow|w:4|k:s-a-RightArrow|w:4")   # no list: Alt+arrows don't move the cell
         from yc import ui
         self.assertEqual(ui.state()["active_cell"], "C5")

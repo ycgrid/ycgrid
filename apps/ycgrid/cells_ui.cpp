@@ -313,7 +313,7 @@ void OpenPickList(AppState& s) {
   u.pick_r = sel.act_r;
   u.pick_c = sel.act_c;
   u.pick_items = ColumnWords(s, *sh, sel.act_r, sel.act_c);
-  u.pick_sel = 0;
+  u.pick_sel = -1;  // nothing chosen yet: the first Down takes the first entry (Excel 16, measured by keys)
   u.pick_open = true;
 }
 
@@ -586,12 +586,17 @@ void DrawPickList(AppState& s) {
     ImGui::OpenPopup(id);
   }
   if (!ImGui::BeginPopup(id)) return;
-  // the arrows and Enter choose, as in Excel's list
+  // the arrows and Enter choose, as in Excel's list: Alt+Down, Down, Enter takes the first entry (the Down of the
+  // Alt+Down that opened it was counted too, and the list began on the first entry: one Down took the third)
   const int n = static_cast<int>(u.pick_items.size());
-  if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) u.pick_sel = std::min(n - 1, u.pick_sel + 1);
-  if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) u.pick_sel = std::max(0, u.pick_sel - 1);
+  const bool alt = ImGui::GetIO().KeyAlt;
+  if (!alt && ImGui::IsKeyPressed(ImGuiKey_DownArrow)) u.pick_sel = std::min(n - 1, u.pick_sel + 1);
+  if (!alt && ImGui::IsKeyPressed(ImGuiKey_UpArrow)) u.pick_sel = std::max(0, u.pick_sel - 1);
   int chosen = -1;
-  if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) chosen = u.pick_sel;
+  if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
+    if (u.pick_sel >= 0) chosen = u.pick_sel;
+    else ImGui::CloseCurrentPopup();  // nothing chosen: the list goes, the cell stays as it was
+  }
   for (int i = 0; i < n; ++i) {
     ImGui::PushID(i);
     if (ImGui::Selectable(u.pick_items[static_cast<size_t>(i)].c_str(), i == u.pick_sel)) chosen = i;
