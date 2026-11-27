@@ -2133,7 +2133,7 @@ void DrawGoTo(AppState& s) {
   ImGui::SetNextItemWidth(-1);
   const bool enter = ImGui::InputTextWithHint("##goto", TR("A1, B2:D10, Sheet2!C3 or a name"), g_goto, sizeof(g_goto),
                                               ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
-  if (ImGui::Button(TR("Special..."))) {
+  if (ImGui::Button(TR("Special...")) || DlgKey(ImGuiKey_S)) {  // Alt+S from the reference box (Excel)
     EndDialog(s, true);
     s.OpenDialog(Dialog::GoToSpecial);
     return;

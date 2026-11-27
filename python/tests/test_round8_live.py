@@ -465,6 +465,15 @@ class DialogsRound8Test(unittest.TestCase):
         self.ws.Range("E1").Value = "2330,TSMC"
         self.keys("g:E1|w:2|m:2,2|k:LeftAlt|w:3|t:A|w:3|t:E|w:8|k:Enter|w:6|k:a-C|w:3|k:Enter|w:6|k:Enter|w:8")
         self.assertEqual([self.ws.Range(a).Value for a in ("E1", "F1")], [2330, "TSMC"], "Alt+C ticks Comma")
+        # F5, Alt+S, K, Enter, then = Up Ctrl+Enter: each blank takes the value above (the letters did nothing, and the
+        # formula went into every cell of the range)
+        self.ws.Range("H1:H5").Value = [["Semi"], [None], [None], ["Fin"], [None]]
+        self.ws.Range("I1:I5").Value = [[1], [2], [3], [4], [5]]
+        self.keys("g:H1:I5|w:2|k:F5|w:6|k:a-S|w:6|k:K|w:3|k:Enter|w:6")
+        self.assertEqual(set(yc.excel.Selection.Address.replace("$", "").split(",")), {"H2:H3", "H5"})
+        self.keys("t:=|k:UpArrow|w:2|k:c-Enter|w:6")
+        self.assertEqual([self.ws.Range(f"H{r}").Value for r in range(1, 6)], ["Semi", "Semi", "Semi", "Fin", "Fin"])
+        self.assertEqual(self.ws.Range("I2").Formula, "2", "the cells with data are left alone")
 
     def test_a_dialogs_combo_boxes_are_found_by_their_ids(self):
         # ImGui's combo boxes told the item recorder no label: Data Validation's Allow was a nameless control

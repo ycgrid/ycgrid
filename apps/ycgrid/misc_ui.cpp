@@ -1480,6 +1480,22 @@ void DrawMiscDialogs(AppState& s) {
     static const char* kKinds[] = {TR("Notes"), TR("Constants"), TR("Formulas"), TR("Blanks"), TR("Current region"), TR("Last cell"), TR("Visible cells only"), TR("Conditional formats"), TR("Data validation"), TR("Precedents"), TR("Dependents"), TR("Current array"), TR("Row differences"), TR("Column differences"), TR("Objects")};
     // in Excel's order, two columns
     static const int kOrder[] = {0, 1, 2, 3, 4, 11, 14, -1, 12, 13, 9, 10, 5, 6, 7, 8};
+    // Excel's letters, by kKinds: (N)otes, C(o)nstants, (F)ormulas, Blan(k)s, Current (r)egion, La(s)t cell, Visible
+    // cells onl(y), Condi(t)ional formats, Data (v)alidation, (P)recedents, (D)ependents, Current (a)rray, Ro(w)
+    // differences, Colu(m)n differences, O(b)jects (F5, Alt+S, K, Enter selects the blanks, as people type it)
+    static const ImGuiKey kKeys[] = {ImGuiKey_N, ImGuiKey_O, ImGuiKey_F, ImGuiKey_K, ImGuiKey_R, ImGuiKey_S, ImGuiKey_Y, ImGuiKey_T,
+                                     ImGuiKey_V, ImGuiKey_P, ImGuiKey_D, ImGuiKey_A, ImGuiKey_W, ImGuiKey_M, ImGuiKey_B};
+    for (int i = 0; i < static_cast<int>(std::size(kKeys)); ++i) {
+      if (DlgKey(kKeys[i])) m.gs_kind = i;
+    }
+    if ((m.gs_kind == 9 || m.gs_kind == 10) && DlgKey(ImGuiKey_I)) m.gs_all_levels = false;  // D(i)rect only
+    if ((m.gs_kind == 9 || m.gs_kind == 10) && DlgKey(ImGuiKey_L)) m.gs_all_levels = true;   // All (l)evels
+    if (m.gs_kind == 1 || m.gs_kind == 2) {  // N(u)mbers, Te(x)t, Lo(g)icals, (E)rrors
+      if (DlgKey(ImGuiKey_U)) m.gs_num = !m.gs_num;
+      if (DlgKey(ImGuiKey_X)) m.gs_text = !m.gs_text;
+      if (DlgKey(ImGuiKey_G)) m.gs_logical = !m.gs_logical;
+      if (DlgKey(ImGuiKey_E)) m.gs_err = !m.gs_err;
+    }
     ImGui::BeginGroup();
     for (const int i : kOrder) {
       if (i < 0) {
