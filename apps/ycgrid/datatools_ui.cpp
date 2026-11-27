@@ -197,6 +197,7 @@ void DrawSubtotal(AppState& s) {
     for (size_t k = 0; k < names.size(); ++k) {
       ImGui::PushID(static_cast<int>(k));
       if (ImGui::Selectable("##g", u.st_group == static_cast<int>(k))) u.st_group = static_cast<int>(k);
+      ui::NoteUiText(names[k].c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
       ImGui::SameLine(0, 0);
       ImGui::TextUnformatted(names[k].c_str());  // the header as it is ("C##1" too)
       ImGui::PopID();

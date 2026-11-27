@@ -1090,6 +1090,7 @@ void DrawDataDialogs(AppState& s) {
               const bool skip = d.tc_types[j] == 2;
               if (skip) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
               if (ImGui::Selectable("##c", d.tc_col == static_cast<int>(j))) d.tc_col = static_cast<int>(j);
+              ui::NoteUiText(cell.c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
               ImGui::SameLine(0, 0);
               ImGui::TextUnformatted(cell.c_str());
               if (skip) ImGui::PopStyleColor();

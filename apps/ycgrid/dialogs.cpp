@@ -916,6 +916,7 @@ void DrawFormatCells(AppState& s) {
                 const std::string& c = list[k];
                 ImGui::PushID(static_cast<int>(k));
                 if (ImGui::Selectable("##code", c == f.custom)) std::snprintf(f.custom, sizeof(f.custom), "%s", c.c_str());
+                ui::NoteUiText(c.c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
                 ImGui::SameLine(ImGui::GetStyle().ItemSpacing.x);
                 ImGui::TextUnformatted(c.c_str());
                 ImGui::PopID();

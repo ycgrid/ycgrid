@@ -345,6 +345,23 @@ class DialogsRound8Test(unittest.TestCase):
         self.assertEqual(yc.excel.Application.Selection.Address, "$B:$C")
         self.assertEqual(yc.ui.errors()[self.errors0:], [])
 
+    def test_the_sort_dialog_selects_what_it_sorts(self):
+        # Excel selects the cells the Sort dialog sorts behind it (the header row out while My data has headers is on);
+        # the sheet went on showing the one cell, and its combo's column names were missing from ui.items
+        self.ws.Range("A1:C4").Value = [["Sym", "Side", "Qty"], ["B", "Buy", 3], ["A", "Sell", 5], ["C", "Buy", 1]]
+        self.keys("g:B3|w:2|x:CustomSort|w:8")
+        self.assertEqual(yc.excel.Application.Selection.Address, "$A$2:$C$4")
+        self.assertEqual(yc.ui.state()["active_cell"], "B3")
+        self.click(self.item("My data has headers")["rect"])
+        self.keys("w:4")
+        self.assertEqual(yc.excel.Application.Selection.Address, "$A$1:$C$4")
+        self.click(self.item("My data has headers")["rect"])
+        self.click(self.item("##col0")["rect"])
+        self.keys("w:4")
+        self.assertTrue([i for i in yc.ui.items("") if i["label"] == "Qty"], "the column names in the drop-down are listed")
+        self.keys("k:Escape|w:3|k:Escape|w:4")
+        self.assertEqual(yc.ui.errors()[self.errors0:], [])
+
     def test_the_filter_menu_takes_excels_letters(self):
         # Alt+Down, E, a few letters, Enter: Excel's letters in the filter menu (S, O sort, C clears, E searches) did
         # nothing, and what was typed went nowhere

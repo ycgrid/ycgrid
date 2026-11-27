@@ -1646,6 +1646,18 @@ void DrawMiscDialogs(AppState& s) {
     const bool has_header = (m.sort_header || m.sort_table) && sh && !m.sort_ltr;
     const uint32_t hr = m.sort_table && r.r0 > 0 ? r.r0 - 1 : r.r0;
     const uint32_t data_r0 = m.sort_header && !m.sort_table && !m.sort_ltr ? r.r0 + 1 : r.r0;
+    // Excel selects the cells it will sort behind the dialog (without the header row while My data has headers is on),
+    // the active cell where it was: from one cell the sheet kept showing that cell alone
+    if (s.FocusSheet() && data_r0 <= r.r1) {
+      auto& sel = s.FocusView().sel;
+      const Rect want{data_r0, r.c0, r.r1, r.c1};
+      if (sel.areas.size() != 1 || !(sel.areas[0] == want)) {
+        sel.areas = {want};
+        if (!want.Contains(sel.act_r, sel.act_c)) sel.act_r = want.r0, sel.act_c = want.c0;
+        sel.anc_r = want.r0, sel.anc_c = want.c0;
+        sel.mode = render::SelectMode::Cells;
+      }
+    }
     std::vector<std::string> names;
     if (m.sort_ltr) {
       for (uint32_t row = r.r0; row <= r.r1 && row - r.r0 < 1000; ++row) names.push_back(TR("Row ") + std::to_string(row + 1));
@@ -1744,6 +1756,7 @@ void DrawMiscDialogs(AppState& s) {
               l.color = 0;
               m.sort_sel = static_cast<int>(i);
             }
+            ui::NoteUiText(names[k].c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
             ImGui::SameLine(0, 0);
             ImGui::TextUnformatted(names[k].c_str());
             ImGui::PopID();
