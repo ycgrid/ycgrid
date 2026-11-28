@@ -248,6 +248,26 @@ class SortOrderTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class ExcelArgumentsTailTest(_Live):
+    def test_calls_with_excels_arguments_by_position(self):
+        # every method takes Excel's arguments in Excel's order (scripts/check_excel_parity.py checks the names):
+        # Workbook.Close(SaveChanges, Filename), Shapes.AddChart(Type, Left, Top, Width, Height), Areas.Item(Index)
+        import tempfile
+
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:B3").Value = [["x", 1], ["y", 2], ["z", 3]]
+        sh = ws.Shapes.AddChart(4, 10, 20, 300, 200)  # xlLine
+        self.assertEqual(sh.Chart.ChartType, 4)
+        self.assertEqual((sh.Left, sh.Top), (10, 20))
+        self.assertEqual(ws.Range("A1:A2,B3").Areas.Item(Index=2).Address(False, False), "B3")
+        path = os.path.join(tempfile.mkdtemp(), "closed.ycg")
+        excel.ActiveWorkbook.Close(True, path)
+        self.assertTrue(os.path.exists(path))
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class GoToSpecialTailTest(_Live):
     def test_same_validation_takes_every_rule_with_the_same_settings(self):
         # Excel 16, measured 2026-11-28: the same list added to G1:G3 and G8 is one rule; another input message or

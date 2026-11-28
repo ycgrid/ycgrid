@@ -39,6 +39,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python's methods take Excel's arguments in Excel's order: `Workbook.Close(SaveChanges, Filename)` saves under
+  Filename (and `Window.Close` with a Filename no longer raises), `Shapes.AddChart` takes the chart type first,
+  `Areas.Item(Index=...)` works, and `SaveAs`, `ExportAsFixedFormat`, `Hyperlink.Follow` and `AddPicture2` take
+  Excel's last arguments. `scripts/check_excel_parity.py` checks every method against Excel's own list.
 - `Range.Sort` takes Excel's arguments by position (MatchCase, Orientation, SortMethod and the DataOptions after OrderCustom), so a call written for Excel with all of them no longer raises.
 - Whole rows and columns copied and pasted bring their heights and widths (hidden ones stay hidden), and a cut of
   whole rows or columns moves them, as in Excel; only the cells came along.

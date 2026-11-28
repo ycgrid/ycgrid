@@ -9,8 +9,11 @@ EXCEL.EXE's type library); the objects, the YCGrid classes that stand for them a
 planned or as gaps from schema/excel_parity.toml. YCGrid's members are what the classes define: their properties and
 methods, names their `__getattr__` answers from a table (`_plain`, `_PLAIN`, `_keys`), and the attributes `__init__`
 sets. A problem is a member Excel has that is in none of the three, one listed that YCGrid now has (take it off the
-list: the gaps only shrink), one listed that Excel doesn't have, or one listed twice. Run it with the bundled Python
-(runtime\\python\\python.exe -E -s).
+list: the gaps only shrink), one listed that Excel doesn't have, or one listed twice. A method YCGrid has takes
+Excel's arguments in Excel's order (tests/data/excel_method_params.json, from scripts/measure_excel_params.py): an
+argument of another name at a place, or fewer places than Excel's without *args, is a problem too, since a call
+written for Excel passes them by position (Range.Sort's tenth and eleventh, Workbook.Close's Filename). Run it with
+the bundled Python (runtime\\python\\python.exe -E -s).
 """
 from __future__ import annotations
 
@@ -26,6 +29,7 @@ import tomllib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA = os.path.join(ROOT, "schema", "excel_parity.toml")
 DATA = os.path.join(ROOT, "tests", "data", "excel_object_model.json")
+PARAMS = os.path.join(ROOT, "tests", "data", "excel_method_params.json")
 DOC = os.path.join(ROOT, "docs", "excel-object-model.md")
 PRIORITIES = ("high", "medium", "low")
 
@@ -74,6 +78,44 @@ def yc_members(names) -> set:
     return have
 
 
+def signature_problems(schema) -> list:
+    """YCGrid's methods against Excel's arguments: the same names in the same order, as far as YCGrid's go, and as
+    many places as Excel's (or *args)."""
+    if not os.path.exists(PARAMS):
+        return [f"{os.path.relpath(PARAMS, ROOT)} is missing (run scripts/measure_excel_params.py)"]
+    with open(PARAMS, encoding="utf-8") as f:
+        params = json.load(f)["objects"]
+    sys.path.insert(0, os.path.join(ROOT, "python"))
+    out = []
+    for obj, spec in schema["objects"].items():
+        xl = params.get(spec["tlb"], {})
+        for qual in spec["yc"]:
+            mod, cname = qual.split(".")
+            cls = getattr(importlib.import_module("yc." + mod), cname, None)
+            for name, want in xl.items():
+                if name.startswith("_"):
+                    continue
+                f = inspect.getattr_static(cls, name, None)
+                if isinstance(f, (staticmethod, classmethod)):
+                    f = f.__func__
+                if f is None or isinstance(f, property) or not inspect.isfunction(f):
+                    continue
+                sig = inspect.signature(f)
+                pos = [q for q in sig.parameters.values() if q.kind in (q.POSITIONAL_ONLY, q.POSITIONAL_OR_KEYWORD)]
+                if pos and pos[0].name == "self":
+                    pos = pos[1:]
+                for i, q in enumerate(pos[:len(want)]):
+                    if q.name.lower() != want[i].lower():
+                        out.append(f"{obj}.{name}: its argument {i + 1} is {q.name}, Excel's is {want[i]} "
+                                   f"(Excel: {', '.join(want)})")
+                        break
+                else:
+                    if len(pos) < len(want) and not any(q.kind == q.VAR_POSITIONAL for q in sig.parameters.values()):
+                        out.append(f"{obj}.{name}: takes {len(pos)} of Excel's {len(want)} arguments by position "
+                                   f"(add {', '.join(want[len(pos):])}, taken and ignored when YCGrid has no use for them)")
+    return out
+
+
 def classify():
     """{object: {member: ("yc" | "not_planned" | "high" | "medium" | "low" | None, group)}}, problems."""
     schema, excel = _load()
@@ -116,6 +158,7 @@ def classify():
         obj = m.split(".")[0]
         if m not in used and obj != "*":
             problems.append(f"{m}: listed in schema/excel_parity.toml, but Excel's {obj} has no such member")
+    problems += signature_problems(schema)
     return result, problems, schema
 
 

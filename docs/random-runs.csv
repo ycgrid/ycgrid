@@ -13767,3 +13767,12 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5801,0,ok,
 2026-11-28,chaos,8069,361,ok,
 2026-11-28,screen_walk,r190,400,found,"Sort left to right by a row, with a header column, two keys and a blank, written as a macro for Excel passes the arguments by position, measured in Excel through COM"
+2026-11-28,gaps_fuzz,700481,87,ok,
+2026-11-28,basics,5108,159,ok,
+2026-11-28,doc_fuzz,2400490,105,ok,
+2026-11-28,calc_fuzz,4821,15,ok,
+2026-11-28,formula_fuzz,5802,0,ok,
+2026-11-28,gaps_fuzz,700482,96,ok,
+2026-11-28,basics,5109,163,ok,
+2026-11-28,chaos,8070,361,ok,
+2026-11-28,doc_fuzz,2400491,89,ok,

@@ -1368,6 +1368,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - An error value's number in Python is Excel's CVErr number (`XlError.Number`: #SPILL! is 2045, #CALC! 2050), from
   the one table in `yc/types.py`, with its `xlErr...` constant: a new error value gets its line there and in
   `tests.test_core`, or it reads as 2000 plus an internal number no script expects.
+- A Python member takes Excel's arguments in Excel's order, all of them (the ones YCGrid has no use for taken and
+  ignored): macros written for Excel pass them by position, and `Range.Sort(..., OrderCustom, MatchCase,
+  Orientation)` raised a TypeError, `Workbook.Close(True, path)` too, and `Shapes.AddChart(xlLine, ...)` read the
+  type as a chart style. `scripts/check_excel_parity.py` compares every method with
+  `tests/data/excel_method_params.json` (`scripts/measure_excel_params.py`, from Excel's interop assembly).
 - A collection Excel returns from a method (`PivotCaches`, `PivotTables`, `Scenarios`, `Trendlines`, `DataLabels`,
   `ChartObjects`) is a property returning a callable collection (`__call__()` is itself, `__call__(i)` its Item):
   recorded macros write `PivotCaches.Create(...)` without parentheses, and a bound method has no `Create`.

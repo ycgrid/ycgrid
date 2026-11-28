@@ -2740,7 +2740,7 @@ class Workbook:
         _rq("print.preview")
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save every visible sheet as one PDF (Type=xlTypePDF)."""
         return _export_pdf(self._sheet_ids(), Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish)
 
@@ -2877,7 +2877,8 @@ class Workbook:
         _rq("wb.save")
 
     def SaveAs(self, Filename, FileFormat=None, Password=None, WriteResPassword=None, ReadOnlyRecommended=None,  # noqa: N802,N803
-               CreateBackup=None, AccessMode=None, ConflictResolution=None, AddToMru=None):
+               CreateBackup=None, AccessMode=None, ConflictResolution=None, AddToMru=None, TextCodepage=None, TextVisualLayout=None,  # noqa: N803
+               Local=None):
         """Save under a new name; Password encrypts the file (an empty string removes the encryption)."""
         if WriteResPassword:
             raise UnsupportedError("A password to modify (WriteResPassword) is not supported; use Password to encrypt the file")
@@ -2913,10 +2914,13 @@ class Workbook:
     def SaveCopyAs(self, Filename):  # noqa: N802,N803
         _rq("wb.save", path=str(Filename), copy=True)
 
-    def Close(self, SaveChanges=None):  # noqa: N802,N803
-        """Close the workbook (SaveChanges True saves first, False discards changes). This window's workbook is replaced
-        by a new blank one and YCGrid stays open, like Excel after its last workbook closes (Application.Quit closes
-        YCGrid); another window's workbook closes that window."""
+    def Close(self, SaveChanges=None, Filename=None, RouteWorkbook=None):  # noqa: N802,N803
+        """Close the workbook (SaveChanges True saves first, under Filename when one is given; False discards changes).
+        This window's workbook is replaced by a new blank one and YCGrid stays open, like Excel after its last workbook
+        closes (Application.Quit closes YCGrid); another window's workbook closes that window. RouteWorkbook (a routing
+        slip) is taken and ignored, as Excel 16 has no routing."""
+        if SaveChanges and Filename:
+            self.SaveAs(Filename)
         _rq("wb.close", save=None if SaveChanges is None else bool(SaveChanges), keep=self._cx is None)
         if self._cx is not None:
             _REMOTE.pop(self._pid, None)
@@ -7179,7 +7183,7 @@ class Worksheet:
         _rq("print.preview")
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save the sheet as PDF with its page setup (Type=xlTypePDF); returns the file's full path."""
         return _export_pdf([self._id], Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish)
 
@@ -7922,7 +7926,7 @@ class Range:
         _print_out([self._sheet], From, To, Copies, Preview, ActivePrinter, PrintToFile, Collate, PrToFileName, area=self._a)
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save only this range as PDF."""
         return _export_pdf([self._sheet], Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish, area=self._a)
 
@@ -9695,8 +9699,8 @@ class _Areas:
     def __init__(self, rng):
         self._r = rng
 
-    def __call__(self, i):
-        return Range._from(self._r._sheet, [self._r._areas[i - 1]])
+    def __call__(self, Index):  # noqa: N803 (Excel's name, so Item(Index=2) works)
+        return Range._from(self._r._sheet, [self._r._areas[Index - 1]])
 
     Item = __call__
 
@@ -13176,7 +13180,7 @@ class Hyperlink:
         # Remove Hyperlinks: the cell's formats go too (Excel 16, measured); Range.ClearHyperlinks keeps them
         _rq("link.clear", sheet=self._sheet, rect=[self._r, self._c, self._r, self._c], formats=True)
 
-    def Follow(self, NewWindow=False):  # noqa: N802,N803
+    def Follow(self, NewWindow=False, AddHistory=None, ExtraInfo=None, Method=None, HeaderInfo=None):  # noqa: N802,N803
         import os as _os
 
         d = self._get()

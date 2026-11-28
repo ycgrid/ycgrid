@@ -1,0 +1,2783 @@
+{
+ "objects": {
+  "Areas": {
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "AutoCorrect": {
+   "AddReplacement": [
+    "What",
+    "Replacement"
+   ],
+   "DeleteReplacement": [
+    "What"
+   ],
+   "ReplacementList": [
+    "Index"
+   ]
+  },
+  "AutoFilter": {},
+  "Axis": {},
+  "Border": {},
+  "Borders": {
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "CellFormat": {},
+  "Characters": {
+   "Insert": [
+    "String"
+   ]
+  },
+  "ChartObject": {
+   "CopyPicture": [
+    "Appearance",
+    "Format"
+   ],
+   "Select": [
+    "Replace"
+   ]
+  },
+  "Comment": {
+   "Text": [
+    "Text",
+    "Start",
+    "Overwrite"
+   ]
+  },
+  "Error": {},
+  "Errors": {
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "Filter": {},
+  "Font": {},
+  "FormatCondition": {
+   "Modify": [
+    "Type",
+    "Operator",
+    "Formula1",
+    "Formula2"
+   ],
+   "ModifyAppliesToRange": [
+    "Range"
+   ],
+   "ModifyEx": [
+    "Type",
+    "Operator",
+    "Formula1",
+    "Formula2",
+    "String",
+    "Operator2"
+   ]
+  },
+  "FormatConditions": {
+   "Add": [
+    "Type",
+    "Operator",
+    "Formula1",
+    "Formula2",
+    "String",
+    "TextOperator",
+    "DateOperator",
+    "ScopeType"
+   ],
+   "AddColorScale": [
+    "ColorScaleType"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "HPageBreak": {
+   "DragOff": [
+    "Direction",
+    "RegionIndex"
+   ]
+  },
+  "Hyperlink": {
+   "CreateNewDocument": [
+    "Filename",
+    "EditNow",
+    "Overwrite"
+   ],
+   "Follow": [
+    "NewWindow",
+    "AddHistory",
+    "ExtraInfo",
+    "Method",
+    "HeaderInfo"
+   ]
+  },
+  "Interior": {},
+  "ListColumn": {},
+  "ListObject": {
+   "Publish": [
+    "Target",
+    "LinkSource"
+   ],
+   "Resize": [
+    "Range"
+   ],
+   "UpdateChanges": [
+    "iConflictType"
+   ]
+  },
+  "ListObjects": {
+   "Add": [
+    "SourceType",
+    "Source",
+    "LinkSource",
+    "XlListObjectHasHeaders",
+    "Destination"
+   ],
+   "AddEx": [
+    "SourceType",
+    "Source",
+    "LinkSource",
+    "XlListObjectHasHeaders",
+    "Destination",
+    "TableStyleName"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "ListRow": {},
+  "Name": {},
+  "Names": {
+   "Add": [
+    "Name",
+    "RefersTo",
+    "Visible",
+    "MacroType",
+    "ShortcutKey",
+    "Category",
+    "NameLocal",
+    "RefersToLocal",
+    "CategoryLocal",
+    "RefersToR1C1",
+    "RefersToR1C1Local"
+   ],
+   "Item": [
+    "Index",
+    "IndexLocal",
+    "RefersTo"
+   ],
+   "_Default": [
+    "Index",
+    "IndexLocal",
+    "RefersTo"
+   ]
+  },
+  "Outline": {
+   "ShowLevels": [
+    "RowLevels",
+    "ColumnLevels"
+   ]
+  },
+  "PageSetup": {
+   "PrintQuality": [
+    "Index"
+   ]
+  },
+  "Pane": {
+   "LargeScroll": [
+    "Down",
+    "Up",
+    "ToRight",
+    "ToLeft"
+   ],
+   "PointsToScreenPixelsX": [
+    "Points"
+   ],
+   "PointsToScreenPixelsY": [
+    "Points"
+   ],
+   "ScrollIntoView": [
+    "Left",
+    "Top",
+    "Width",
+    "Height",
+    "Start"
+   ],
+   "SmallScroll": [
+    "Down",
+    "Up",
+    "ToRight",
+    "ToLeft"
+   ]
+  },
+  "Panes": {
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "PivotCache": {
+   "CreatePivotChart": [
+    "ChartDestination",
+    "XlChartType",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "CreatePivotTable": [
+    "TableDestination",
+    "TableName",
+    "ReadData",
+    "DefaultVersion"
+   ],
+   "SaveAsODC": [
+    "ODCFileName",
+    "Description",
+    "Keywords"
+   ]
+  },
+  "PivotField": {
+   "AddPageItem": [
+    "Item",
+    "ClearList"
+   ],
+   "AutoShow": [
+    "Type",
+    "Range",
+    "Count",
+    "Field"
+   ],
+   "AutoSort": [
+    "Order",
+    "Field"
+   ],
+   "AutoSortEx": [
+    "Order",
+    "Field",
+    "PivotLine",
+    "CustomSubtotal"
+   ],
+   "ChildItems": [
+    "Index"
+   ],
+   "DrillTo": [
+    "Field"
+   ],
+   "HiddenItems": [
+    "Index"
+   ],
+   "ParentItems": [
+    "Index"
+   ],
+   "PivotItems": [
+    "Index"
+   ],
+   "Subtotals": [
+    "Index"
+   ],
+   "VisibleItems": [
+    "Index"
+   ]
+  },
+  "PivotItem": {
+   "ChildItems": [
+    "Index"
+   ],
+   "DrillTo": [
+    "Field"
+   ]
+  },
+  "PivotTable": {
+   "AddDataField": [
+    "Field",
+    "Caption",
+    "Function"
+   ],
+   "AddFields": [
+    "RowFields",
+    "ColumnFields",
+    "PageFields",
+    "AddToTable"
+   ],
+   "ChangeConnection": [
+    "conn"
+   ],
+   "ChangePivotCache": [
+    "PivotCache"
+   ],
+   "ColumnFields": [
+    "Index"
+   ],
+   "ConvertToFormulas": [
+    "ConvertFilters"
+   ],
+   "CreateCubeFile": [
+    "File",
+    "Measures",
+    "Levels",
+    "Members",
+    "Properties"
+   ],
+   "DataFields": [
+    "Index"
+   ],
+   "DrillDown": [
+    "PivotItem",
+    "PivotLine"
+   ],
+   "DrillTo": [
+    "PivotItem",
+    "CubeField",
+    "PivotLine"
+   ],
+   "DrillUp": [
+    "PivotItem",
+    "PivotLine",
+    "LevelUniqueName"
+   ],
+   "Dummy15": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "Dummy2": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4"
+   ],
+   "Format": [
+    "Format"
+   ],
+   "GetData": [
+    "Name"
+   ],
+   "GetPivotData": [
+    "DataField",
+    "Field1",
+    "Item1",
+    "Field2",
+    "Item2",
+    "Field3",
+    "Item3",
+    "Field4",
+    "Item4",
+    "Field5",
+    "Item5",
+    "Field6",
+    "Item6",
+    "Field7",
+    "Item7",
+    "Field8",
+    "Item8",
+    "Field9",
+    "Item9",
+    "Field10",
+    "Item10",
+    "Field11",
+    "Item11",
+    "Field12",
+    "Item12",
+    "Field13",
+    "Item13",
+    "Field14",
+    "Item14"
+   ],
+   "HiddenFields": [
+    "Index"
+   ],
+   "PageFields": [
+    "Index"
+   ],
+   "PivotFields": [
+    "Index"
+   ],
+   "PivotSelect": [
+    "Name",
+    "Mode",
+    "UseStandardName"
+   ],
+   "PivotTableWizard": [
+    "SourceType",
+    "SourceData",
+    "TableDestination",
+    "TableName",
+    "RowGrand",
+    "ColumnGrand",
+    "SaveData",
+    "HasAutoFormat",
+    "AutoPage",
+    "Reserved",
+    "BackgroundQuery",
+    "OptimizeCache",
+    "PageFieldOrder",
+    "PageFieldWrapCount",
+    "ReadData",
+    "Connection"
+   ],
+   "PivotValueCell": [
+    "rowline",
+    "columnline"
+   ],
+   "RepeatAllLabels": [
+    "Repeat"
+   ],
+   "RowAxisLayout": [
+    "RowLayout"
+   ],
+   "RowFields": [
+    "Index"
+   ],
+   "ShowPages": [
+    "PageField"
+   ],
+   "SubtotalLocation": [
+    "Location"
+   ],
+   "VisibleFields": [
+    "Index"
+   ],
+   "_PivotSelect": [
+    "Name",
+    "Mode"
+   ]
+  },
+  "Range": {
+   "AddComment": [
+    "Text"
+   ],
+   "Address": [
+    "RowAbsolute",
+    "ColumnAbsolute",
+    "ReferenceStyle",
+    "External",
+    "RelativeTo"
+   ],
+   "AddressLocal": [
+    "RowAbsolute",
+    "ColumnAbsolute",
+    "ReferenceStyle",
+    "External",
+    "RelativeTo"
+   ],
+   "AdvancedFilter": [
+    "Action",
+    "CriteriaRange",
+    "CopyToRange",
+    "Unique"
+   ],
+   "ApplyNames": [
+    "Names",
+    "IgnoreRelativeAbsolute",
+    "UseRowColumnNames",
+    "OmitColumn",
+    "OmitRow",
+    "Order",
+    "AppendLast"
+   ],
+   "AutoComplete": [
+    "String"
+   ],
+   "AutoFill": [
+    "Destination",
+    "Type"
+   ],
+   "AutoFilter": [
+    "Field",
+    "Criteria1",
+    "Operator",
+    "Criteria2",
+    "VisibleDropDown"
+   ],
+   "AutoFormat": [
+    "Format",
+    "Number",
+    "Font",
+    "Alignment",
+    "Border",
+    "Pattern",
+    "Width"
+   ],
+   "BorderAround": [
+    "LineStyle",
+    "Weight",
+    "ColorIndex",
+    "Color"
+   ],
+   "BorderAround2": [
+    "LineStyle",
+    "Weight",
+    "ColorIndex",
+    "Color",
+    "ThemeColor"
+   ],
+   "Characters": [
+    "Start",
+    "Length"
+   ],
+   "CheckSpelling": [
+    "CustomDictionary",
+    "IgnoreUppercase",
+    "AlwaysSuggest",
+    "SpellLang"
+   ],
+   "ColumnDifferences": [
+    "Comparison"
+   ],
+   "Consolidate": [
+    "Sources",
+    "Function",
+    "TopRow",
+    "LeftColumn",
+    "CreateLinks"
+   ],
+   "Copy": [
+    "Destination"
+   ],
+   "CopyFromRecordset": [
+    "Data",
+    "MaxRows",
+    "MaxColumns"
+   ],
+   "CopyPicture": [
+    "Appearance",
+    "Format"
+   ],
+   "CreateNames": [
+    "Top",
+    "Left",
+    "Bottom",
+    "Right"
+   ],
+   "CreatePublisher": [
+    "Edition",
+    "Appearance",
+    "ContainsPICT",
+    "ContainsBIFF",
+    "ContainsRTF",
+    "ContainsVALU"
+   ],
+   "Cut": [
+    "Destination"
+   ],
+   "DataSeries": [
+    "Rowcol",
+    "Type",
+    "Date",
+    "Step",
+    "Stop",
+    "Trend"
+   ],
+   "Delete": [
+    "Shift"
+   ],
+   "EditionOptions": [
+    "Type",
+    "Option",
+    "Name",
+    "Reference",
+    "Appearance",
+    "ChartSize",
+    "Format"
+   ],
+   "End": [
+    "Direction"
+   ],
+   "ExportAsFixedFormat": [
+    "Type",
+    "Filename",
+    "Quality",
+    "IncludeDocProperties",
+    "IgnorePrintAreas",
+    "From",
+    "To",
+    "OpenAfterPublish",
+    "FixedFormatExtClassPtr"
+   ],
+   "Find": [
+    "What",
+    "After",
+    "LookIn",
+    "LookAt",
+    "SearchOrder",
+    "SearchDirection",
+    "MatchCase",
+    "MatchByte",
+    "SearchFormat"
+   ],
+   "FindNext": [
+    "After"
+   ],
+   "FindPrevious": [
+    "After"
+   ],
+   "GoalSeek": [
+    "Goal",
+    "ChangingCell"
+   ],
+   "Group": [
+    "Start",
+    "End",
+    "By",
+    "Periods"
+   ],
+   "Insert": [
+    "Shift",
+    "CopyOrigin"
+   ],
+   "InsertIndent": [
+    "InsertAmount"
+   ],
+   "Item": [
+    "RowIndex",
+    "ColumnIndex"
+   ],
+   "Merge": [
+    "Across"
+   ],
+   "NavigateArrow": [
+    "TowardPrecedent",
+    "ArrowNumber",
+    "LinkNumber"
+   ],
+   "NoteText": [
+    "Text",
+    "Start",
+    "Length"
+   ],
+   "Offset": [
+    "RowOffset",
+    "ColumnOffset"
+   ],
+   "Parse": [
+    "ParseLine",
+    "Destination"
+   ],
+   "PasteSpecial": [
+    "Paste",
+    "Operation",
+    "SkipBlanks",
+    "Transpose"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintOutEx": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "Range": [
+    "Cell1",
+    "Cell2"
+   ],
+   "RemoveDuplicates": [
+    "Columns",
+    "Header"
+   ],
+   "Replace": [
+    "What",
+    "Replacement",
+    "LookAt",
+    "SearchOrder",
+    "MatchCase",
+    "MatchByte",
+    "SearchFormat",
+    "ReplaceFormat"
+   ],
+   "Resize": [
+    "RowSize",
+    "ColumnSize"
+   ],
+   "RowDifferences": [
+    "Comparison"
+   ],
+   "Run": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "ShowDependents": [
+    "Remove"
+   ],
+   "ShowPrecedents": [
+    "Remove"
+   ],
+   "Sort": [
+    "Key1",
+    "Order1",
+    "Key2",
+    "Type",
+    "Order2",
+    "Key3",
+    "Order3",
+    "Header",
+    "OrderCustom",
+    "MatchCase",
+    "Orientation",
+    "SortMethod",
+    "DataOption1",
+    "DataOption2",
+    "DataOption3"
+   ],
+   "SortSpecial": [
+    "SortMethod",
+    "Key1",
+    "Order1",
+    "Type",
+    "Key2",
+    "Order2",
+    "Key3",
+    "Order3",
+    "Header",
+    "OrderCustom",
+    "MatchCase",
+    "Orientation",
+    "DataOption1",
+    "DataOption2",
+    "DataOption3"
+   ],
+   "Speak": [
+    "SpeakDirection",
+    "SpeakFormulas"
+   ],
+   "SpecialCells": [
+    "Type",
+    "Value"
+   ],
+   "SubscribeTo": [
+    "Edition",
+    "Format"
+   ],
+   "Subtotal": [
+    "GroupBy",
+    "Function",
+    "TotalList",
+    "Replace",
+    "PageBreaks",
+    "SummaryBelowData"
+   ],
+   "Table": [
+    "RowInput",
+    "ColumnInput"
+   ],
+   "TextToColumns": [
+    "Destination",
+    "DataType",
+    "TextQualifier",
+    "ConsecutiveDelimiter",
+    "Tab",
+    "Semicolon",
+    "Comma",
+    "Space",
+    "Other",
+    "OtherChar",
+    "FieldInfo",
+    "DecimalSeparator",
+    "ThousandsSeparator",
+    "TrailingMinusNumbers"
+   ],
+   "Value": [
+    "RangeValueDataType"
+   ],
+   "_Default": [
+    "RowIndex",
+    "ColumnIndex"
+   ],
+   "_PasteSpecial": [
+    "Paste",
+    "Operation",
+    "SkipBlanks",
+    "Transpose"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate"
+   ]
+  },
+  "Scenario": {
+   "ChangeScenario": [
+    "ChangingCells",
+    "Values"
+   ],
+   "Values": [
+    "Index"
+   ]
+  },
+  "Series": {
+   "ApplyCustomType": [
+    "ChartType"
+   ],
+   "ApplyDataLabels": [
+    "Type",
+    "LegendKey",
+    "AutoText",
+    "HasLeaderLines",
+    "ShowSeriesName",
+    "ShowCategoryName",
+    "ShowValue",
+    "ShowPercentage",
+    "ShowBubbleSize",
+    "Separator"
+   ],
+   "DataLabels": [
+    "Index"
+   ],
+   "ErrorBar": [
+    "Direction",
+    "Include",
+    "Type",
+    "Amount",
+    "MinusValues"
+   ],
+   "Points": [
+    "Index"
+   ],
+   "Trendlines": [
+    "Index"
+   ],
+   "_ApplyDataLabels": [
+    "Type",
+    "LegendKey",
+    "AutoText",
+    "HasLeaderLines"
+   ]
+  },
+  "Shape": {
+   "CanvasCropBottom": [
+    "Increment"
+   ],
+   "CanvasCropLeft": [
+    "Increment"
+   ],
+   "CanvasCropRight": [
+    "Increment"
+   ],
+   "CanvasCropTop": [
+    "Increment"
+   ],
+   "CopyPicture": [
+    "Appearance",
+    "Format"
+   ],
+   "Flip": [
+    "FlipCmd"
+   ],
+   "IncrementLeft": [
+    "Increment"
+   ],
+   "IncrementRotation": [
+    "Increment"
+   ],
+   "IncrementTop": [
+    "Increment"
+   ],
+   "ScaleHeight": [
+    "Factor",
+    "RelativeToOriginalSize",
+    "Scale"
+   ],
+   "ScaleWidth": [
+    "Factor",
+    "RelativeToOriginalSize",
+    "Scale"
+   ],
+   "Select": [
+    "Replace"
+   ],
+   "ZOrder": [
+    "ZOrderCmd"
+   ]
+  },
+  "Shapes": {
+   "AddCallout": [
+    "Type",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddCanvas": [
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddChart": [
+    "XlChartType",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddChart2": [
+    "Style",
+    "XlChartType",
+    "Left",
+    "Top",
+    "Width",
+    "Height",
+    "NewLayout"
+   ],
+   "AddConnector": [
+    "Type",
+    "BeginX",
+    "BeginY",
+    "EndX",
+    "EndY"
+   ],
+   "AddCurve": [
+    "SafeArrayOfPoints"
+   ],
+   "AddDiagram": [
+    "Type",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddFormControl": [
+    "Type",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddLabel": [
+    "Orientation",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddLine": [
+    "BeginX",
+    "BeginY",
+    "EndX",
+    "EndY"
+   ],
+   "AddOLEObject": [
+    "ClassType",
+    "Filename",
+    "Link",
+    "DisplayAsIcon",
+    "IconFileName",
+    "IconIndex",
+    "IconLabel",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddPicture": [
+    "Filename",
+    "LinkToFile",
+    "SaveWithDocument",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddPicture2": [
+    "Filename",
+    "LinkToFile",
+    "SaveWithDocument",
+    "Left",
+    "Top",
+    "Width",
+    "Height",
+    "Compress"
+   ],
+   "AddPolyline": [
+    "SafeArrayOfPoints"
+   ],
+   "AddShape": [
+    "Type",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddSmartArt": [
+    "Layout",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "AddTextEffect": [
+    "PresetTextEffect",
+    "Text",
+    "FontName",
+    "FontSize",
+    "FontBold",
+    "FontItalic",
+    "Left",
+    "Top"
+   ],
+   "AddTextbox": [
+    "Orientation",
+    "Left",
+    "Top",
+    "Width",
+    "Height"
+   ],
+   "BuildFreeform": [
+    "EditingType",
+    "X1",
+    "Y1"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "Range": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "Sheets": {
+   "Add": [
+    "Before",
+    "After",
+    "Count",
+    "Type"
+   ],
+   "Add2": [
+    "Before",
+    "After",
+    "Count",
+    "NewLayout"
+   ],
+   "Copy": [
+    "Before",
+    "After"
+   ],
+   "FillAcrossSheets": [
+    "Range",
+    "Type"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "Move": [
+    "Before",
+    "After"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintOutEx": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName",
+    "IgnorePrintAreas"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "Select": [
+    "Replace"
+   ],
+   "_Default": [
+    "Index"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate"
+   ]
+  },
+  "Slicer": {},
+  "SlicerCache": {},
+  "Sort": {
+   "SetRange": [
+    "Rng"
+   ]
+  },
+  "SortFields": {
+   "Add": [
+    "Key",
+    "SortOn",
+    "Order",
+    "CustomOrder",
+    "DataOption"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "SparklineGroup": {
+   "Item": [
+    "Index"
+   ],
+   "Modify": [
+    "Location",
+    "SourceData"
+   ],
+   "ModifyDateRange": [
+    "DateRange"
+   ],
+   "ModifyLocation": [
+    "Location"
+   ],
+   "ModifySourceData": [
+    "SourceData"
+   ]
+  },
+  "Style": {},
+  "Validation": {
+   "Add": [
+    "Type",
+    "AlertStyle",
+    "Operator",
+    "Formula1",
+    "Formula2"
+   ],
+   "Modify": [
+    "Type",
+    "AlertStyle",
+    "Operator",
+    "Formula1",
+    "Formula2"
+   ]
+  },
+  "Window": {
+   "Close": [
+    "SaveChanges",
+    "Filename",
+    "RouteWorkbook"
+   ],
+   "LargeScroll": [
+    "Down",
+    "Up",
+    "ToRight",
+    "ToLeft"
+   ],
+   "PointsToScreenPixelsX": [
+    "Points"
+   ],
+   "PointsToScreenPixelsY": [
+    "Points"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "RangeFromPoint": [
+    "x",
+    "y"
+   ],
+   "ScrollIntoView": [
+    "Left",
+    "Top",
+    "Width",
+    "Height",
+    "Start"
+   ],
+   "ScrollWorkbookTabs": [
+    "Sheets",
+    "Position"
+   ],
+   "SmallScroll": [
+    "Down",
+    "Up",
+    "ToRight",
+    "ToLeft"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ]
+  },
+  "Windows": {
+   "Arrange": [
+    "ArrangeStyle",
+    "ActiveWorkbook",
+    "SyncHorizontal",
+    "SyncVertical"
+   ],
+   "CompareSideBySideWith": [
+    "WindowName"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "_Default": [
+    "Index"
+   ]
+  },
+  "Workbooks": {
+   "Add": [
+    "Template"
+   ],
+   "CanCheckOut": [
+    "Filename"
+   ],
+   "CheckOut": [
+    "Filename"
+   ],
+   "Item": [
+    "Index"
+   ],
+   "Open": [
+    "Filename",
+    "UpdateLinks",
+    "ReadOnly",
+    "Format",
+    "Password",
+    "WriteResPassword",
+    "IgnoreReadOnlyRecommended",
+    "Origin",
+    "Delimiter",
+    "Editable",
+    "Notify",
+    "Converter",
+    "AddToMru",
+    "Local",
+    "CorruptLoad"
+   ],
+   "OpenDatabase": [
+    "Filename",
+    "CommandText",
+    "CommandType",
+    "BackgroundQuery",
+    "ImportDataAs"
+   ],
+   "OpenText": [
+    "Filename",
+    "Origin",
+    "StartRow",
+    "DataType",
+    "TextQualifier",
+    "ConsecutiveDelimiter",
+    "Tab",
+    "Semicolon",
+    "Comma",
+    "Space",
+    "Other",
+    "OtherChar",
+    "FieldInfo",
+    "TextVisualLayout",
+    "DecimalSeparator",
+    "ThousandsSeparator",
+    "TrailingMinusNumbers",
+    "Local"
+   ],
+   "OpenXML": [
+    "Filename",
+    "Stylesheets",
+    "LoadOption"
+   ],
+   "_Default": [
+    "Index"
+   ],
+   "_Open": [
+    "Filename",
+    "UpdateLinks",
+    "ReadOnly",
+    "Format",
+    "Password",
+    "WriteResPassword",
+    "IgnoreReadOnlyRecommended",
+    "Origin",
+    "Delimiter",
+    "Editable",
+    "Notify",
+    "Converter",
+    "AddToMru"
+   ],
+   "_OpenText": [
+    "Filename",
+    "Origin",
+    "StartRow",
+    "DataType",
+    "TextQualifier",
+    "ConsecutiveDelimiter",
+    "Tab",
+    "Semicolon",
+    "Comma",
+    "Space",
+    "Other",
+    "OtherChar",
+    "FieldInfo",
+    "TextVisualLayout",
+    "DecimalSeparator",
+    "ThousandsSeparator"
+   ],
+   "_OpenXML": [
+    "Filename",
+    "Stylesheets"
+   ],
+   "__OpenText": [
+    "Filename",
+    "Origin",
+    "StartRow",
+    "DataType",
+    "TextQualifier",
+    "ConsecutiveDelimiter",
+    "Tab",
+    "Semicolon",
+    "Comma",
+    "Space",
+    "Other",
+    "OtherChar",
+    "FieldInfo",
+    "TextVisualLayout"
+   ]
+  },
+  "_Application": {
+   "ActivateMicrosoftApp": [
+    "Index"
+   ],
+   "AddChartAutoFormat": [
+    "Chart",
+    "Name",
+    "Description"
+   ],
+   "AddCustomList": [
+    "ListArray",
+    "ByRow"
+   ],
+   "Caller": [
+    "Index"
+   ],
+   "CentimetersToPoints": [
+    "Centimeters"
+   ],
+   "CheckAbort": [
+    "KeepAbort"
+   ],
+   "CheckSpelling": [
+    "Word",
+    "CustomDictionary",
+    "IgnoreUppercase"
+   ],
+   "ClipboardFormats": [
+    "Index"
+   ],
+   "ConvertFormula": [
+    "Formula",
+    "FromReferenceStyle",
+    "ToReferenceStyle",
+    "ToAbsolute",
+    "RelativeTo"
+   ],
+   "DDEExecute": [
+    "Channel",
+    "String"
+   ],
+   "DDEInitiate": [
+    "App",
+    "Topic"
+   ],
+   "DDEPoke": [
+    "Channel",
+    "Item",
+    "Data"
+   ],
+   "DDERequest": [
+    "Channel",
+    "Item"
+   ],
+   "DDETerminate": [
+    "Channel"
+   ],
+   "DeleteChartAutoFormat": [
+    "Name"
+   ],
+   "DeleteCustomList": [
+    "ListNum"
+   ],
+   "DisplayXMLSourcePane": [
+    "XmlMap"
+   ],
+   "Dummy1": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4"
+   ],
+   "Dummy10": [
+    "arg"
+   ],
+   "Dummy12": [
+    "p1",
+    "p2"
+   ],
+   "Dummy13": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "Dummy2": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8"
+   ],
+   "Dummy20": [
+    "grfCompareFunctions"
+   ],
+   "Dummy4": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15"
+   ],
+   "Dummy5": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13"
+   ],
+   "Dummy8": [
+    "Arg1"
+   ],
+   "Evaluate": [
+    "Name"
+   ],
+   "ExecuteExcel4Macro": [
+    "String"
+   ],
+   "FileConverters": [
+    "Index1",
+    "Index2"
+   ],
+   "FileDialog": [
+    "fileDialogType"
+   ],
+   "GetCustomListContents": [
+    "ListNum"
+   ],
+   "GetCustomListNum": [
+    "ListArray"
+   ],
+   "GetOpenFilename": [
+    "FileFilter",
+    "FilterIndex",
+    "Title",
+    "ButtonText",
+    "MultiSelect"
+   ],
+   "GetPhonetic": [
+    "Text"
+   ],
+   "GetSaveAsFilename": [
+    "InitialFilename",
+    "FileFilter",
+    "FilterIndex",
+    "Title",
+    "ButtonText"
+   ],
+   "Goto": [
+    "Reference",
+    "Scroll"
+   ],
+   "Help": [
+    "HelpFile",
+    "HelpContextID"
+   ],
+   "InchesToPoints": [
+    "Inches"
+   ],
+   "InputBox": [
+    "Prompt",
+    "Title",
+    "Default",
+    "Left",
+    "Top",
+    "HelpFile",
+    "HelpContextID",
+    "Type"
+   ],
+   "International": [
+    "Index"
+   ],
+   "Intersect": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "MacroOptions": [
+    "Macro",
+    "Description",
+    "HasMenu",
+    "MenuText",
+    "HasShortcutKey",
+    "ShortcutKey",
+    "Category",
+    "StatusBar",
+    "HelpContextID",
+    "HelpFile"
+   ],
+   "MacroOptions2": [
+    "Macro",
+    "Description",
+    "HasMenu",
+    "MenuText",
+    "HasShortcutKey",
+    "ShortcutKey",
+    "Category",
+    "StatusBar",
+    "HelpContextID",
+    "HelpFile",
+    "ArgumentDescriptions"
+   ],
+   "MailLogon": [
+    "Name",
+    "Password",
+    "DownloadNewMail"
+   ],
+   "OnKey": [
+    "Key",
+    "Procedure"
+   ],
+   "OnRepeat": [
+    "Text",
+    "Procedure"
+   ],
+   "OnTime": [
+    "EarliestTime",
+    "Procedure",
+    "LatestTime",
+    "Schedule"
+   ],
+   "OnUndo": [
+    "Text",
+    "Procedure"
+   ],
+   "PreviousSelections": [
+    "Index"
+   ],
+   "Range": [
+    "Cell1",
+    "Cell2"
+   ],
+   "RecordMacro": [
+    "BasicCode",
+    "XlmCode"
+   ],
+   "RegisterXLL": [
+    "Filename"
+   ],
+   "RegisteredFunctions": [
+    "Index1",
+    "Index2"
+   ],
+   "Run": [
+    "Macro",
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "Save": [
+    "Filename"
+   ],
+   "SaveWorkspace": [
+    "Filename"
+   ],
+   "SendKeys": [
+    "Keys",
+    "Wait"
+   ],
+   "SetDefaultChart": [
+    "FormatName",
+    "Gallery"
+   ],
+   "SharePointVersion": [
+    "bstrUrl"
+   ],
+   "ShortcutMenus": [
+    "Index"
+   ],
+   "Support": [
+    "Object",
+    "ID",
+    "arg"
+   ],
+   "Union": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "Volatile": [
+    "Volatile"
+   ],
+   "Wait": [
+    "Time"
+   ],
+   "_Evaluate": [
+    "Name"
+   ],
+   "_Run2": [
+    "Macro",
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "_WSFunction": [
+    "Arg1",
+    "Arg2",
+    "Arg3",
+    "Arg4",
+    "Arg5",
+    "Arg6",
+    "Arg7",
+    "Arg8",
+    "Arg9",
+    "Arg10",
+    "Arg11",
+    "Arg12",
+    "Arg13",
+    "Arg14",
+    "Arg15",
+    "Arg16",
+    "Arg17",
+    "Arg18",
+    "Arg19",
+    "Arg20",
+    "Arg21",
+    "Arg22",
+    "Arg23",
+    "Arg24",
+    "Arg25",
+    "Arg26",
+    "Arg27",
+    "Arg28",
+    "Arg29",
+    "Arg30"
+   ],
+   "_Wait": [
+    "Time"
+   ]
+  },
+  "_Chart": {
+   "ApplyChartTemplate": [
+    "Filename"
+   ],
+   "ApplyCustomType": [
+    "ChartType",
+    "TypeName"
+   ],
+   "ApplyDataLabels": [
+    "Type",
+    "LegendKey",
+    "AutoText",
+    "HasLeaderLines",
+    "ShowSeriesName",
+    "ShowCategoryName",
+    "ShowValue",
+    "ShowPercentage",
+    "ShowBubbleSize",
+    "Separator"
+   ],
+   "ApplyLayout": [
+    "Layout",
+    "ChartType"
+   ],
+   "Arcs": [
+    "Index"
+   ],
+   "AreaGroups": [
+    "Index"
+   ],
+   "AutoFormat": [
+    "Gallery",
+    "Format"
+   ],
+   "Axes": [
+    "Type",
+    "AxisGroup"
+   ],
+   "BarGroups": [
+    "Index"
+   ],
+   "Buttons": [
+    "Index"
+   ],
+   "ChartGroups": [
+    "Index"
+   ],
+   "ChartObjects": [
+    "Index"
+   ],
+   "ChartWizard": [
+    "Source",
+    "Gallery",
+    "Format",
+    "PlotBy",
+    "CategoryLabels",
+    "SeriesLabels",
+    "HasLegend",
+    "Title",
+    "CategoryTitle",
+    "ValueTitle",
+    "ExtraTitle"
+   ],
+   "CheckBoxes": [
+    "Index"
+   ],
+   "CheckSpelling": [
+    "CustomDictionary",
+    "IgnoreUppercase",
+    "AlwaysSuggest",
+    "SpellLang"
+   ],
+   "ColumnGroups": [
+    "Index"
+   ],
+   "Copy": [
+    "Before",
+    "After"
+   ],
+   "CopyPicture": [
+    "Appearance",
+    "Format",
+    "Size"
+   ],
+   "CreatePublisher": [
+    "Edition",
+    "Appearance",
+    "Size",
+    "ContainsPICT",
+    "ContainsBIFF",
+    "ContainsRTF",
+    "ContainsVALU"
+   ],
+   "DoughnutGroups": [
+    "Index"
+   ],
+   "DrawingObjects": [
+    "Index"
+   ],
+   "Drawings": [
+    "Index"
+   ],
+   "DropDowns": [
+    "Index"
+   ],
+   "Evaluate": [
+    "Name"
+   ],
+   "Export": [
+    "Filename",
+    "FilterName",
+    "Interactive"
+   ],
+   "ExportAsFixedFormat": [
+    "Type",
+    "Filename",
+    "Quality",
+    "IncludeDocProperties",
+    "IgnorePrintAreas",
+    "From",
+    "To",
+    "OpenAfterPublish",
+    "FixedFormatExtClassPtr"
+   ],
+   "FullSeriesCollection": [
+    "Index"
+   ],
+   "GetChartElement": [
+    "x",
+    "y",
+    "ElementID",
+    "Arg1",
+    "Arg2"
+   ],
+   "GroupBoxes": [
+    "Index"
+   ],
+   "GroupObjects": [
+    "Index"
+   ],
+   "HasAxis": [
+    "Index1",
+    "Index2"
+   ],
+   "Labels": [
+    "Index"
+   ],
+   "LineGroups": [
+    "Index"
+   ],
+   "Lines": [
+    "Index"
+   ],
+   "ListBoxes": [
+    "Index"
+   ],
+   "Location": [
+    "Where",
+    "Name"
+   ],
+   "Move": [
+    "Before",
+    "After"
+   ],
+   "OLEObjects": [
+    "Index"
+   ],
+   "OptionButtons": [
+    "Index"
+   ],
+   "Ovals": [
+    "Index"
+   ],
+   "Paste": [
+    "Type"
+   ],
+   "Pictures": [
+    "Index"
+   ],
+   "PieGroups": [
+    "Index"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintOutEx": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "Protect": [
+    "Password",
+    "DrawingObjects",
+    "Contents",
+    "Scenarios",
+    "UserInterfaceOnly"
+   ],
+   "RadarGroups": [
+    "Index"
+   ],
+   "Rectangles": [
+    "Index"
+   ],
+   "SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout",
+    "Local"
+   ],
+   "SaveChartTemplate": [
+    "Filename"
+   ],
+   "ScrollBars": [
+    "Index"
+   ],
+   "Select": [
+    "Replace"
+   ],
+   "SeriesCollection": [
+    "Index"
+   ],
+   "SetBackgroundPicture": [
+    "Filename"
+   ],
+   "SetDefaultChart": [
+    "Name"
+   ],
+   "SetElement": [
+    "Element"
+   ],
+   "SetSourceData": [
+    "Source",
+    "PlotBy"
+   ],
+   "Spinners": [
+    "Index"
+   ],
+   "TextBoxes": [
+    "Index"
+   ],
+   "Unprotect": [
+    "Password"
+   ],
+   "XYGroups": [
+    "Index"
+   ],
+   "_ApplyDataLabels": [
+    "Type",
+    "LegendKey",
+    "AutoText",
+    "HasLeaderLines"
+   ],
+   "_Evaluate": [
+    "Name"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate"
+   ],
+   "_Protect": [
+    "Password",
+    "DrawingObjects",
+    "Contents",
+    "Scenarios",
+    "UserInterfaceOnly"
+   ],
+   "_SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout"
+   ]
+  },
+  "_Workbook": {
+   "AcceptAllChanges": [
+    "When",
+    "Who",
+    "Where"
+   ],
+   "ApplyTheme": [
+    "Filename"
+   ],
+   "BreakLink": [
+    "Name",
+    "Type"
+   ],
+   "ChangeFileAccess": [
+    "Mode",
+    "WritePassword",
+    "Notify"
+   ],
+   "ChangeLink": [
+    "Name",
+    "NewName",
+    "Type"
+   ],
+   "CheckIn": [
+    "SaveChanges",
+    "Comments",
+    "MakePublic"
+   ],
+   "CheckInWithVersion": [
+    "SaveChanges",
+    "Comments",
+    "MakePublic",
+    "VersionType"
+   ],
+   "Close": [
+    "SaveChanges",
+    "Filename",
+    "RouteWorkbook"
+   ],
+   "Colors": [
+    "Index"
+   ],
+   "DeleteNumberFormat": [
+    "NumberFormat"
+   ],
+   "Dummy17": [
+    "calcid"
+   ],
+   "ExportAsFixedFormat": [
+    "Type",
+    "Filename",
+    "Quality",
+    "IncludeDocProperties",
+    "IgnorePrintAreas",
+    "From",
+    "To",
+    "OpenAfterPublish",
+    "FixedFormatExtClassPtr"
+   ],
+   "FollowHyperlink": [
+    "Address",
+    "SubAddress",
+    "NewWindow",
+    "AddHistory",
+    "ExtraInfo",
+    "Method",
+    "HeaderInfo"
+   ],
+   "HighlightChangesOptions": [
+    "When",
+    "Who",
+    "Where"
+   ],
+   "LinkInfo": [
+    "Name",
+    "LinkInfo",
+    "Type",
+    "EditionRef"
+   ],
+   "LinkSources": [
+    "Type"
+   ],
+   "MergeWorkbook": [
+    "Filename"
+   ],
+   "OpenLinks": [
+    "Name",
+    "ReadOnly",
+    "Type"
+   ],
+   "PivotTableWizard": [
+    "SourceType",
+    "SourceData",
+    "TableDestination",
+    "TableName",
+    "RowGrand",
+    "ColumnGrand",
+    "SaveData",
+    "HasAutoFormat",
+    "AutoPage",
+    "Reserved",
+    "BackgroundQuery",
+    "OptimizeCache",
+    "PageFieldOrder",
+    "PageFieldWrapCount",
+    "ReadData",
+    "Connection"
+   ],
+   "Post": [
+    "DestName"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintOutEx": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName",
+    "IgnorePrintAreas"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "Protect": [
+    "Password",
+    "Structure",
+    "Windows"
+   ],
+   "ProtectSharing": [
+    "Filename",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "SharingPassword"
+   ],
+   "ProtectSharingEx": [
+    "Filename",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "SharingPassword",
+    "FileFormat"
+   ],
+   "PurgeChangeHistoryNow": [
+    "Days",
+    "SharingPassword"
+   ],
+   "RejectAllChanges": [
+    "When",
+    "Who",
+    "Where"
+   ],
+   "ReloadAs": [
+    "Encoding"
+   ],
+   "RemoveDocumentInformation": [
+    "RemoveDocInfoType"
+   ],
+   "RemoveUser": [
+    "Index"
+   ],
+   "ReplyWithChanges": [
+    "ShowMessage"
+   ],
+   "RunAutoMacros": [
+    "Which"
+   ],
+   "SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AccessMode",
+    "ConflictResolution",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout",
+    "Local"
+   ],
+   "SaveAsXMLData": [
+    "Filename",
+    "Map"
+   ],
+   "SaveCopyAs": [
+    "Filename"
+   ],
+   "SendFaxOverInternet": [
+    "Recipients",
+    "Subject",
+    "ShowMessage"
+   ],
+   "SendForReview": [
+    "Recipients",
+    "Subject",
+    "ShowMessage",
+    "IncludeAttachment"
+   ],
+   "SendMail": [
+    "Recipients",
+    "Subject",
+    "ReturnReceipt"
+   ],
+   "SendMailer": [
+    "FileFormat",
+    "Priority"
+   ],
+   "SetLinkOnData": [
+    "Name",
+    "Procedure"
+   ],
+   "SetPasswordEncryptionOptions": [
+    "PasswordEncryptionProvider",
+    "PasswordEncryptionAlgorithm",
+    "PasswordEncryptionKeyLength",
+    "PasswordEncryptionFileProperties"
+   ],
+   "Unprotect": [
+    "Password"
+   ],
+   "UnprotectSharing": [
+    "SharingPassword"
+   ],
+   "UpdateLink": [
+    "Name",
+    "Type"
+   ],
+   "XmlImport": [
+    "Url",
+    "ImportMap",
+    "Overwrite",
+    "Destination"
+   ],
+   "XmlImportXml": [
+    "Data",
+    "ImportMap",
+    "Overwrite",
+    "Destination"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate"
+   ],
+   "_Protect": [
+    "Password",
+    "Structure",
+    "Windows"
+   ],
+   "_SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AccessMode",
+    "ConflictResolution",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout"
+   ],
+   "sblt": [
+    "s"
+   ]
+  },
+  "_Worksheet": {
+   "Arcs": [
+    "Index"
+   ],
+   "Buttons": [
+    "Index"
+   ],
+   "ChartObjects": [
+    "Index"
+   ],
+   "CheckBoxes": [
+    "Index"
+   ],
+   "CheckSpelling": [
+    "CustomDictionary",
+    "IgnoreUppercase",
+    "AlwaysSuggest",
+    "SpellLang"
+   ],
+   "Copy": [
+    "Before",
+    "After"
+   ],
+   "DrawingObjects": [
+    "Index"
+   ],
+   "Drawings": [
+    "Index"
+   ],
+   "DropDowns": [
+    "Index"
+   ],
+   "Evaluate": [
+    "Name"
+   ],
+   "ExportAsFixedFormat": [
+    "Type",
+    "Filename",
+    "Quality",
+    "IncludeDocProperties",
+    "IgnorePrintAreas",
+    "From",
+    "To",
+    "OpenAfterPublish",
+    "FixedFormatExtClassPtr"
+   ],
+   "GroupBoxes": [
+    "Index"
+   ],
+   "GroupObjects": [
+    "Index"
+   ],
+   "Labels": [
+    "Index"
+   ],
+   "Lines": [
+    "Index"
+   ],
+   "ListBoxes": [
+    "Index"
+   ],
+   "Move": [
+    "Before",
+    "After"
+   ],
+   "OLEObjects": [
+    "Index"
+   ],
+   "OptionButtons": [
+    "Index"
+   ],
+   "Ovals": [
+    "Index"
+   ],
+   "Paste": [
+    "Destination",
+    "Link"
+   ],
+   "PasteSpecial": [
+    "Format",
+    "Link",
+    "DisplayAsIcon",
+    "IconFileName",
+    "IconIndex",
+    "IconLabel",
+    "NoHTMLFormatting"
+   ],
+   "Pictures": [
+    "Index"
+   ],
+   "PivotTableWizard": [
+    "SourceType",
+    "SourceData",
+    "TableDestination",
+    "TableName",
+    "RowGrand",
+    "ColumnGrand",
+    "SaveData",
+    "HasAutoFormat",
+    "AutoPage",
+    "Reserved",
+    "BackgroundQuery",
+    "OptimizeCache",
+    "PageFieldOrder",
+    "PageFieldWrapCount",
+    "ReadData",
+    "Connection"
+   ],
+   "PivotTables": [
+    "Index"
+   ],
+   "PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName"
+   ],
+   "PrintOutEx": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate",
+    "PrToFileName",
+    "IgnorePrintAreas"
+   ],
+   "PrintPreview": [
+    "EnableChanges"
+   ],
+   "Protect": [
+    "Password",
+    "DrawingObjects",
+    "Contents",
+    "Scenarios",
+    "UserInterfaceOnly",
+    "AllowFormattingCells",
+    "AllowFormattingColumns",
+    "AllowFormattingRows",
+    "AllowInsertingColumns",
+    "AllowInsertingRows",
+    "AllowInsertingHyperlinks",
+    "AllowDeletingColumns",
+    "AllowDeletingRows",
+    "AllowSorting",
+    "AllowFiltering",
+    "AllowUsingPivotTables"
+   ],
+   "Range": [
+    "Cell1",
+    "Cell2"
+   ],
+   "Rectangles": [
+    "Index"
+   ],
+   "SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout",
+    "Local"
+   ],
+   "Scenarios": [
+    "Index"
+   ],
+   "ScrollBars": [
+    "Index"
+   ],
+   "Select": [
+    "Replace"
+   ],
+   "SetBackgroundPicture": [
+    "Filename"
+   ],
+   "Spinners": [
+    "Index"
+   ],
+   "TextBoxes": [
+    "Index"
+   ],
+   "Unprotect": [
+    "Password"
+   ],
+   "XmlDataQuery": [
+    "XPath",
+    "SelectionNamespaces",
+    "Map"
+   ],
+   "XmlMapQuery": [
+    "XPath",
+    "SelectionNamespaces",
+    "Map"
+   ],
+   "_CheckSpelling": [
+    "CustomDictionary",
+    "IgnoreUppercase",
+    "AlwaysSuggest",
+    "SpellLang",
+    "IgnoreFinalYaa",
+    "SpellScript"
+   ],
+   "_Evaluate": [
+    "Name"
+   ],
+   "_PasteSpecial": [
+    "Format",
+    "Link",
+    "DisplayAsIcon",
+    "IconFileName",
+    "IconIndex",
+    "IconLabel"
+   ],
+   "_PrintOut": [
+    "From",
+    "To",
+    "Copies",
+    "Preview",
+    "ActivePrinter",
+    "PrintToFile",
+    "Collate"
+   ],
+   "_Protect": [
+    "Password",
+    "DrawingObjects",
+    "Contents",
+    "Scenarios",
+    "UserInterfaceOnly"
+   ],
+   "_SaveAs": [
+    "Filename",
+    "FileFormat",
+    "Password",
+    "WriteResPassword",
+    "ReadOnlyRecommended",
+    "CreateBackup",
+    "AddToMru",
+    "TextCodepage",
+    "TextVisualLayout"
+   ]
+  }
+ },
+ "source": "Microsoft.Office.Interop.Excel (reflection)"
+}
