@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Outlines remember which groups a person closed, as Excel does: closing and opening a grand total's group no longer
+  leaves its subtotals' groups closed when they were open, and a subtotal closed by its own button (or the level 2
+  button) stays closed. The state is saved in the workbook.
 - Auto Outline groups totals above their details (and left of them) as Excel does, setting Summary rows above
   (columns to the left); the first total in reading order picks the side. `Range.AutoOutline` raises "Cannot create
   an outline." when nothing can be grouped.

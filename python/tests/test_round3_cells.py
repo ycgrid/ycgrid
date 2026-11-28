@@ -421,7 +421,9 @@ class MenuTest(_Base):
         box = names[-1]["rect"]
         bx, by = int(box[0]) + 20, int((box[1] + box[3]) / 2)
         self.keys(f"m:{bx},{by}|w:2|c:{bx},{by}|w:3|k:c-A|t:=SUM(A1)|w:2|k:LeftArrow|w:2")
-        pick = [i for i in self.items() if abs((i["rect"][1] + i["rect"][3]) / 2 - by) < 4 and i["rect"][0] >= box[2] - 2]
+        # the box's own button: the nearest control right of it on its line (the sheet's scroll bar is on that line too)
+        pick = sorted((i for i in self.items() if abs((i["rect"][1] + i["rect"][3]) / 2 - by) < 4 and i["rect"][0] >= box[2] - 2),
+                      key=lambda i: i["rect"][0])
         self.assertTrue(pick)
         pr = pick[0]["rect"]
         self.click_at((pr[0] + pr[2]) / 2, (pr[1] + pr[3]) / 2)

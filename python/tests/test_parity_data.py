@@ -100,6 +100,7 @@ class DataParityTest(unittest.TestCase):
     # ---- H2 ----
     def test_sort_and_remove_duplicates_in_a_table_keep_header_and_totals(self):
         self.ws.Range("A1:B5").Value = [["Name", "City"], ["d", "x"], ["b", "y"], ["c", "x"], ["a", "y"]]
+        self.ws.Range("A1:B1").Font.Bold = True  # all text: Create Table takes a bold first row as the header (Excel)
         self.keys("g:A1|w:2|k:c-T|w:6|k:Enter|w:6")
         lo = self.ws.ListObjects(1)
         lo.ShowTotals = True

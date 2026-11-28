@@ -150,6 +150,32 @@ class NamesAndOutlineTest(_Live):
         self.ws.Range("A1").AutoOutline()
         self.assertEqual([self.ws.Rows(r).OutlineLevel for r in range(1, 9)], [3, 3, 2, 3, 3, 2, 1, 1])
 
+    def test_a_subtotal_closed_by_its_button_stays_closed_through_the_grand_total(self):
+        # Excel 16, measured 2026-11-28: the level 2 button closes the subtotals' groups, and they stay closed when the
+        # grand total's group is closed and opened; with every group open, closing and opening it brings all back
+        ws = self.ws
+        ws.Cells.ClearOutline()
+        for r in range(1, 10):
+            ws.Cells(r, 1).Value = r
+        ws.Rows("2:7").Group()
+        ws.Rows("2:3").Group()
+        ws.Rows("5:6").Group()
+
+        def hidden():
+            return "".join("h" if ws.Rows(r).Hidden else "." for r in range(1, 10))
+
+        ws.Rows(8).ShowDetail = False
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".........")
+        ws.Outline.ShowLevels(2)
+        ws.Rows(8).ShowDetail = False
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".hh.hh...")
+        ws.Outline.ShowLevels(1)
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".........")
+        ws.Cells.ClearOutline()
+
     def test_auto_outline_takes_the_side_of_the_first_total(self):
         # Excel 16, measured 2026-11-28: totals above their details group the rows after them and set Summary rows
         # above; the first total in reading order picks the side and a total on the other side is left out; totals

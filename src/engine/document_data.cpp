@@ -598,6 +598,13 @@ void Document::ClearOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b) {
     if (d.IsHidden(i)) d.Hide(i, false);
     d.SetLevel(i, 0);
   }
+  if (!d.Collapsed().empty()) {  // the groups go, and so does what was collapsed of them (a summary line beside them too)
+    std::set<int64_t> keep;
+    for (const int64_t i : d.Collapsed()) {
+      if (i + 1 < int64_t{a} || i > int64_t{b} + 1) keep.insert(i);
+    }
+    d.LoadCollapsed(std::move(keep));
+  }
   changes_.push_back(CellChange{sheet, Rect{0, 0, core::kRowEnd, core::kMaxCols - 1}, kSrcUser});
   wb_.dirty = true;
 }
@@ -614,6 +621,41 @@ void Document::ShowOutlineLevel(uint32_t sheet, bool rows, int level) {
   std::vector<std::pair<int64_t, bool>> todo;
   for (const auto& [i, l] : (rows ? *s->rows : *s->cols).Levels()) todo.emplace_back(i, l >= level);
   HideLineRuns(sheet, rows, todo);
+  // the groups the level button closes are collapsed, every other group is not: after the button for level 2, a
+  // subtotal's group stays closed when the grand total's is closed and opened again; after level 1 it opens with it
+  // (Excel 16, measured 2026-11-28)
+  std::vector<int64_t> closed;
+  {
+    const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
+    int64_t run0 = -1, prev = -2;
+    auto end_run = [&] {
+      if (run0 < 0) return;
+      if (const int64_t at = SummaryLine(sheet, rows, run0, prev); at >= 0) closed.push_back(at);
+      run0 = -1;
+    };
+    for (const auto& [i, l] : d.Levels()) {
+      if (l < level || i != prev + 1) end_run();
+      if (l >= level && run0 < 0) run0 = i;
+      prev = i;
+    }
+    end_run();
+    if (d.Collapsed().empty() && closed.empty()) return;
+  }
+  NoteTouched();
+  auto& m = rows ? M(sheet)->rows.mut() : M(sheet)->cols.mut();
+  m.LoadCollapsed(std::set<int64_t>(closed.begin(), closed.end()));
+  wb_.dirty = true;
+}
+
+// the summary line of the group over lines [a, b]: below it (right of it) or above it (left), as the sheet's outline
+// settings say; -1 off the sheet
+int64_t Document::SummaryLine(uint32_t sheet, bool rows, int64_t a, int64_t b) const {
+  const Sheet* s = S(sheet);
+  if (!s) return -1;
+  const bool after = rows ? s->outline_below : s->outline_right;
+  const int64_t at = after ? b + 1 : a - 1;
+  const int64_t limit = rows ? int64_t{s->row_limit} : int64_t{core::kMaxCols};
+  return at >= 0 && at < limit ? at : -1;
 }
 
 // consecutive lines given the same choice are hidden or shown in one call: a line at a time, the million rows of a
@@ -663,18 +705,49 @@ void Document::SetGroupCollapsed(uint32_t sheet, bool rows, uint32_t index, int 
   } off{&outline_toggle_};
   uint32_t a, b;
   if (!OutlineBlock(sheet, rows, index, level, &a, &b)) return;
+  // the group's summary line keeps whether a person collapsed it (Excel's collapsed flag)
+  auto mark = [&](int64_t at, bool on) {
+    if (at < 0) return;
+    const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
+    if (d.IsCollapsed(at) == on) return;
+    NoteTouched();
+    (rows ? M(sheet)->rows.mut() : M(sheet)->cols.mut()).SetCollapsed(at, on);
+    wb_.dirty = true;
+  };
   if (collapse) {
     if (rows) HideRows(sheet, a, b, true);
     else HideCols(sheet, a, b, true);
+    mark(SummaryLine(sheet, rows, a, b), true);
     return;
   }
-  // expanding shows the rows of this level; deeper groups keep their state (a collapsed inner group stays collapsed)
-  const Sheet* s = S(sheet);
-  const auto& d = rows ? *s->rows : *s->cols;
+  // expanding shows the lines of this level and every inner group but those a person collapsed, which stay closed
+  // (Excel 16, measured 2026-11-28: a subtotal's group closed by its own button stays closed when the grand total's
+  // opens; one hidden only with the grand total's opens with it)
+  const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
   std::vector<std::pair<int64_t, bool>> show;
-  for (auto it = d.Levels().lower_bound(a); it != d.Levels().end() && it->first <= b; ++it) {
-    if (it->second == level) show.emplace_back(it->first, false);
+  // the lines of [lo, hi] at level k and deeper, skipping the inner groups whose summary is collapsed
+  std::vector<std::tuple<int64_t, int64_t, int>> todo{{a, b, level}};
+  while (!todo.empty()) {
+    const auto [lo, hi, k] = todo.back();
+    todo.pop_back();
+    int64_t run0 = -1, prev = -2;
+    auto end_run = [&] {
+      if (run0 < 0) return;
+      const int64_t at = SummaryLine(sheet, rows, run0, prev);
+      if (at < 0 || !d.IsCollapsed(at)) todo.emplace_back(run0, prev, k + 1);
+      run0 = -1;
+    };
+    for (auto it = d.Levels().lower_bound(lo); it != d.Levels().end() && it->first <= hi; ++it) {
+      const int64_t i = it->first;
+      if (it->second <= k || i != prev + 1) end_run();
+      if (it->second == k) show.emplace_back(i, false);
+      else if (it->second > k && run0 < 0) run0 = i;
+      prev = i;
+    }
+    end_run();
   }
+  std::sort(show.begin(), show.end());
+  mark(SummaryLine(sheet, rows, a, b), false);
   HideLineRuns(sheet, rows, show);
 }
 

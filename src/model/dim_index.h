@@ -13,6 +13,7 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace yc::model {
@@ -74,6 +75,16 @@ class DimIndex {
     levels_ = std::move(levels);
     CountLevels();
   }
+  // the summary lines of the groups a person collapsed (Excel's collapsed flag, kept in its files too): showing an
+  // outer group's detail leaves these groups collapsed and shows the others whole; they move with inserted and
+  // deleted lines
+  bool IsCollapsed(int64_t index) const { return collapsed_.count(index) != 0; }
+  void SetCollapsed(int64_t index, bool on) {
+    if (on) collapsed_.insert(index);
+    else collapsed_.erase(index);
+  }
+  const std::set<int64_t>& Collapsed() const { return collapsed_; }
+  void LoadCollapsed(std::set<int64_t> c) { collapsed_ = std::move(c); }
 
  private:
   void Rebuild() const;
@@ -86,6 +97,7 @@ class DimIndex {
   std::vector<int32_t> size_;
   std::vector<int32_t> saved_;
   std::map<int64_t, uint8_t> levels_;
+  std::set<int64_t> collapsed_;
   void CountLevels();
   static int Slot(int level) { return level < 0 ? 0 : level > kMaxOutline ? kMaxOutline : level; }  // a file's 9 counts as 7
   std::array<int64_t, kMaxOutline + 1> level_count_{};  // entries at each level (slot 0: entries stored as 0)

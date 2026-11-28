@@ -1110,6 +1110,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - A multi-cell array formula over a table is refused, as in Excel ("Multi-cell array formulas aren't allowed in tables."): its header held a result as text and turned into a number on reopen (doc_fuzz seed 112).
 - The same workbook is the same bytes: what the model keeps in edit order (merged areas) is written in reading order, and `io::ContentDump` hashes a style by its strings, not the string table's numbers, so a dump compares across a save and an open (doc_fuzz seeds 1, 102).
 - A sort moves each line's formulas as a copy would, with two exceptions (Excel 16, measured): references to other sheets keep naming the same cells, and a range moved partly past the sheet's edge is cut to it (`=SUM(B0:B2)` is `=SUM(B1:B2)`; one cell past it is #REF!). Shifting every reference made 40 of 46 random sequences with a sort differ from Excel; single-operation sort cases never showed it, since their formulas read their own row.
+- A state Excel keeps that the screen doesn't show (an outline group a person closed, Excel's collapsed flag) can't
+  be worked out from what is hidden: a group hidden under a closed outer group looks the same whether it was open or
+  closed. Expanding the grand total's group left every subtotal closed, since YCGrid read "hidden" as "closed";
+  `DimIndex::IsCollapsed` keeps it on the summary line. Measure the sequence (close, close the outer, open the outer),
+  not only one click.
 - A paste replaces what the cells under it hold beside their contents (fonts inside the text, hyperlinks): a clip
   built by hand from a `Copy` (a sort's lines, Remove Duplicates' kept rows, AutoFill's one cell) carries the copied
   cells' `rich` and `links` too, or the paste erases them. A sort lost every rich text that way, and a cell's link

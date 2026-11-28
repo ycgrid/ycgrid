@@ -767,6 +767,8 @@ class Document : public formula::SheetResolver {
   void HideLineRuns(uint32_t sheet, bool rows, const std::vector<std::pair<int64_t, bool>>& lines);
   bool OutlineBlock(uint32_t sheet, bool rows, uint32_t index, int level, uint32_t* a, uint32_t* b) const;
   void SetGroupCollapsed(uint32_t sheet, bool rows, uint32_t index, int level, bool collapse);
+  // the summary line of the group over lines [a, b] (the outline settings' side); -1 off the sheet
+  int64_t SummaryLine(uint32_t sheet, bool rows, int64_t a, int64_t b) const;
   // moves cells like Excel's drag and drop / cut and paste: formulas that point at the moved cells follow them
   bool MoveCells(uint32_t src_sheet, const Rect& src, uint32_t dst_sheet, uint32_t dst_r, uint32_t dst_c);
   // Evaluate Formula: every step of the formula in (r,c), innermost part first, the result last

@@ -1360,7 +1360,14 @@ TEST_CASE("Showing and hiding the levels of a group of all 1,048,576 rows is fas
   CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(21));
   t.d.ShowOutlineLevel(sh, true, 1);
   t0 = std::chrono::steady_clock::now();
-  t.d.SetGroupCollapsed(sh, true, 0, 1, false);  // expand the outer group: its own rows show, the inner stays
+  t.d.SetGroupCollapsed(sh, true, 0, 1, false);  // expand the outer group: the inner one, hidden by the level
+  CHECK(Seconds(t0) < Limit(1.0));                 // button and not closed by its own, opens with it (Excel 16)
+  CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(1048575));
+  CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(15));
+  t.d.ShowOutlineLevel(sh, true, 2);  // the level 2 button closes the inner group: it stays closed
+  t.d.SetGroupCollapsed(sh, true, 0, 1, true);
+  t0 = std::chrono::steady_clock::now();
+  t.d.SetGroupCollapsed(sh, true, 0, 1, false);
   CHECK(Seconds(t0) < Limit(1.0));
   CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(1048575));
   CHECK(t.d.wb().sheets[0]->rows->IsHidden(15));

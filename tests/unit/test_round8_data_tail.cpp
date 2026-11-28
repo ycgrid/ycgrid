@@ -212,6 +212,49 @@ TEST_CASE("round8 data tail: Text to Columns makes a field that is a formula one
   CHECK(u.T("A1") == "=1+1");
 }
 
+TEST_CASE("round8 data tail: a group closed by its own button stays closed when the group around it opens") {
+  // Excel 16, measured 2026-11-28 (Rows(n).ShowDetail and Show Detail): rows 2:7 around 2:3 and 5:6, summaries below
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  for (int r = 1; r <= 9; ++r) t.Set(("A" + std::to_string(r)).c_str(), std::to_string(r));
+  t.d.GroupOutline(sh, true, 1, 6, true);
+  t.d.GroupOutline(sh, true, 1, 2, true);
+  t.d.GroupOutline(sh, true, 4, 5, true);
+  auto hidden = [&] {
+    std::string h;
+    for (int64_t r = 0; r < 9; ++r) h += t.d.S(sh)->rows->IsHidden(r) ? 'h' : '.';
+    return h;
+  };
+  // all open: closing and opening the grand total's group brings every row back
+  t.d.SetGroupCollapsed(sh, true, 3, 1, true);  // row 8's group (the - beside row 8)
+  CHECK(hidden() == ".hhhhhh..");
+  t.d.SetGroupCollapsed(sh, true, 1, 1, false);
+  CHECK(hidden() == ".........");
+  // the level 2 button closes the subtotals' groups: they stay closed through the grand total's
+  t.d.ShowOutlineLevel(sh, true, 2);
+  CHECK(hidden() == ".hh.hh...");
+  t.d.SetGroupCollapsed(sh, true, 3, 1, true);
+  CHECK(hidden() == ".hhhhhh..");
+  t.d.SetGroupCollapsed(sh, true, 3, 1, false);
+  CHECK(hidden() == ".hh.hh...");
+  // the level 1 button: the subtotals' groups open with the grand total's
+  t.d.ShowOutlineLevel(sh, true, 1);
+  t.d.SetGroupCollapsed(sh, true, 3, 1, false);
+  CHECK(hidden() == ".........");
+  // one subtotal closed by its button, then the grand total's closed and opened
+  t.d.SetGroupCollapsed(sh, true, 1, 2, true);
+  t.d.SetGroupCollapsed(sh, true, 3, 1, true);
+  t.d.SetGroupCollapsed(sh, true, 3, 1, false);
+  CHECK(hidden() == ".hh......");
+  // kept in the file, and moved by inserted rows
+  auto res = yc::io::LoadYcgFromBytes(yc::io::SaveYcgToBytes(t.d.wb(), {}));
+  REQUIRE(res.ok);
+  CHECK(res.wb.sheets[0]->rows->IsCollapsed(3));
+  t.d.InsertRows(sh, 0, 1);
+  CHECK(t.d.S(sh)->rows->IsCollapsed(4));
+  CHECK_FALSE(t.d.S(sh)->rows->IsCollapsed(3));
+}
+
 TEST_CASE("round8 data tail: Auto Outline takes the side of the first total, as Excel's") {
   // Excel 16, measured 2026-11-28: summaries above their details group the rows after them and set Summary rows above;
   // the first total in reading order picks the side, and a total on the other side is left out
