@@ -882,11 +882,7 @@ void SelectSpecial(AppState& s, int kind, int values) {
     return;
   }
   if (areas.size() > 10000) areas.resize(10000);
-  std::rotate(areas.begin(), areas.begin() + 1, areas.end());  // the first area holds the active cell (the last one is active)
-  view.sel.areas = areas;
-  view.sel.anc_r = view.sel.act_r = areas.back().r0;
-  view.sel.anc_c = view.sel.act_c = areas.back().c0;
-  view.sel.mode = render::SelectMode::Cells;
+  render::SetAreasActiveFirst(view.sel, areas);  // the first area holds the active cell
   render::EnsureVisible(*sh, view, view.sel.act_r, view.sel.act_c);
 }
 

@@ -1690,12 +1690,7 @@ void DrawMiscDialogs(AppState& s) {
         s.ShowMessage("YCGrid", TR("No cells were found."));
       } else {
         if (areas.size() > 10000) areas.resize(10000);
-        // the active cell is the first area's corner; the active area is the last one, so the first goes last
-        std::rotate(areas.begin(), areas.begin() + 1, areas.end());
-        view.sel.areas = areas;
-        view.sel.anc_r = view.sel.act_r = areas.back().r0;
-        view.sel.anc_c = view.sel.act_c = areas.back().c0;
-        view.sel.mode = render::SelectMode::Cells;
+        render::SetAreasActiveFirst(view.sel, areas);  // the active cell is the first area's corner
         render::EnsureVisible(sh, view, view.sel.act_r, view.sel.act_c);
       }
       close = true;

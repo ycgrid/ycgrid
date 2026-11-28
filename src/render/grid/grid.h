@@ -73,6 +73,10 @@ struct Selection {
   // Excel: Tab across a row, then Enter goes to the next row in the column the Tabs started from. The chain holds
   // while the active cell is where the last Tab left it (a click or an arrow key elsewhere ends it).
   uint32_t tab_from = UINT32_MAX, tab_r = 0, tab_c = 0;
+  // the areas in the order Excel lists them (Selection.Address) when the active one comes first there: a multi-area
+  // Range.Select, Go To Special's cells (Excel 16, measured 2026-11-28: Range("B2,D5").Select is "$B$2,$D$5" with B2
+  // active). The grid keeps the active area last; this is read only while it holds the same areas (AreasInExcelOrder)
+  std::vector<Rect> excel_order;
   uint32_t TabFrom() const { return tab_from != UINT32_MAX && tab_r == act_r && tab_c == act_c ? tab_from : UINT32_MAX; }
   // call before a Tab moves the active cell (from_c = the column it leaves), and NoteTabDone after. A Shift+Tab keeps
   // a chain going but never starts one (Excel 16, measured: Shift+Tab, then Enter goes straight down)
@@ -440,6 +444,11 @@ void SelectRange(GridView& view, const Rect& r);
 // a selection of whole columns (rows, the whole sheet) however it was made (Name Box, Go To, Python) is shown and
 // handled as one (Excel: C:C typed in the Name Box, then Ctrl+- deletes the column)
 void NormalizeWholeSelection(GridView& view, const model::Sheet& sheet);
+// select areas listed with the active one first (its first cell active), as Excel's multi-area Select and Go To Special
+// do; the grid keeps the active area last and the order Excel lists them in excel_order
+void SetAreasActiveFirst(Selection& sel, std::vector<Rect> areas);
+// the selection's areas in Excel's order (Selection.Address): excel_order while it holds the same areas, else as kept
+std::vector<Rect> AreasInExcelOrder(const Selection& sel);
 
 // cell fill (solid, pattern or gradient) at a scale (pixels per point); also used by dialogs to preview fills
 void DrawCellFill(ImDrawList* dl, const ImRect& r, const model::Style& st, float scale, ImU32 background);

@@ -5009,7 +5009,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       // whole columns (Ctrl+Space, a column header) are full-height areas: Python's whole-column form, so Selection reads
       // "$C:$C" as in Excel (it read "$C$1:$C$1048576")
       const model::Sheet* vs = s.snap ? s.snap->Sheet(sid) : nullptr;
-      for (Rect a : v.sel.areas) {
+      for (Rect a : render::AreasInExcelOrder(v.sel)) {  // as Excel lists them (the active one first after a Select)
         if (vs && a.r0 == 0 && vs->row_limit > 0 && a.r1 >= vs->row_limit - 1) a.r1 = 0xFFFFFFFFu;
         areas.Push(rect4(a));
       }
@@ -5065,18 +5065,21 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       const model::Sheet* sh = s.snap->Sheet(sid);
       if (!sh) return MV();
       if (const MV* sel = params.Get("select")) {
-        v.sel.areas.clear();
+        // the first area's first cell is active, as Excel's Range("B2,D5").Select makes B2 active (measured)
+        std::vector<Rect> given;
         for (const MV& a : sel->a) {
           Rect r = RectOf(a);
           if (r.r1 >= sh->row_limit) r.r1 = sh->row_limit - 1;
-          v.sel.areas.push_back(r);
+          given.push_back(r);
         }
-        if (v.sel.areas.empty()) v.sel.areas.push_back(Rect{});
-        const Rect& f = v.sel.areas.back();
-        v.sel.act_r = v.sel.anc_r = f.r0;
-        v.sel.act_c = v.sel.anc_c = f.c0;
-        v.sel.mode = render::SelectMode::Cells;
+        if (given.empty()) given.push_back(Rect{});
+        render::SetAreasActiveFirst(v.sel, given);
         render::NormalizeWholeSelection(v, *sh);  // Range("C:C").Select(): whole columns, as in Excel
+        if (v.sel.areas.size() > 1) {  // Excel's order again, over the areas as normalized
+          v.sel.excel_order.assign(1, v.sel.areas.back());
+          v.sel.excel_order.insert(v.sel.excel_order.end(), v.sel.areas.begin(), v.sel.areas.end() - 1);
+        }
+        const Rect f = v.sel.areas.back();
         render::EnsureVisible(*sh, v, f.r0, f.c0);
       }
       if (const MV* a = params.Get("active")) {

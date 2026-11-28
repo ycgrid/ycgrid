@@ -997,11 +997,8 @@ void FlashFillOptions(AppState& s, uint32_t sheet_id, const model::Sheet& sh, co
         else areas.push_back(Rect::Cell(r, u.ffo_c));
       }
       if (!areas.empty()) {
-        std::rotate(areas.begin(), areas.begin() + 1, areas.end());
-        view.sel.areas = areas;
-        view.sel.anc_r = view.sel.act_r = areas.back().r0;
+        render::SetAreasActiveFirst(view.sel, areas);
         view.sel.anc_c = view.sel.act_c = u.ffo_c;
-        view.sel.mode = render::SelectMode::Cells;
       }
     }
     ImGui::EndPopup();

@@ -269,6 +269,24 @@ class ExcelArgumentsTailTest(_Live):
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class GoToSpecialTailTest(_Live):
+    def test_a_multi_area_select_makes_the_first_area_active(self):
+        # Excel 16, measured 2026-11-28: Range("B2,D5").Select is "$B$2,$D$5" with B2 active, D5:E6,A1:B2 keeps its
+        # order with D5 active, E6.Activate in A1:B2,D5:E6 keeps the order, and SpecialCells(...).Select is as Select
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("B2,D5").Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("B2,D5", "B2"))
+        ws.Range("D5:E6,A1:B2").Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("D5:E6,A1:B2", "D5"))
+        ws.Range("A1:B2,D5:E6").Select()
+        ws.Range("E6").Activate()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("A1:B2,D5:E6", "E6"))
+        ws.Range("B2").AddComment("n")
+        ws.Range("D5").AddComment("m")
+        ws.Range("A1").SpecialCells(-4144).Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("B2,D5", "B2"))
+
     def test_same_validation_takes_every_rule_with_the_same_settings(self):
         # Excel 16, measured 2026-11-28: the same list added to G1:G3 and G8 is one rule; another input message or
         # "a, b" isn't; =A6>0 in J6 is J1's =A1>0

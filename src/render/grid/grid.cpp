@@ -1560,6 +1560,26 @@ void NormalizeWholeSelection(GridView& view, const model::Sheet& sheet) {
   else if (cols_all) s.mode = SelectMode::Rows;
 }
 
+void SetAreasActiveFirst(Selection& sel, std::vector<Rect> areas) {
+  if (areas.empty()) return;
+  sel.excel_order = areas.size() > 1 ? areas : std::vector<Rect>{};
+  std::rotate(areas.begin(), areas.begin() + 1, areas.end());
+  sel.areas = std::move(areas);
+  sel.anc_r = sel.act_r = sel.areas.back().r0;
+  sel.anc_c = sel.act_c = sel.areas.back().c0;
+  sel.mode = SelectMode::Cells;
+}
+
+std::vector<Rect> AreasInExcelOrder(const Selection& sel) {
+  const auto& e = sel.excel_order;
+  const auto& a = sel.areas;
+  if (e.size() < 2 || e.size() != a.size() || !(e.front() == a.back())) return a;
+  for (size_t i = 1; i < e.size(); ++i) {
+    if (!(e[i] == a[i - 1])) return a;
+  }
+  return e;
+}
+
 bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
                const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row) {
   *add_row = -1;

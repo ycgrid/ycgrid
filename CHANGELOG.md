@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- A multi-area `Range.Select` (and `SpecialCells(...).Select`) makes the first area's first cell active, and
+  `Selection.Address` after it, after Go To Special or Ctrl+Shift+O lists the areas in Excel's order: the last
+  area's cell was active and the areas came round.
 - Python's methods take Excel's arguments in Excel's order: `Workbook.Close(SaveChanges, Filename)` saves under
   Filename (and `Window.Close` with a Filename no longer raises), `Shapes.AddChart` takes the chart type first,
   `Areas.Item(Index=...)` works, and `SaveAs`, `ExportAsFixedFormat`, `Hyperlink.Follow` and `AddPicture2` take
