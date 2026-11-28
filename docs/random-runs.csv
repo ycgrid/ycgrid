@@ -13943,3 +13943,17 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700509,210,ok,
 2026-11-28,doc_fuzz,2400518,280,ok,
 2026-11-28,screen_walk,r194,400,found,"Duplicate and unique values rules over text in two cases, numbers as text and numbers, a blank, a date and its serial, a formula, read through DisplayFormat right after the writes, measured in Excel through COM"
+2026-11-28,doc_fuzz,2400519,110,ok,
+2026-11-28,screen_walk,r195,300,clean,"Ten reads right after a script writes a formula, five times each: Find in values, Text, WorksheetFunction.Sum and CountIf, Evaluate, AutoFilter, RemoveDuplicates, PasteSpecial values, Sort and SpecialCells: all see the value"
+2026-11-28,calc_fuzz,4849,30,ok,
+2026-11-28,formula_fuzz,5830,0,ok,
+2026-11-28,chaos,8099,382,ok,
+2026-11-28,gaps_fuzz,700510,105,ok,
+2026-11-28,basics,5137,173,ok,
+2026-11-28,doc_fuzz,2400520,106,ok,
+2026-11-28,calc_fuzz,4850,3,ok,
+2026-11-28,formula_fuzz,5831,0,ok,
+2026-11-28,gaps_fuzz,700511,97,ok,
+2026-11-28,chaos,8100,361,ok,
+2026-11-28,basics,5138,162,ok,
+2026-11-28,screen_walk,r196,600,found,"Twenty conditional format types over text, a blank, an error, numbers and dates made from TODAY(): text contains, does not, begins, ends, blanks, errors, five date periods, average, standard deviation, top and bottom N and percent, measured in Excel through DisplayFormat"

@@ -93,6 +93,27 @@ TEST_CASE("Text that ends with (no case), errors and no errors") {
   CHECK(Filled(n, 2, 4) == std::vector<bool>{false, true, true, true});  // blank cells have no error
 }
 
+TEST_CASE("Does Not Contain takes errors; a standard deviation rule over an error takes nothing (Excel 16, measured)") {
+  yctest::Doc t;
+  t.Set("B1", "apple pie");
+  t.Set("B2", "grape");
+  t.Set("B4", "=1/0");
+  CfRule r = Fill(CfType::TextContains, Rect{0, 1, 4, 1});
+  r.text_op = 1;
+  r.text = "apple";
+  t.d.AddCondFormat(t.sheet(), r);
+  CHECK(Filled(t, 1, 5) == std::vector<bool>{false, true, true, true, true});  // grape, a blank, the error, a blank
+  yctest::Doc a;
+  const char* vals[] = {"10", "20", "30", "40", "100"};
+  for (int i = 0; i < 5; ++i) a.Set(("C" + std::to_string(i + 1)).c_str(), vals[i]);
+  CfRule sd = Fill(CfType::AboveAverage, Rect{0, 2, 5, 2});
+  sd.std_dev = 1;
+  a.d.AddCondFormat(a.sheet(), sd);
+  CHECK(Filled(a, 2, 6) == std::vector<bool>{false, false, false, false, true, false});
+  a.Set("C6", "=NA()");  // an error in the range: nothing
+  CHECK(Filled(a, 2, 6) == std::vector<bool>{false, false, false, false, false, false});
+}
+
 TEST_CASE("A Date Occurring: every period against today") {
   // one date per period, made from TODAY() so the test holds any day
   const char* dates[] = {"=TODAY()",                     // 0 today
