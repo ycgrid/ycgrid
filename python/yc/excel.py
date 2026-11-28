@@ -8764,7 +8764,15 @@ class Range:
     def Locked(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
+        self._no_cut_merge("Locked")
         self._style(locked=bool(v))
+
+    def _no_cut_merge(self, prop):
+        # Excel 16 refuses Locked and FormulaHidden over part of a merged cell, its first cell alone or whole rows
+        # through it, and changes nothing (measured 2026-11-28); Interior, WrapText and the other formats go ahead
+        for a in self._areas:
+            if _rq("range.cuts_merge", sheet=self._sheet, rect=list(a)):
+                raise ApplicationDefinedError(f"Unable to set the {prop} property of the Range class: the range holds part of a merged cell")
 
     @property
     def FormulaHidden(self):  # noqa: N802
@@ -8774,6 +8782,7 @@ class Range:
     def FormulaHidden(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
+        self._no_cut_merge("FormulaHidden")
         self._style(hidden=bool(v))
 
     @property
@@ -9425,7 +9434,8 @@ class Range:
         # one merged cell whole is one cell: the whole sheet, as a single cell (Excel 16, measured)
         mine = [(self._a[0], self._a[1], self._a[0], self._a[1])] if len(self._areas) == 1 and self._one_cell() else self._areas
         for a in mine:
-            areas += [tuple(x) for x in _rq("range.special", sheet=self._sheet, rect=list(a), kind=int(Type), values=values, **anchor)]
+            areas += [tuple(x) for x in _rq("range.special", sheet=self._sheet, rect=list(a), kind=int(Type), values=values,
+                                            part=len(mine) > 1, **anchor)]
             if len(self._areas) == 1 or Type == xlCellTypeLastCell:
                 break
         if not areas:

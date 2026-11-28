@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python: `SpecialCells` over several areas takes a single cell among them as that cell (it searched the whole sheet),
+  and `Locked` and `FormulaHidden` raise over part of a merged cell and change nothing, as Excel's do.
 - Python: `Validation.Add` and `Modify` raise for a formula that gives an error at the range's first cell, as Excel's
   do (a list that refers to cells is taken whatever they hold); YCGrid kept a rule that never let a value in.
 - An array entered with Ctrl+Shift+Enter that reads its own cell is calculated after the cells it reads further on:

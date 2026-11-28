@@ -2320,6 +2320,17 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     });
   }
   // Range.MergeCells of a range: 0 no cell merged, 1 every cell in a merged area, 2 some (Excel's Null)
+  if (m == "range.cuts_merge") {  // a merged cell the range holds part of
+    const Rect want = RectOf(*p.Get("rect"));
+    return MV::Bool(eng.Call([&](Document& d) {
+      const model::Sheet* s = d.S(sheet);
+      if (!s) return false;
+      for (const Rect& mr : *s->merges) {
+        if (mr.Intersects(want) && !want.Contains(mr)) return true;
+      }
+      return false;
+    }));
+  }
   if (m == "range.merge_state") {
     const MV* rv = p.Get("rect");
     if (!rv) return MV::Int(0);
@@ -4225,7 +4236,9 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       MV out = MV::Array();
       if (!s) return out;
       Rect w = Clamp(*s, req);
-      const bool one = w.IsCell();
+      // a cell that is one area of several is that cell (Excel 16, measured 2026-11-28: B2:C3,E5's constants are
+      // $B$2:$C$3,$E$5); it searched the whole sheet
+      const bool one = w.IsCell() && !p.GetBool("part", false);
       // a single cell = the whole sheet (like Excel); notes, rules and validation can sit on empty cells outside the used
       // range, so for them the whole grid, as Go To Special does
       const bool on_empty = kind == -4144 || kind == -4172 || kind == -4173 || kind == -4174 || kind == -4175;

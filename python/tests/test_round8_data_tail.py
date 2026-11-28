@@ -327,6 +327,26 @@ class ExcelDiffTailTest(_Live):
         with self.assertRaises(yc.YcError):
             ws.Range("K2:L2,K4").AddComment("y")
 
+    def test_special_cells_over_areas_and_protection_over_a_cut_merge(self):
+        # Excel 16 (2026-11-28): a single cell that is one area of several is that cell for SpecialCells (it searched
+        # the used range); Locked and FormulaHidden refuse part of a merged cell and change nothing
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        self.assertEqual(ws.Range("B2:C3,E5").SpecialCells(2).Address(), "$B$2:$C$3,$E$5")
+        ws.Range("H3:I4").Merge()
+        for rg in ("H2:I3", "H3", "I4", "H:H", "3:3", "K5,H2:I3"):
+            with self.assertRaises(yc.YcError, msg=rg):
+                ws.Range(rg).Locked = False
+            with self.assertRaises(yc.YcError, msg=rg):
+                ws.Range(rg).FormulaHidden = True
+        self.assertTrue(ws.Range("H3").Locked)
+        self.assertTrue(ws.Range("K5").Locked)
+        ws.Range("H2:I3").Interior.Color = 255  # the other formats go ahead
+        ws.Range("H3:I4").Locked = False
+        self.assertFalse(ws.Range("H3").Locked)
+
     def test_validation_refuses_a_formula_that_gives_an_error(self):
         # Excel 16 (2026-11-28): Validation.Add and Modify refuse a formula that gives an error at the range's first
         # cell, of any type; a list takes a reference whatever its cell holds, but not through a name
