@@ -13239,3 +13239,23 @@ date,tool,seed,seconds,result,note
 2026-11-28,basics,5028,176,ok,
 
 2026-11-28,screen_walk,r155,600,found,"A 200-row table scrolled down with the active cell in it, out of it, and with its header row frozen: the column headings, by screenshot and ui.state"
+2026-11-28,gaps_fuzz,700401,94,ok,
+2026-11-28,doc_fuzz,2400407,107,ok,
+2026-11-28,calc_fuzz,4741,33,ok,
+2026-11-28,formula_fuzz,5722,0,ok,
+2026-11-28,chaos,7987,361,ok,
+2026-11-28,gaps_fuzz,700402,95,ok,
+2026-11-28,basics,5029,170,ok,
+2026-11-28,doc_fuzz,2400408,92,ok,
+2026-11-28,calc_fuzz,4742,3,ok,
+2026-11-28,formula_fuzz,5723,0,ok,
+2026-11-28,chaos,7988,361,ok,
+2026-11-28,gaps_fuzz,700403,98,ok,
+2026-11-28,basics,5030,164,ok,
+2026-11-28,doc_fuzz,2400409,113,ok,
+2026-11-28,calc_fuzz,4743,15,ok,
+2026-11-28,formula_fuzz,5724,0,ok,
+2026-11-28,basics,5031,178,ok,
+2026-11-28,chaos,7989,361,ok,
+
+2026-11-28,screen_walk,r156,900,found,"A table's name and structured references (Trades, Trades[Qty], [#All], [#Headers], [#Totals]) through Application.Goto, Range() and the Name Box, measured in Excel through Goto"

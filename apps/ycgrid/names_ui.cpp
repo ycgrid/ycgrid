@@ -277,7 +277,9 @@ void NameBoxEnter(AppState& s, const std::string& text_in) {
   const uint32_t focus = s.focus_sheet;
   const core::CellPos at = ActiveAt(s);
   const bool is_name = !is_ref && s.engine->Call([&](Document& d) { return d.ResolveNameRef(text, focus, &sid, &nr, nullptr, at); });
-  if (is_ref || is_name || text.find(',') != std::string::npos) {
+  // a table's name or a structured reference to it (Trades, Trades[Qty]): its cells, as Excel goes there
+  const bool is_table = !is_ref && !is_name && s.snap && ResolveRangeText(s.snap->wb, focus, text, &sid, &nr);
+  if (is_ref || is_name || is_table || text.find(',') != std::string::npos) {
     Goto(s, text);
     return;
   }

@@ -12,6 +12,8 @@
 #include "engine/shape_geometry.h"
 #include "formula/datetime.h"
 #include "formula/numfmt.h"
+#include "formula/parser.h"
+#include "model/table.h"
 #include "core/i18n.h"
 
 #include "plot_theme.h"
@@ -419,6 +421,26 @@ bool ResolveRangeText(const model::Workbook& wb, uint32_t default_sheet, std::st
       if (Lower(n.name) == key && (n.sheet_scope < 0 || static_cast<uint32_t>(n.sheet_scope) == default_sheet)) {
         return ResolveRangeText(wb, default_sheet, n.refers_to, sheet, rect, depth + 1);
       }
+    }
+    // a table's name (its data) or a structured reference to it (Trades[Qty], Trades[#All]), as the Name Box and Go To
+    // take them in Excel 16 (measured through Application.Goto): the formula parser reads it, the table resolves it
+    uint32_t tsheet = 0;
+    if (const model::Table* tb = model::FindTable(wb, text.substr(0, text.find('[')), &tsheet)) {
+      const formula::ParseResult pr = formula::Parse(text, core::CellPos{0, 0}, nullptr);
+      uint32_t out_sheet = 0;
+      Rect out{};
+      int e = 1;
+      if (pr.ok && pr.root.kind == formula::NK::StructRef) {
+        const formula::Node& n = pr.root;
+        e = model::ResolveTableRef(wb, tsheet, n.str, static_cast<uint8_t>(n.op), n.kids.size() > 0 ? n.kids[0].str : std::string(),
+                                   n.kids.size() > 1 ? n.kids[1].str : std::string(), 0, 0, &out_sheet, &out);
+      } else if (pr.ok && text.find('[') == std::string_view::npos) {
+        e = model::ResolveTableRef(wb, tsheet, tb->name, 0, std::string(), std::string(), 0, 0, &out_sheet, &out);
+      }
+      if (e != 0) return false;
+      *sheet = out_sheet;
+      *rect = out;
+      return true;
     }
     return false;
   }

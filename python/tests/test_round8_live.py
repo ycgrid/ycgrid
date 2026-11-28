@@ -623,6 +623,29 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(ui.state()["table_headings"], "")
         self.keys("k:c-Home|w:4")
 
+    def test_go_to_and_the_name_box_take_a_tables_references(self):
+        from yc import excel, ui
+
+        # Excel 16, measured through Application.Goto: a table's name is its data, and its structured references
+        # their cells; YCGrid called them invalid (Goto, Range("Trades[Qty]")) or tried to define them as names
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 2]]
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        lo.Name = "Trades"
+        lo.ShowTotals = True
+        want = {"Trades": "$B$3:$D$6", "Trades[Qty]": "$C$3:$C$6", "Trades[#All]": "$B$2:$D$7", "Trades[#Totals]": "$B$7:$D$7"}
+        for ref, addr in want.items():
+            self.ws.Range("A1").Select()
+            excel.Application.Goto(ref)
+            self.assertEqual(excel.Selection.Address, addr, ref)
+            self.assertEqual(self.ws.Range(ref).Address, addr, ref)
+            self.ws.Range("A1").Select()
+            box = [i for i in ui.items("") if i.get("id") == "##namebox" or i.get("label") == "##namebox"][0]["rect"]
+            x, y = int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:3|k:c-A|t:{ref}|k:Enter|w:5")
+            self.assertEqual(excel.Selection.Address, addr, ref)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

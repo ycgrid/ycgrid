@@ -2333,7 +2333,10 @@ bool ResolveGotoPart(AppState& s, const std::string& part, uint32_t* sheet, Rect
   if (!s.engine) return false;
   const uint32_t focus = s.focus_sheet;
   const core::CellPos at{s.FocusView().sel.act_r, s.FocusView().sel.act_c};  // a relative name reads from the active cell
-  return s.engine->Call([&](engine::Document& d) { return d.ResolveNameRef(part, focus, sheet, r, nullptr, at); });
+  if (s.engine->Call([&](engine::Document& d) { return d.ResolveNameRef(part, focus, sheet, r, nullptr, at); })) return true;
+  // a table's name or a structured reference to it (Trades, Trades[Qty], Trades[#All]): Excel 16 goes there (measured
+  // through Application.Goto, the Name Box's and Go To's path)
+  return ResolveRangeText(s.snap->wb, focus, part, sheet, r);
 }
 
 }  // namespace

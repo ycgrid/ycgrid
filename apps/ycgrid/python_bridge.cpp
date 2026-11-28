@@ -17,6 +17,7 @@
 #include "core/decimal.h"
 #include "core/paths.h"
 #include "engine/custom_lists.h"
+#include "model/table.h"
 #include "engine/navigate.h"
 #include "engine/rule_eval.h"
 #include "engine/tile_iter.h"
@@ -4015,7 +4016,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           return x;
         }
       }
-      if (!d.ResolveNameRef(p.GetStr("name"), sheet, &sid, &r, nullptr, at)) return MV();
+      if (!d.ResolveNameRef(p.GetStr("name"), sheet, &sid, &r, nullptr, at)) {
+        // a table and its structured references (Range("Trades[Qty]"), Goto "Trades"): Excel 16's object model takes
+        // them, the table's name alone being its data (measured: Goto "Trades" selects $B$3:$D$6)
+        const std::string text = p.GetStr("name");
+        const size_t br = text.find('[');
+        if (!model::FindTable(d.wb(), std::string_view(text).substr(0, br))) return MV();
+        if (!d.EvaluateRef(sheet, text, &sid, &r)) return MV();
+      }
       MV x = MV::Map();
       x.Set("sheet", MV::Int(sid));
       x.Set("rect", rect4(r));
