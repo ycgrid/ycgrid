@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python: one formula written over whole rows through a table's header row is relative to the first cell it
+  writes (cells past the table got 0), `Range.Text` over several areas is None when they show different text, and
+  `AddComment` over several one-cell areas puts the note on the first, as Excel's object model does.
 - Fill Down over a filtered list takes the range's first row as its source even when the filter hides it, as Excel does; the first row shown stood in for it.
 - Python against Excel's object model (`scripts/excel_diff.py`): a value written to whole rows or columns leaves a
   merged cell they cut alone, `Select` takes in the merged cells it cuts, a fill over several areas on a protected

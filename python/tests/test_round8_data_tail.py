@@ -302,6 +302,31 @@ class ExcelDiffTailTest(_Live):
         finally:
             ws.Unprotect()
 
+    def test_a_table_header_text_and_notes_over_areas_as_excel(self):
+        # Excel 16 (2026-11-28): one formula over whole rows through a table's header row is relative to the first
+        # cell it writes (the header keeps its text); Text over areas that show different text is Null; a note over
+        # several one-cell areas goes on the first area's cell
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.ListObjects.Add(1, ws.Range("A1:E6"), None, 1)
+        ws.Range("1:1").Formula = "=ROW()*10+COLUMN()"
+        # the header row holds text, as Excel writes it there: "0", "02", "03", "04", "05" (measured)
+        self.assertEqual([ws.Cells(1, c).Value2 for c in range(1, 6)], ["0", "02", "03", "04", "05"])
+        self.assertEqual(ws.Range("F1").Formula, "=ROW()*10+COLUMN()")
+        self.assertEqual(ws.Range("G1").Value2, 17)
+        ws.Range("H2").Value2 = 10
+        ws.Range("J4").Formula = "=1+1"
+        self.assertIsNone(ws.Range("H2,J4").Text)
+        ws.Range("J4").Value2 = 10
+        self.assertEqual(ws.Range("H2,J4").Text, "10")
+        ws.Range("J4,H2").AddComment("x")
+        self.assertEqual(ws.Range("J4").Comment.Text(), "x")
+        self.assertIsNone(ws.Range("H2").Comment)
+        with self.assertRaises(yc.YcError):
+            ws.Range("K2:L2,K4").AddComment("y")
+
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class FreshReadsTailTest(_Live):

@@ -8541,7 +8541,11 @@ class Range:
 
     @property
     def Text(self):  # noqa: N802
-        # what the cells show, as Excel reads it for a range: their text when they all show the same, else None (Null)
+        # what the cells show, as Excel reads it for a range: their text when they all show the same, else None (Null),
+        # over every area (Excel 16, measured 2026-11-28: B2,D4 showing 10 and 2 is Null; the first area alone was read)
+        if len(self._areas) > 1:
+            each = {Range._from(self._sheet, [a]).Text for a in self._areas}
+            return each.pop() if len(each) == 1 else None
         v = self._get("text")
         if isinstance(v, list):
             texts = {x for row in v for x in (row if isinstance(row, list) else [row])}
@@ -9222,9 +9226,9 @@ class Range:
         _rq("view.set", activate_sheet=self._sheet, ensure_visible=[a[0], a[1]])
 
     def AddComment(self, Text=""):  # noqa: N802,N803
-        _one_area(self)
-        a = self._a
-        if a[0] != a[2] or a[1] != a[3]:  # Excel 16 refuses several cells (measured 2026-11-20)
+        # Excel 16 refuses several cells, but takes several areas of one cell each and puts the note on the first
+        # area's cell (measured 2026-11-20 and 2026-11-28: B2,D4 notes B2, D4,B2 notes D4, B2:C2,D4 raises)
+        if any(x[0] != x[2] or x[1] != x[3] for x in self._areas):
             raise ApplicationDefinedError("AddComment method of Range class failed: a note goes on one cell")
         if _rq("note.get", sheet=self._sheet, row=self._a[0], col=self._a[1]):
             # Excel refuses a second note (error 1004): change it with Comment.Text, or ClearComments first
@@ -12294,7 +12298,7 @@ def _active_sheet_id() -> int:
 # ---------------------------------------------------------------------------
 def _one_area(rng):
     """Excel 16 refuses several areas for RemoveDuplicates, TextToColumns, ListObjects.Add, ListObject.Resize, Sort,
-    AutoFilter, Group, Ungroup, Subtotal, AddComment and Resize (measured 2026-11-20); the first area alone was done."""
+    AutoFilter, Group, Ungroup, Subtotal and Resize (measured 2026-11-20); the first area alone was done."""
     if len(rng._areas) > 1:
         raise ApplicationDefinedError("This can't be done on a multiple range selection. Select a single range and try again.")
 

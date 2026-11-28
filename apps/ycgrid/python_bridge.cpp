@@ -2933,29 +2933,35 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // one formula for many cells: parse at the upper-left cell, offset relative references for the others (like Excel's Range.Formula)
         const model::Sheet* sb = d.S(sheet);
         const uint32_t fmt_before = sb ? d.wb().styles->Get(sb->GetStyle(r.r0, r.c0)).numfmt : 0;
-        // the cell the others are pasted from is not a table's header, which makes a formula text at once:
-        // Range("B:B").Formula through a table pasted the header's "0" into every cell
-        uint32_t sr = r.r0;
-        auto header = [&](uint32_t rr) {
+        // the cell the others are pasted from is not a table's header, which makes a formula text at once: the first
+        // cell in reading order that isn't one. Range("B:B").Formula through a table pasted the header's "0" into
+        // every cell, and Range("1:1").Formula through a header row into F1:J1 beside the table too
+        uint32_t sr = r.r0, sc = r.c0;
+        auto header = [&](uint32_t rr, uint32_t cc) {
           for (const auto& tb : *sb->tables) {
-            if (tb.header && rr == tb.range.r0 && r.c0 >= tb.range.c0 && r.c0 <= tb.range.c1) return true;
+            if (tb.header && rr == tb.range.r0 && cc >= tb.range.c0 && cc <= tb.range.c1) return true;
           }
           return false;
         };
-        while (sb && sr < r.r1 && header(sr)) ++sr;
+        bool found = !sb || !header(sr, sc);
+        for (uint32_t i = r.r0; !found && i <= r.r1 && i - r.r0 < 64; ++i) {
+          for (uint32_t j = r.c0; !found && j <= r.c1 && j - r.c0 < 16384; ++j) {
+            if (!header(i, j)) sr = i, sc = j, found = true;
+          }
+        }
         std::string text(std::string_view(vals->s).substr(1));
-        if (sr != r.r0) {
+        if (sr != r.r0 || sc != r.c0) {
           formula::ParseResult pr = formula::Parse(text, core::CellPos{r.r0, r.c0}, &d);
-          if (pr.ok) text = formula::ToA1(pr.root, core::CellPos{sr, r.c0}, &d);
+          if (pr.ok) text = formula::ToA1(pr.root, core::CellPos{sr, sc}, &d);
         }
         const std::string inferred = d.InferredFormat(sheet, r.r0, r.c0, std::string_view(vals->s).substr(1));
-        if (!d.SetFormula(sheet, sr, r.c0, text, &err, engine::kSrcPython)) {
+        if (!d.SetFormula(sheet, sr, sc, text, &err, engine::kSrcPython)) {
           err_code = "E_FORMULA";
         } else {
-          const auto clip = d.Copy(sheet, Rect::Cell(sr, r.c0));
+          const auto clip = d.Copy(sheet, Rect::Cell(sr, sc));
           for (uint32_t i = r.r0; i <= r.r1; ++i) {
             for (uint32_t j = r.c0; j <= r.c1; ++j) {
-              if ((i != sr || j != r.c0) && !covered(i, j)) d.Paste(sheet, i, j, clip, engine::PasteMode::Formulas);
+              if ((i != sr || j != sc) && !covered(i, j)) d.Paste(sheet, i, j, clip, engine::PasteMode::Formulas);
             }
           }
           // the format the first cell's formula gives its result goes to every cell without a format, whether or
