@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- A script can name a sheet History, as Excel's object model allows (the name stays reserved when a person renames a tab).
 - Color scales give Excel's colors to the unit: each channel's step toward the end color is cut toward zero (they were rounded, one unit off in most cells).
 - Conditional formats: Text that Does Not Contain highlights error cells, and a standard deviation rule over a range holding an error highlights nothing, as in Excel.
 - `Range.DisplayFormat`, `yc.data.read_range` / `read_table`, the Analysis ToolPak's input and a chart's linked texts read right after a script writes a formula see its value; they read it uncalculated (empty, and the conditional format not applied).

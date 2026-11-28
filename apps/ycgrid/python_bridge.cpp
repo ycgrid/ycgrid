@@ -1974,7 +1974,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
         return true;
       }
-      if (m == "sheet.rename") return d.RenameSheet(id, p.GetStr("name"), &err);
+      if (m == "sheet.rename") return d.RenameSheet(id, p.GetStr("name"), &err, /*reserved_ok=*/true);
       if (m == "sheet.move") return d.MoveSheet(id, static_cast<int32_t>(p.GetInt("index")));
       if (m == "sheet.visible") {
         if (!d.SetSheetVisible(id, p.GetBool("visible", true), p.GetBool("very", false))) {

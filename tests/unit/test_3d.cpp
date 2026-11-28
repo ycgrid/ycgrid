@@ -9,6 +9,16 @@
 
 #include <utility>
 
+TEST_CASE("History is a reserved sheet name for a person, not for a script (Excel 16, measured)") {
+  yctest::Doc t;
+  std::string err;
+  CHECK_FALSE(t.d.RenameSheet(t.sheet(), "History", &err));  // the UI's rename
+  CHECK_FALSE(err.empty());
+  CHECK(t.d.RenameSheet(t.sheet(), "history", &err, /*reserved_ok=*/true));  // Worksheet.Name
+  CHECK(t.d.wb().sheets[0]->name == "history");
+  CHECK_FALSE(t.d.RenameSheet(t.sheet(), "a:b", &err, true));  // the other rules hold for both
+}
+
 TEST_CASE("3D references") {
   yctest::Doc t;
   const uint32_t s1 = t.sheet();

@@ -576,7 +576,8 @@ class Document : public formula::SheetResolver {
 
   uint32_t AddSheet(std::string name = {}, int32_t index = -1);  // returns the id
   bool DeleteSheet(uint32_t id);
-  bool RenameSheet(uint32_t id, std::string_view name, std::string* error = nullptr);
+  // reserved_ok: the name History is taken (a script's Worksheet.Name, as Excel's object model takes it)
+  bool RenameSheet(uint32_t id, std::string_view name, std::string* error = nullptr, bool reserved_ok = false);
   bool MoveSheet(uint32_t id, int32_t new_index);
   uint32_t CopySheet(uint32_t id, int32_t new_index = -1);
   // false when refused: the last visible sheet can't be hidden. very: xlSheetVeryHidden (not offered by Unhide)

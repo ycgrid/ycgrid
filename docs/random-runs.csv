@@ -13967,3 +13967,15 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4852,30,ok,
 2026-11-28,formula_fuzz,5833,0,ok,
 2026-11-28,screen_walk,r197,500,found,"Two and three color scales, number, percentile and percent points, over text, a blank and an error, read through DisplayFormat and measured in Excel"
+2026-11-28,chaos,8102,361,ok,
+2026-11-28,basics,5140,157,ok,
+2026-11-28,gaps_fuzz,700513,102,ok,
+2026-11-28,screen_walk,r198,300,clean,"AutoComplete under a column of text: two matches, one, upper case typed, a trailing space, digits, a gap above the cell and two rows below the data, measured in Excel by keys"
+2026-11-28,doc_fuzz,2400523,96,ok,
+2026-11-28,calc_fuzz,4853,3,ok,
+2026-11-28,formula_fuzz,5834,0,ok,
+2026-11-28,chaos,8103,373,ok,
+2026-11-28,basics,5141,197,ok,
+2026-11-28,gaps_fuzz,700514,182,ok,
+2026-11-28,doc_fuzz,2400524,125,ok,
+2026-11-28,screen_walk,r199,300,found,"Sheet names through Worksheet.Name: the seven characters Excel refuses, History, apostrophes at either end and inside, spaces, 31 and 32 characters, Chinese, a blank, measured in Excel through COM"
