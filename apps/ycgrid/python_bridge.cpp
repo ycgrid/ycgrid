@@ -324,9 +324,13 @@ void ApplyStyleProps(model::Style& x, const MV& pr, uint32_t font_id, bool has_n
   if (pr.Has("shrink")) x.shrink = pr.GetBool("shrink");
   if (pr.Has("indent")) {
     x.indent = static_cast<uint8_t>(std::clamp<int64_t>(pr.GetInt("indent"), 0, 15));
-    // Excel: an indent on a cell aligned otherwise than Left, Right or Distributed makes it Left (General, Center)
+    // Excel: an indent on a cell aligned otherwise than Left, Right or Distributed makes it Left (General, Center);
+    // given to several cells at once (indent_block) it makes every one Left, Right ones too (Excel 16, measured
+    // 2026-11-28: Range("A3:A4").IndentLevel = 1, InsertIndent)
     using H = model::HAlign;
-    if (x.indent && !pr.Has("halign") && x.halign != H::Left && x.halign != H::Right && x.halign != H::Distributed) x.halign = H::Left;
+    if (x.indent && !pr.Has("halign") && x.halign != H::Left &&
+        (pr.GetBool("indent_block") || (x.halign != H::Right && x.halign != H::Distributed)))
+      x.halign = H::Left;
   }
   if (pr.Has("rotation")) x.rotation = static_cast<int16_t>(pr.GetInt("rotation"));
   // a named style's borders (Style.Borders(...).LineStyle / Color)
@@ -2763,6 +2767,55 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     const bool events = p.GetBool("events", true);
     const MV* vals = p.Get("values");
     std::string err_code, err;
+    // rows that size themselves fit what is written, as Excel 16's Range.Value does (measured 2026-11-28: two lines
+    // replaced by "c" put the row back at the standard height). Asked of the UI only when the write may change a
+    // height: a text with a line break, or a row of the range that isn't at the standard height; a script streaming
+    // numbers into standard rows waits for nothing
+    std::vector<std::pair<uint32_t, int32_t>> fit;
+    if (kind != "formula" && req.r1 != kRowEnd && req.r1 >= req.r0 && req.c1 >= req.c0 && req.Rows() <= 2000 && req.Count() <= 20000) {
+      const bool scalar0 = !vals || vals->t != MV::T::Array;
+      auto at = [&](uint32_t i, uint32_t j) -> const MV* {
+        if (scalar0) return vals;
+        if (i >= vals->a.size()) return nullptr;
+        const MV& row = vals->a[i];
+        if (row.t != MV::T::Array) return j == 0 ? &row : nullptr;
+        return j < row.a.size() ? &row.a[j] : nullptr;
+      };
+      bool may = false;
+      for (uint32_t i = 0; i < req.Rows() && !may; ++i) {
+        for (uint32_t j = 0; j < req.Cols() && !may; ++j) {
+          const MV* v = at(i, j);
+          may = v && v->t == MV::T::Str && v->s.find('\n') != std::string::npos;
+        }
+      }
+      if (!may) {
+        // a taller row may shrink: when a cell written over holds lines or wraps (the snapshot is enough to tell)
+        eng.Sync();
+        const auto snap = eng.Current();
+        if (const model::Sheet* s0 = snap ? snap->Sheet(sheet) : nullptr) {
+          for (uint32_t r = req.r0; r <= req.r1 && !may; ++r) {
+            if (s0->rows->Size(r) == s0->rows->default_size()) continue;
+            for (uint32_t cc = req.c0; cc <= req.c1 && !may; ++cc) {
+              const core::Value& old = s0->GetValue(r, cc);
+              may = (old.IsString() && old.str().find('\n') != std::string_view::npos) || snap->wb.styles->Get(s0->GetStyle(r, cc)).wrap;
+            }
+          }
+        }
+      }
+      if (may) {
+        std::map<uint64_t, std::string> texts;
+        for (uint32_t i = 0; i < req.Rows(); ++i) {
+          for (uint32_t j = 0; j < req.Cols(); ++j) {
+            const MV* v = at(i, j);
+            texts[(uint64_t{req.r0 + i} << 16) | (req.c0 + j)] = v && v->t == MV::T::Str ? v->s : (v && v->t != MV::T::Nil ? std::string("0") : std::string());
+          }
+        }
+        OnUi([&](AppState& s) {
+          fit = FitRowsForWrite(s, sheet, req, texts);
+          return MV();
+        });
+      }
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       const model::Sheet* s = d.S(sheet);
@@ -2921,6 +2974,9 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           }
         }
       }
+      if (err_code.empty()) {
+        for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+      }
       // Application.EnableEvents = False: the recalculation this write causes fires no Calculate either (Excel
       // calculates during the write, while events are off)
       if (!events && err_code.empty()) d.RecalcWithoutEvents();
@@ -2954,6 +3010,15 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     }
     const int what = static_cast<int>(p.GetInt("what"));
     const bool events = p.GetBool("events", true);
+    // rows that size themselves fit what is left, as after Delete (Excel 16's ClearContents, measured): measured on
+    // the UI thread, which has the fonts
+    std::vector<std::pair<uint32_t, int32_t>> fit;
+    if (what != 1) {
+      OnUi([&](AppState& s) {
+        fit = FitRowsAfterClear(s, sheet, areas, what == 2);
+        return MV();
+      });
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       struct SrcBits {  // restored even when the write throws: later changes must raise their events again
@@ -2970,6 +3035,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         else if (what == 1) d.ClearFormats(sheet, r);
         else d.ClearAll(sheet, r, engine::kSrcPython, /*everything=*/true);
       }
+      for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
       if (!events) d.RecalcWithoutEvents();  // (as range.set)
       d.extra_src_bits = 0;
     });
@@ -4134,7 +4200,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         if (kind == -4173) {
           for (const auto& rule : *s->cond_formats) take(rule.ranges);
         } else {
-          for (const auto& rule : *s->validations) take(rule.ranges);
+          take(engine::SameValidationAreas(*s, ar, ac, &d));
         }
         std::sort(areas.begin(), areas.end(), [](const Rect& x, const Rect& y) { return x.r0 != y.r0 ? x.r0 < y.r0 : x.c0 < y.c0; });
         areas.erase(std::unique(areas.begin(), areas.end()), areas.end());
@@ -4943,7 +5009,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       // whole columns (Ctrl+Space, a column header) are full-height areas: Python's whole-column form, so Selection reads
       // "$C:$C" as in Excel (it read "$C$1:$C$1048576")
       const model::Sheet* vs = s.snap ? s.snap->Sheet(sid) : nullptr;
-      for (Rect a : v.sel.areas) {
+      for (Rect a : render::AreasInExcelOrder(v.sel)) {  // as Excel lists them (the active one first after a Select)
         if (vs && a.r0 == 0 && vs->row_limit > 0 && a.r1 >= vs->row_limit - 1) a.r1 = 0xFFFFFFFFu;
         areas.Push(rect4(a));
       }
@@ -4999,18 +5065,21 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       const model::Sheet* sh = s.snap->Sheet(sid);
       if (!sh) return MV();
       if (const MV* sel = params.Get("select")) {
-        v.sel.areas.clear();
+        // the first area's first cell is active, as Excel's Range("B2,D5").Select makes B2 active (measured)
+        std::vector<Rect> given;
         for (const MV& a : sel->a) {
           Rect r = RectOf(a);
           if (r.r1 >= sh->row_limit) r.r1 = sh->row_limit - 1;
-          v.sel.areas.push_back(r);
+          given.push_back(r);
         }
-        if (v.sel.areas.empty()) v.sel.areas.push_back(Rect{});
-        const Rect& f = v.sel.areas.back();
-        v.sel.act_r = v.sel.anc_r = f.r0;
-        v.sel.act_c = v.sel.anc_c = f.c0;
-        v.sel.mode = render::SelectMode::Cells;
+        if (given.empty()) given.push_back(Rect{});
+        render::SetAreasActiveFirst(v.sel, given);
         render::NormalizeWholeSelection(v, *sh);  // Range("C:C").Select(): whole columns, as in Excel
+        if (v.sel.areas.size() > 1) {  // Excel's order again, over the areas as normalized
+          v.sel.excel_order.assign(1, v.sel.areas.back());
+          v.sel.excel_order.insert(v.sel.excel_order.end(), v.sel.areas.begin(), v.sel.areas.end() - 1);
+        }
+        const Rect f = v.sel.areas.back();
         render::EnsureVisible(*sh, v, f.r0, f.c0);
       }
       if (const MV* a = params.Get("active")) {

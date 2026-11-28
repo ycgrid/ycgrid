@@ -1560,6 +1560,26 @@ void NormalizeWholeSelection(GridView& view, const model::Sheet& sheet) {
   else if (cols_all) s.mode = SelectMode::Rows;
 }
 
+void SetAreasActiveFirst(Selection& sel, std::vector<Rect> areas) {
+  if (areas.empty()) return;
+  sel.excel_order = areas.size() > 1 ? areas : std::vector<Rect>{};
+  std::rotate(areas.begin(), areas.begin() + 1, areas.end());
+  sel.areas = std::move(areas);
+  sel.anc_r = sel.act_r = sel.areas.back().r0;
+  sel.anc_c = sel.act_c = sel.areas.back().c0;
+  sel.mode = SelectMode::Cells;
+}
+
+std::vector<Rect> AreasInExcelOrder(const Selection& sel) {
+  const auto& e = sel.excel_order;
+  const auto& a = sel.areas;
+  if (e.size() < 2 || e.size() != a.size() || !(e.front() == a.back())) return a;
+  for (size_t i = 1; i < e.size(); ++i) {
+    if (!(e[i] == a[i - 1])) return a;
+  }
+  return e;
+}
+
 bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
                const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row) {
   *add_row = -1;
@@ -3476,6 +3496,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     // Escape ends Extend and Add to Selection but not End mode: End, Escape, Down still jumps (Excel 16, measured)
     if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) view.extend_mode = view.add_mode = false;
     const bool jump = ctrl || view.end_mode;  // End, then an arrow: as Ctrl+arrow
+    // a protected sheet whose locked cells can't be selected: what the keys below do is taken back and replaced by
+    // Excel's walk over the cells that can be (after the Tab handling)
+    const Selection sel_before_keys = selst;
+    const bool end_before_keys = view.end_mode;
     bool arrow = false;
     // a merged cell is one cell for the keys: a step starts from its far edge, and lands on a merge's top-left cell
     auto merge_at = [&](uint32_t mr, uint32_t mc) {
@@ -3813,6 +3837,58 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         act.table_add_row = add_row;
       } else if (!single || !opt.unlocked) {
         move_in_selection(io.KeyShift ? 4 : 3, true);
+      }
+    }
+    // a protected sheet whose locked cells can't be selected (Protect Sheet without "Select locked cells"): the keys
+    // walk the cells that can be selected, all the way round (Excel 16, measured 2026-11-28 by keys posted to its sheet
+    // window): Right / Left the next / previous in reading order, Down / Up in column order, Enter / Shift+Enter the
+    // way Enter moves, Home the first in reading order; every other move (Ctrl or End with an arrow, Ctrl+Home,
+    // Ctrl+End, Page Up / Down, Shift with an arrow, Ctrl+A, Shift+Space, Ctrl+Space) leaves the active cell. The keys
+    // above went to locked cells (Home to column A, Page Down a screen down, Shift+Right over C2)
+    if (opt.selectable && !io.KeyAlt && !lock_scroll && !act.paste_enter) {
+      const bool k_right = key_pressed(ImGuiKey_RightArrow), k_left = key_pressed(ImGuiKey_LeftArrow);
+      const bool k_down = key_pressed(ImGuiKey_DownArrow), k_up = key_pressed(ImGuiKey_UpArrow);
+      const bool k_enter = (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && !ctrl;
+      const bool k_home = key_pressed(ImGuiKey_Home), k_end = key_pressed(ImGuiKey_End, false);
+      const bool k_page = (key_pressed(ImGuiKey_PageDown) || key_pressed(ImGuiKey_PageUp)) && !io.KeyCtrl;
+      const bool k_space = ImGui::IsKeyPressed(ImGuiKey_Space) && (ctrl || io.KeyShift);
+      if (k_right || k_left || k_down || k_up || k_enter || k_home || k_end || k_page || k_space || sel_all || star) {
+        selst = sel_before_keys;
+        // End alone turns End mode on or off as anywhere (End, then an arrow, then moves nothing: Ctrl's move)
+        const bool end_alone = k_end && !ctrl && !(k_right || k_left || k_down || k_up || k_enter || k_home || k_page || k_space || sel_all || star);
+        if (!end_alone) view.end_mode = false;
+        const bool plain = !ctrl && !shift && !end_before_keys;
+        int dir = 0;  // 1 down, 2 up, 3 right, 4 left (Enter's numbering)
+        if (plain && k_right) dir = 3;
+        else if (plain && k_left) dir = 4;
+        else if (plain && k_down) dir = 1;
+        else if (plain && k_up) dir = 2;
+        else if (k_enter && !end_before_keys && opt.enter_dir > 0) {
+          static const int kBack[5] = {0, 2, 1, 4, 3};
+          dir = io.KeyShift ? kBack[std::clamp(opt.enter_dir, 1, 4)] : std::clamp(opt.enter_dir, 1, 4);
+        }
+        const bool home = plain && k_home && !io.KeyShift;
+        if (dir || home) {
+          Rect area = sheet.has_used ? sheet.used : Rect::Cell(r, c);
+          area = area.Union(Rect::Cell(r, c));
+          const bool by_cols = dir == 1 || dir == 2, back = dir == 2 || dir == 4;
+          const uint64_t h = area.Rows(), w = area.Cols(), n = h * w;
+          const uint64_t at = home ? n - 1 : by_cols ? uint64_t{c - area.c0} * h + (r - area.r0) : uint64_t{r - area.r0} * w + (c - area.c0);
+          for (uint64_t k = 1; k <= n && k < 4000000; ++k) {
+            const uint64_t i = back ? (at + n - k % n) % n : (at + k) % n;
+            const uint32_t rr = area.r0 + static_cast<uint32_t>(by_cols ? i % h : i / w), cc = area.c0 + static_cast<uint32_t>(by_cols ? i / h : i % w);
+            if (!opt.selectable(rr, cc) || sheet.rows->IsHidden(rr) || sheet.cols->IsHidden(cc)) continue;
+            const Rect m = merge_at(rr, cc);
+            if (m.r0 != rr || m.c0 != cc) continue;
+            selst.areas.assign(1, m);
+            selst.anc_r = selst.act_r = rr;
+            selst.anc_c = selst.act_c = cc;
+            selst.mode = SelectMode::Cells;
+            EnsureVisible(sheet, view, rr, cc);
+            break;
+          }
+        }
+        act.selection_changed = !(selst.areas == sel_before_keys.areas) || selst.act_r != sel_before_keys.act_r || selst.act_c != sel_before_keys.act_c;
       }
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Delete)) act.clear_contents = true;

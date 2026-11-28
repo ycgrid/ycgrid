@@ -777,12 +777,9 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
       } else {
         model::Hyperlink l{p.GetStr("address"), p.GetStr("sub_address"), p.GetStr("tip")};
         if (p.Has("text")) d.SetValue(sheet, r, c, core::Value::String(p.GetStr("text")), engine::kSrcPython);
-        if (p.GetBool("style", true)) {
-          d.ModifyStyle(sheet, Rect::Cell(r, c), [](model::Style& x) {
-            x.font_color = model::Rgb(0x05, 0x63, 0xC1);
-            x.underline = model::Underline::Single;
-          });
-        }
+        // Hyperlinks.Add gives the cell the Hyperlink style: its font (a red or bold one too), its number format kept
+        // (Excel 16, measured 2026-11-28)
+        if (p.GetBool("style", true)) d.ApplyCellStyle(sheet, Rect::Cell(r, c), "Hyperlink");
         d.SetHyperlink(sheet, r, c, l);
       }
       d.ForeignWrite();
@@ -794,8 +791,21 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
     if (!rr) return err("E_ARG", "rect is required");
     const Rect area = RectFromMV(*rr);
     eng.Call([&](Document& d) {
-      if (m == "note.clear") d.ClearNotes(sheet, area);
-      else d.ClearHyperlinks(sheet, area);
+      if (m == "note.clear") {
+        d.ClearNotes(sheet, area);
+      } else {
+        // Hyperlink(s).Delete is Remove Hyperlinks: the cells that had a link lose their formats too, where
+        // Range.ClearHyperlinks keeps them (Excel 16, measured 2026-11-28)
+        std::vector<Rect> cells;
+        if (const model::Sheet* sh = p.GetBool("formats") ? d.S(sheet) : nullptr) {
+          for (const auto& [k, l] : *sh->links) {
+            const uint32_t r = static_cast<uint32_t>(k >> 16), c = static_cast<uint32_t>(k & 0xFFFF);
+            if (area.Contains(r, c)) cells.push_back(Rect::Cell(r, c));
+          }
+        }
+        d.ClearHyperlinks(sheet, area);
+        for (const Rect& cell : cells) d.ClearFormats(sheet, cell, false);
+      }
       d.ForeignWrite();
     });
     return MV::Bool(true);

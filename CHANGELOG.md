@@ -39,6 +39,53 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Properties Excel can set are set from Python too: `PivotCache.SourceData`, `SparklineGroup.SourceData` and
+  `Location`, `Scenario.Name` and `Comment`, `HPageBreak.Location` and `Type` raised. `scripts/check_excel_parity.py`
+  fails on a property Excel sets that YCGrid only reads, unless `[read_only]` gives the reason.
+- Flash Fill reads initials as the words' first letters (J.S. gives M.J. for Mary Jones, not M.S.) and takes what follows a separator (the domain after @), as Excel does.
+- A multi-area `Range.Select` (and `SpecialCells(...).Select`) makes the first area's first cell active, and
+  `Selection.Address` after it, after Go To Special or Ctrl+Shift+O lists the areas in Excel's order: the last
+  area's cell was active and the areas came round.
+- Python's methods take Excel's arguments in Excel's order: `Workbook.Close(SaveChanges, Filename)` saves under
+  Filename (and `Window.Close` with a Filename no longer raises), `Shapes.AddChart` takes the chart type first,
+  `Areas.Item(Index=...)` works, and `SaveAs`, `ExportAsFixedFormat`, `Hyperlink.Follow` and `AddPicture2` take
+  Excel's last arguments. `scripts/check_excel_parity.py` checks every method against Excel's own list.
+- `Range.Sort` takes Excel's arguments by position (MatchCase, Orientation, SortMethod and the DataOptions after OrderCustom), so a call written for Excel with all of them no longer raises.
+- Whole rows and columns copied and pasted bring their heights and widths (hidden ones stay hidden), and a cut of
+  whole rows or columns moves them, as in Excel; only the cells came along.
+- AutoFit Column Width leaves wrapped text and text with line breaks at the width it is laid out in, as Excel does,
+  instead of widening the column to its longest line.
+- A row that sizes itself shrinks back when its text is cleared (Delete, Clear Contents, Clear All,
+  `Range.ClearContents`) or a script writes a shorter value (`Range.Value`), as in Excel: two lines typed with
+  Alt+Enter left the row two lines high after Delete.
+- Increase and Decrease Font Size step through Excel's sizes (6, then the Font Size list) and change nothing past 72 or under 6, where they went on by 10 or 1.
+- Increase Indent over several cells makes every one left-aligned (Right ones too), and Decrease Indent over
+  several cells changes nothing while one of them is at 0, as in Excel; `Range.IndentLevel` and `InsertIndent` on
+  several cells do the same.
+- Arrow keys move a selected shape, chart or control one screen pixel (Ctrl too), and Shift+arrows make it 10% wider,
+  narrower, taller or lower about its center (Ctrl+Shift: 1%), as in Excel; an object a script selected
+  (`Shape.Select`) takes the keys before any click.
+- Go To Special > Data validation > Same takes every cell whose rule has the same settings, as Excel does, not only the cells the rule was first given to.
+- Find with Look in: Values passes over hidden rows and columns, as Excel does; Look in: Formulas still finds them.
+- Top 10 Percent filters show the whole part of the share (25% of 11 numbers shows 2, not 3), at least one, as Excel does.
+- Sorting by a custom list: descending puts the values not in the list first, as Excel does, and Case sensitive
+  takes only the list's items as they are written.
+- On a sheet protected without "Select locked cells", the keys walk the unlocked cells as in Excel: Right and Left
+  in reading order, Down, Up and Enter in column order, all the way round, Home to the first; Home, Ctrl+Home, Page
+  Down and Shift with an arrow no longer select locked cells.
+- Outlines remember which groups a person closed, as Excel does: closing and opening a grand total's group no longer
+  leaves its subtotals' groups closed when they were open, and a subtotal closed by its own button (or the level 2
+  button) stays closed. The state is saved in the workbook.
+- Auto Outline groups totals above their details (and left of them) as Excel does, setting Summary rows above
+  (columns to the left); the first total in reading order picks the side. `Range.AutoOutline` raises "Cannot create
+  an outline." when nothing can be grouped.
+- Ctrl+Shift+A after a function's name types its argument names without brackets around the optional ones
+  (`=SUM(number1,number2,...)`), as Excel does.
+- Hyperlinks follow their cells as in Excel: Delete, an empty entry and Clear Contents take a cell's link away (its
+  formats stay); a copy, Fill Down, the fill handle, a sort and Remove Duplicates bring the links with the cells, and
+  a plain cell pasted over a link removes it. `Hyperlinks.Add` and Insert Hyperlink give the cell the Hyperlink
+  style, and `Hyperlink.Delete` takes the cell's formats too, as Remove Hyperlinks does.
+- A sort kept the fonts inside a cell's text (part of it bold or red) where the cell was, not with its row.
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
   each click could add another copy of every line (every price tag shown twice or more).
 - `trading_desk` example: a round trip's realized profit stayed 0 (a fill that closed the position read the average
@@ -147,6 +194,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Excel does; `INDIRECT("Trades[Sym]")` and a name on the table still work.
 - A table's totals row shows its totals in the number format the column's data shares ($22.50), as Excel does.
 - Ctrl+Backspace in the cell editor deletes nothing, as in Excel: it deleted the word before the caret.
+- Typing into a data table's result says only "Cannot change part of a data table.", as Excel does: an empty formula
+  error came first.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
 - The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text

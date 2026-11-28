@@ -685,6 +685,229 @@ class UiOpsRound8Test(unittest.TestCase):
             self.keys(f"m:2,2|g:B2|w:3|t:{text}|w:2|k:F2|w:2|{keys}|w:2|t:x|w:2|k:Enter|w:4")
             self.assertEqual(self.ws.Range("B2").Value, want, keys)
 
+    def test_typing_in_a_data_table_says_only_why_it_is_refused(self):
+        # Excel shows "Cannot change part of a data table." alone; YCGrid showed an empty "There's a problem with this
+        # formula" first
+        self.ws.Range("A1").Value = 5
+        self.ws.Range("A2").Value = 2
+        self.ws.Range("B4").Formula = "=A1*A2"
+        self.ws.Range("A5:A7").Value = [[1], [2], [3]]
+        self.ws.Range("A4:B7").Table(None, self.ws.Range("A1"))
+        n = len(yc.ui.errors())
+        self.keys("m:2,2|g:B6|w:3|t:9|k:Enter|w:5|k:Escape|w:3")
+        texts = [str(e.get("text")) for e in yc.ui.errors()[n:]]
+        self.assertEqual(len(texts), 1, texts)
+        self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
+        self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
+
+    def test_whole_rows_and_columns_copied_bring_their_sizes(self):
+        # Excel 16, measured 2026-11-28 through COM: Rows(1).Copy Rows(5) gives row 5 row 1's height, Columns(1).Copy
+        # Columns(4) column D column A's width, a cut moves them (the rows left take the standard height), a hidden row
+        # copied is hidden; cells copied bring neither
+        ws = self.ws
+        std_h, std_w = ws.Rows(30).RowHeight, ws.Columns(30).ColumnWidth
+        ws.Range("A1").Value = "x"
+        ws.Rows(1).RowHeight = 30
+        ws.Columns(1).ColumnWidth = 20
+        ws.Rows(1).Copy(ws.Rows(5))
+        self.assertEqual(ws.Rows(5).RowHeight, 30)
+        ws.Range("A1:C1").Copy(ws.Range("A7"))
+        self.assertEqual(ws.Rows(7).RowHeight, std_h)
+        ws.Columns(1).Copy(ws.Columns(4))
+        self.assertAlmostEqual(ws.Columns(4).ColumnWidth, ws.Columns(1).ColumnWidth, delta=0.01)
+        ws.Range("A1:A3").Copy(ws.Range("F1"))
+        self.assertAlmostEqual(ws.Columns(6).ColumnWidth, std_w, delta=0.01)
+        ws.Rows(1).Cut(ws.Rows(9))
+        self.assertEqual((ws.Rows(9).RowHeight, ws.Rows(1).RowHeight), (30, std_h))
+        ws.Rows(9).Copy(ws.Rows("11:12"))
+        self.assertEqual((ws.Rows(11).RowHeight, ws.Rows(12).RowHeight), (30, 30))
+        ws.Rows(9).Hidden = True
+        ws.Rows(9).Copy(ws.Rows(14))
+        self.assertTrue(ws.Rows(14).Hidden)
+        ws.Rows(9).Hidden = False
+        # Ctrl+C on row 9's header, Ctrl+V on row 20's
+        self.keys("m:2,2|g:9:9|w:2|k:c-C|w:3|g:20:20|w:2|k:c-V|w:5|k:Escape|w:2")
+        self.assertEqual(ws.Rows(20).RowHeight, 30)
+
+    def test_autofit_columns_leaves_wrapped_and_multi_line_text_at_its_width(self):
+        # Excel 16, measured 2026-11-28: AutoFit fits one line of 26 letters, but text with a line break or wrapped
+        # text keeps its column near the standard width (its widest line as laid out now)
+        ws = self.ws
+        std = ws.Columns(9).ColumnWidth
+        ws.Range("A1").Value = "ab\ncdefghijklmnopqrstuvwxyz"
+        ws.Range("B1").Value = "abcdefghijklmnopqrstuvwxyz"
+        ws.Range("C1").Value = "abcdefghijklmnopqrstuvwxyz"
+        ws.Range("C1").WrapText = True
+        self.keys("m:2,2|g:A1:C1|w:2|x:AutoFitColumns|w:5")
+        self.assertLessEqual(ws.Columns(1).ColumnWidth, std + 0.01)
+        self.assertGreater(ws.Columns(2).ColumnWidth, 2 * std)
+        self.assertLessEqual(ws.Columns(3).ColumnWidth, std + 0.01)
+
+    def test_a_row_that_sizes_itself_shrinks_back_when_its_lines_are_cleared(self):
+        # Excel 16, measured 2026-11-28 by keys and COM: two lines typed with Alt+Enter, then Delete: the standard
+        # height again; Ctrl+Z brings the two lines' height back; a 28 pt cell cleared keeps its height; a height set
+        # by hand stays
+        ws = self.ws
+        std = ws.Rows(1).RowHeight
+        self.keys("m:2,2|g:A1|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        two = ws.Rows(1).RowHeight
+        self.assertGreater(two, std)
+        self.keys("g:A1|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, std)
+        self.keys("k:c-Z|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, two)
+        ws.Range("A1").ClearContents()
+        self.assertEqual(ws.Rows(1).RowHeight, std)
+        self.keys("g:A1|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, two)
+        ws.Range("A1").Value = "c"  # a script's shorter value: the standard height again (Excel's Range.Value)
+        self.assertEqual(ws.Rows(1).RowHeight, std)
+        ws.Range("A3").Value = "x"
+        ws.Range("A3").Font.Size = 28
+        tall = ws.Rows(3).RowHeight
+        self.keys("g:A3|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(3).RowHeight, tall)
+        self.keys("g:A4|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        ws.Rows(4).RowHeight = 40
+        hand = ws.Rows(4).RowHeight
+        self.keys("g:A4|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(4).RowHeight, hand)
+
+    def test_font_size_buttons_step_through_excels_sizes_and_stop_at_72(self):
+        # Excel 16, measured 2026-11-28 through ExecuteMso: 6 then the Font Size list; past 72 and under 6 nothing changes
+        ws = self.ws
+        ws.Range("A1").Value = "x"
+        for start, cmd, want in ((72, "FontSizeIncrease", 72), (80, "FontSizeIncrease", 80), (1, "FontSizeIncrease", 6),
+                                 (8, "FontSizeDecrease", 6), (5, "FontSizeDecrease", 5), (100, "FontSizeDecrease", 72),
+                                 (13, "FontSizeIncrease", 14)):
+            ws.Range("A1").Font.Size = start
+            self.keys(f"m:2,2|g:A1|w:2|x:{cmd}|w:4")
+            self.assertEqual(ws.Range("A1").Font.Size, want, (start, cmd))
+
+    def test_indent_buttons_act_on_several_cells_as_a_block(self):
+        # Excel 16, measured 2026-11-28 through ExecuteMso: one Right-aligned cell keeps Right when indented, several
+        # cells all become Left; Decrease over several changes nothing while one of them is at 0
+        ws = self.ws
+        ws.Range("A1").Value = 5
+        ws.Range("A2").Value = "r"
+        ws.Range("A2").HorizontalAlignment = -4152
+        self.keys("m:2,2|g:A2|w:2|x:IndentIncrease|w:4")
+        self.assertEqual((ws.Range("A2").HorizontalAlignment, ws.Range("A2").IndentLevel), (-4152, 1))
+        ws.Range("A2").IndentLevel = 0
+        self.keys("g:A1:A2|w:2|x:IndentIncrease|w:4")
+        self.assertEqual([(ws.Range(a).HorizontalAlignment, ws.Range(a).IndentLevel) for a in ("A1", "A2")], [(-4131, 1), (-4131, 1)])
+        ws.Range("A2").IndentLevel = 0
+        self.keys("g:A1:A2|w:2|x:IndentDecrease|w:4")
+        self.assertEqual([ws.Range(a).IndentLevel for a in ("A1", "A2")], [1, 0])
+        ws.Range("A2").IndentLevel = 2
+        self.keys("g:A1:A2|w:2|x:IndentDecrease|w:4")
+        self.assertEqual([ws.Range(a).IndentLevel for a in ("A1", "A2")], [0, 1])
+        # the object model alike: one cell keeps Right, several become Left
+        ws.Range("A1:A2").IndentLevel = 0
+        ws.Range("A2").HorizontalAlignment = -4152
+        ws.Range("A2").InsertIndent(1)
+        self.assertEqual((ws.Range("A2").HorizontalAlignment, ws.Range("A2").IndentLevel), (-4152, 1))
+        ws.Range("A2").IndentLevel = 0
+        ws.Range("A1:A2").IndentLevel = 1
+        self.assertEqual(ws.Range("A2").HorizontalAlignment, -4131)
+
+    def test_arrows_nudge_a_shape_a_pixel_and_shift_scales_it_about_its_center(self):
+        # Excel 16, measured 2026-11-28 by keys: an arrow (with Ctrl too) moves a shape one screen pixel, Shift+Right
+        # makes it 10% wider about its center, Shift+Down 10% lower; a shape a script selected takes the keys
+        shp = self.ws.Shapes.AddShape(1, 100, 100, 80, 40)
+        x0, _, x1, _ = yc.ui.cell_rect("A1")
+        px = 1.0 / ((x1 - x0) / self.ws.Range("A1").Width)  # points in a screen pixel
+        try:
+            for keys, want in (("k:RightArrow", (100 + px, 100, 80, 40)), ("k:c-DownArrow", (100, 100 + px, 80, 40)),
+                               ("k:s-RightArrow", (96, 100, 88, 40)), ("k:s-DownArrow", (100, 100 + (40 - 40 / 1.1) / 2, 80, 40 / 1.1)),
+                               ("k:c-s-RightArrow", (99.6, 100, 80.8, 40))):
+                shp.Left, shp.Top, shp.Width, shp.Height = 100, 100, 80, 40
+                shp.Select()
+                self.keys(f"w:3|{keys}|w:4")
+                for got, exp in zip((shp.Left, shp.Top, shp.Width, shp.Height), want):
+                    self.assertAlmostEqual(got, exp, delta=0.02, msg=keys)
+        finally:
+            self.keys("k:Escape|w:2")
+            shp.Delete()
+
+    def test_keys_walk_the_unlocked_cells_of_a_protected_sheet(self):
+        # Excel 16, measured 2026-11-28 by keys: locked cells not selectable, the keys go round the unlocked ones:
+        # Right / Left in reading order, Down / Up and Enter in column order, Home the first; the other moves stay
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:F10").Value = 1
+        for a in ("B2", "D2", "B4", "C5", "E7"):
+            ws.Range(a).Locked = False
+        cases = [("B2", "k:RightArrow|w:2|k:RightArrow", "B4"), ("B2", "k:LeftArrow", "E7"), ("D2", "k:DownArrow", "E7"),
+                 ("E7", "k:UpArrow", "D2"), ("B4", "k:s-Enter", "B2"), ("C5", "k:Home", "B2"), ("C5", "k:c-Home", "C5"),
+                 ("B2", "k:End|w:2|k:RightArrow", "B2"), ("E7", "k:PageDown", "E7"), ("B2", "k:s-RightArrow", "B2"),
+                 ("B2", "k:c-A", "B2"), ("B2", "k:s-Space", "B2")]
+        try:
+            for start, keys, want in cases:
+                ws.Unprotect()
+                ws.Range(start).Select()
+                ws.Protect()
+                ws.EnableSelection = excel.xlUnlockedCells
+                self.keys(f"m:2,2|w:2|{keys}|w:3")
+                self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), (want, want), (start, keys))
+        finally:
+            ws.Unprotect()
+
+    def test_a_cell_emptied_loses_its_hyperlink_and_a_copy_brings_one(self):
+        # Excel 16, measured 2026-11-28: Delete, Backspace and Enter and ClearContents take the link and keep the
+        # formats; typing over keeps it; Copy, FillDown and a cut bring it, a plain cell copied over removes it;
+        # Hyperlinks.Add gives the Hyperlink style and Hyperlinks.Delete takes the formats too
+        ws = self.ws
+
+        def link(a):
+            return ws.Range(a).Hyperlinks.Count
+
+        def setup():
+            ws.Cells.Clear()
+            ws.Range("B4").Value = "lnk"
+            ws.Hyperlinks.Add(ws.Range("B4"), "http://example.com")
+            ws.Range("B4").Font.Bold = True
+
+        for keys in ("k:Delete", "k:Backspace|w:2|k:Enter"):
+            setup()
+            self.keys(f"m:2,2|g:B4|w:3|{keys}|w:5")
+            self.assertEqual(link("B4"), 0, keys)
+            self.assertTrue(ws.Range("B4").Font.Bold, keys)
+        setup()
+        self.keys("g:B4|w:3|t:a|k:Enter|w:5")
+        self.assertEqual(link("B4"), 1)
+        setup()
+        ws.Range("B4").ClearContents()
+        self.assertEqual(link("B4"), 0)
+        setup()
+        ws.Range("B4").Value = ""
+        self.assertEqual(link("B4"), 0)
+        setup()
+        ws.Range("B4").Copy(ws.Range("D4"))
+        ws.Range("C4").Value = 5
+        ws.Range("C4").Copy(ws.Range("B4"))
+        self.assertEqual((link("D4"), link("B4")), (1, 0))
+        setup()
+        ws.Range("B4:B6").FillDown()
+        self.assertEqual((link("B5"), link("B6")), (1, 1))
+        setup()
+        ws.Range("B4").Cut(ws.Range("D7"))
+        self.assertEqual((link("B4"), link("D7")), (0, 1))
+        setup()
+        self.keys("g:B4|w:2|k:c-C|w:3|g:F2|w:2|k:c-V|w:5|k:Escape|w:2")
+        self.assertEqual(link("F2"), 1)
+        ws.Cells.Clear()
+        ws.Range("B8").Value = "z"
+        ws.Range("B8").NumberFormat = "0.00"
+        ws.Range("B8").Font.Bold = True
+        ws.Hyperlinks.Add(ws.Range("B8"), "http://a.com")
+        self.assertEqual(ws.Range("B8").Style.Name, "Hyperlink")
+        self.assertFalse(ws.Range("B8").Font.Bold)
+        self.assertEqual(ws.Range("B8").NumberFormat, "0.00")
+        ws.Range("B8").Hyperlinks.Delete()
+        self.assertEqual((link("B8"), ws.Range("B8").NumberFormat, ws.Range("B8").Value), (0, "General", "z"))
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

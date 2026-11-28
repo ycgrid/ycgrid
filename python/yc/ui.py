@@ -5679,7 +5679,10 @@ class Shapes:
         co = ChartObjects(self._sheet).Add(Left or 0, Top or 0, Width or 360, Height or 216, ChartType=XlChartType)
         return _Shape(co)
 
-    AddChart = AddChart2
+    def AddChart(self, XlChartType=None, Left=None, Top=None, Width=None, Height=None, NewLayout=None):  # noqa: N802,N803
+        """Excel's older Shapes.AddChart: the chart type first (AddChart2 puts a chart style before it); a clustered
+        column chart by default."""
+        return self.AddChart2(-1, 51 if XlChartType is None else XlChartType, Left, Top, Width, Height)
 
     def _add(self, **p) -> Shape:
         d = _rq("shape.add", sheet=self._sheet, **p)
@@ -5691,7 +5694,9 @@ class Shapes:
             data = f.read()
         return self._add(kind=_KIND_PICTURE, image=data, left=float(Left), top=float(Top), width=float(Width), height=float(Height))
 
-    AddPicture2 = AddPicture
+    def AddPicture2(self, Filename, LinkToFile=False, SaveWithDocument=True, Left=0, Top=0, Width=-1, Height=-1, Compress=None):  # noqa: N802,N803
+        """AddPicture with Excel's Compress argument after it (a picture compression choice YCGrid takes and ignores)."""
+        return self.AddPicture(Filename, LinkToFile, SaveWithDocument, Left, Top, Width, Height)
 
     def AddShape(self, Type, Left, Top, Width, Height):  # noqa: N802,N803
         """A preset shape of Excel's Shapes gallery by its msoAutoShapeType (msoShapeRectangle 1, msoShapeOval 9,

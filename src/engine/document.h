@@ -169,7 +169,13 @@ struct ClipData {
   std::vector<ClipCell> cells;  // row-major
   std::vector<Rect> merges;     // relative to the upper-left corner
   std::vector<int32_t> col_widths;
+  // whole rows (columns) copied: each one's height (width) in px, -1 hidden, from the copy area's first one; a paste
+  // with All of the clipboard's copy gives them to the rows (columns) it pastes onto (Excel 16, measured 2026-11-28)
+  std::vector<int32_t> line_heights, line_widths;
   std::vector<std::pair<size_t, model::RichText>> rich;  // index into cells -> its fonts inside the text
+  // index into cells -> its hyperlink: pasted with All and by fills, which take the destination's links away (Excel 16,
+  // measured 2026-11-28: Copy Destination, FillDown, AutoFill and a cut bring them, a plain or empty cell removes one)
+  std::vector<std::pair<size_t, model::Hyperlink>> links;
   // the conditional formatting of the copied cells: each rule clipped to the copy, its ranges relative to the upper-left
   // corner, its formulas relative to base (the rule's first cell on the source sheet). Pasted with All / Formats /
   // All except borders, as Excel's paste and Format Painter do.
@@ -764,6 +770,8 @@ class Document : public formula::SheetResolver {
   void HideLineRuns(uint32_t sheet, bool rows, const std::vector<std::pair<int64_t, bool>>& lines);
   bool OutlineBlock(uint32_t sheet, bool rows, uint32_t index, int level, uint32_t* a, uint32_t* b) const;
   void SetGroupCollapsed(uint32_t sheet, bool rows, uint32_t index, int level, bool collapse);
+  // the summary line of the group over lines [a, b] (the outline settings' side); -1 off the sheet
+  int64_t SummaryLine(uint32_t sheet, bool rows, int64_t a, int64_t b) const;
   // moves cells like Excel's drag and drop / cut and paste: formulas that point at the moved cells follow them
   bool MoveCells(uint32_t src_sheet, const Rect& src, uint32_t dst_sheet, uint32_t dst_r, uint32_t dst_c);
   // Evaluate Formula: every step of the formula in (r,c), innermost part first, the result last
@@ -1208,6 +1216,12 @@ class Document : public formula::SheetResolver {
   void CopyDimsFrom(const model::Workbook& from, const DimSpan& d);
   void RestoreSelective(const UndoEntry& e);
   void EraseRich(uint32_t sheet, const Rect& rect);
+  void EraseLinksIn(uint32_t sheet, const Rect& rect);  // a cell emptied, pasted or filled over loses its hyperlink (Excel)
+  // the links a paste or a fill brings (key: row << 16 | col), up to Excel's 65,530 a worksheet
+  void PutLinks(uint32_t sheet, const std::vector<std::pair<uint64_t, model::Hyperlink>>& links);
+  // rows (columns) from `at` take the sizes of a whole-row (whole-column) copy: px, -1 hidden
+  void PutLineSizes(uint32_t sheet, bool rows, uint32_t at, const std::vector<int32_t>& sizes);
+  static constexpr size_t kMaxSheetLinks = 65530;
   // the style ids of the cells in rect whose text has fonts of its own (before a format change, for RunsFollowFont)
   std::vector<std::pair<uint64_t, uint32_t>> RichStyleIds(uint32_t sheet, const Rect& rect) const;
   // Excel: a font set on a cell is set for every character of its text: the runs drop their own value of each font
@@ -1538,5 +1552,8 @@ class Document : public formula::SheetResolver {
 // a name's Refers To as Excel shows it: a union kept as ((A,B)) (Document::DefineName) loses the two pairs again
 // (=A,B); any other text, with or without its leading =, comes back as it is
 std::string ShownNameUnion(const std::string& refers_to, const formula::SheetResolver* sheets);
+// Go To Special > Data validation > Same: the ranges of every rule with the settings of the one at (r, c), its formulas
+// read through sheets
+std::vector<Rect> SameValidationAreas(const model::Sheet& s, uint32_t r, uint32_t c, const formula::SheetResolver* sheets);
 
 }  // namespace yc::engine

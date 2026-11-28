@@ -276,6 +276,21 @@ members = [
 # ---------------------------------------------------------------------------------------------------------------------
 # Gaps: open. Whoever adds one adds its test and removes it here (the check fails until then).
 
+# Properties Excel can set that YCGrid only reads (scripts/check_excel_parity.py fails on any other: a macro that sets
+# one would raise), with the reason
+[read_only]
+"Application.FindFormat" = "an object: its members are set (FindFormat.Font.Bold = True); Set replaces it in Excel only"
+"Application.ReplaceFormat" = "an object: its members are set; Set replaces it in Excel only"
+"CellFormat.Borders" = "an object: its members are set"
+"CellFormat.Font" = "an object: its members are set"
+"CellFormat.Interior" = "an object: its members are set"
+"Name.MacroType" = "Excel 4 macro sheets and functions, not planned"
+"Name.WorkbookParameter" = "Excel Services workbook parameters, not planned"
+"Filter.Operator" = "a filter's criteria are set through Range.AutoFilter, as Excel's macros do"
+"Chart.Name" = "an embedded chart's name is its ChartObject's (ChartObject.Name); a chart sheet's is the sheet's"
+"SlicerCache.Name" = "a slicer cache keeps the name it was made with; its slicers are renamed (Slicer.Name)"
+"SlicerCache.VisibleSlicerItemsList" = "OLAP sources only (no OLAP in YCGrid)"
+
 [[gap]]
 priority = "high"
 what = "File > Options items YCGrid's UI has without their Python member"

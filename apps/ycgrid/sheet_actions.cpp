@@ -112,7 +112,9 @@ float TextBlockHeight(ImFont* font, float px, float wrap_w, const std::string& t
 // (typed_r, typed_c). Returns the rows whose height changes, with their new heights.
 std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                     const std::function<void(model::Style&)>* restyle, const std::string* typed = nullptr,
-                                                    uint32_t typed_r = 0, uint32_t typed_c = 0, const std::string* new_font = nullptr) {
+                                                    uint32_t typed_r = 0, uint32_t typed_c = 0, const std::string* new_font = nullptr,
+                                                    bool cleared = false, bool cleared_formats = false,
+                                                    const std::map<uint64_t, std::string>* writes = nullptr) {
   std::vector<std::pair<uint32_t, int32_t>> out;
   const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr;
   // a protected sheet keeps its row heights unless it lets the user format rows
@@ -144,6 +146,13 @@ std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet,
         }
         // the typed text is measured below (a formula's result isn't known yet: the old one stands in)
         if (after && typed && row == typed_r && col == typed_c && !formula::LooksLikeFormula(*typed)) return true;
+        if (after && writes && writes->count((uint64_t{row} << 16) | col)) return true;  // (below too)
+        // cells being cleared (cleared: areas are what Delete or Clear empties) keep one line of their font, or of
+        // the standard one when their formats go too (Excel 16: a 28 pt cell cleared keeps its row's 39 points)
+        if (after && cleared && in_areas(row, col)) {
+          cell(col, cleared_formats ? styles.Get(0) : styles.Get(sh->GetStyle(row, col)), "x", false);
+          return ++cells < 200000;
+        }
         const model::Style& st = styles.Get(sh->GetStyle(row, col));
         cell(col, st, render::FormatCellText(*s.snap, st, v, -1, nullptr, nullptr, nullptr), v.IsNumeric());
         return ++cells < 200000;
@@ -154,13 +163,19 @@ std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet,
       if (typed->find('\n') != std::string::npos) st.wrap = true;  // CommitEdit turns Wrap Text on for line breaks
       cell(typed_c, st, *typed, false);
     }
+    if (after && writes) {  // what a script writes into the row: each value's text (an empty cell keeps one line)
+      for (auto it = writes->lower_bound(uint64_t{row} << 16); it != writes->end() && (it->first >> 16) == row; ++it) {
+        const uint32_t col = static_cast<uint32_t>(it->first & 0xFFFF);
+        cell(col, styles.Get(sh->GetStyle(row, col)), it->second.empty() ? std::string("x") : it->second, false);
+      }
+    }
     const int32_t def = sh->rows->default_size();
     return best > 0 ? std::max(def, static_cast<int32_t>(std::ceil(best)) + 2) : def;
   };
   int budget = 2000;  // rows measured (a whole-column selection fits the used rows only)
   for (const Rect& a : areas) {
     uint32_t r0 = a.r0, r1 = a.r1;
-    if (!typed) {
+    if (!typed && !writes) {
       if (!sh->has_used) break;
       r0 = std::max(r0, sh->used.r0);
       r1 = std::min(r1, sh->used.r1);
@@ -197,6 +212,18 @@ void ApplyStyle(AppState& s, const std::string& label, std::function<void(model:
 std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                           const std::function<void(model::Style&)>& restyle, const std::string* font) {
   return RowsToFit(s, sheet, areas, &restyle, nullptr, 0, 0, font);
+}
+
+// a row that sizes itself fits what is left once areas are cleared (Excel 16, measured 2026-11-28: two lines typed
+// with Alt+Enter, then Delete, and the row is back at the standard height; ClearContents alike)
+std::vector<std::pair<uint32_t, int32_t>> FitRowsAfterClear(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, bool formats) {
+  return RowsToFit(s, sheet, areas, nullptr, nullptr, 0, 0, nullptr, true, formats);
+}
+
+// a row that sizes itself fits the values a script writes (Excel 16's Range.Value, measured 2026-11-28: two lines
+// replaced by "c" put the row back at the standard height)
+std::vector<std::pair<uint32_t, int32_t>> FitRowsForWrite(AppState& s, uint32_t sheet, const Rect& rect, const std::map<uint64_t, std::string>& texts) {
+  return RowsToFit(s, sheet, {rect}, nullptr, nullptr, 0, 0, nullptr, false, false, &texts);
 }
 
 namespace {
@@ -759,7 +786,11 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   }
   const bool ok = s.engine->Call([&](Document& d) { return work(d, &error); });
   if (!ok) {
-    s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + error + TR("\n\nNot trying to type a formula? Start with an apostrophe (') and the cell will be treated as text."));
+    // an entry the engine refused without a reason (a data table's cell) has its refusal's own message (Cannot change
+    // part of a data table.), as Excel shows only that; a formula problem says what it is
+    if (!error.empty()) {
+      s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + error + TR("\n\nNot trying to type a formula? Start with an apostrophe (') and the cell will be treated as text."));
+    }
     e.focus_request = true;
     return;
   }
@@ -779,6 +810,7 @@ void ApplyPendingCommit(AppState& s) {
   if (pc->ok) return;
   s.edit = pc->edit;
   s.edit.focus_request = true;
+  if (pc->error.empty()) return;  // refused: the refusal says why (as above)
   if (!pc->hint) {
     s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + pc->error);
     return;
@@ -850,11 +882,7 @@ void SelectSpecial(AppState& s, int kind, int values) {
     return;
   }
   if (areas.size() > 10000) areas.resize(10000);
-  std::rotate(areas.begin(), areas.begin() + 1, areas.end());  // the first area holds the active cell (the last one is active)
-  view.sel.areas = areas;
-  view.sel.anc_r = view.sel.act_r = areas.back().r0;
-  view.sel.anc_c = view.sel.act_c = areas.back().c0;
-  view.sel.mode = render::SelectMode::Cells;
+  render::SetAreasActiveFirst(view.sel, areas);  // the first area holds the active cell
   render::EnsureVisible(*sh, view, view.sel.act_r, view.sel.act_c);
 }
 
@@ -1358,12 +1386,16 @@ void CopySelection(AppState& s, bool cut, bool wait) {
             cells.insert(cells.end(), part.cells.begin() + static_cast<ptrdiff_t>(i) * part.cols, part.cells.begin() + static_cast<ptrdiff_t>(i + 1) * part.cols);
           }
           out.cells = std::move(cells);
+          const uint32_t wide = out.cols + part.cols;  // the hyperlinks keep their cells
+          for (auto& [idx, l] : out.links) idx = idx / out.cols * wide + idx % out.cols;
+          for (auto& [idx, l] : part.links) out.links.emplace_back(idx / part.cols * wide + out.cols + idx % part.cols, std::move(l));
           out.cols += part.cols;
           out.col_widths.insert(out.col_widths.end(), part.col_widths.begin(), part.col_widths.end());
           out.merges.clear();
           out.rich.clear();
         } else if (same_cols && part.cols == out.cols) {  // rows one under the other
           out.cells.insert(out.cells.end(), part.cells.begin(), part.cells.end());
+          for (auto& [idx, l] : part.links) out.links.emplace_back(static_cast<size_t>(out.rows) * out.cols + idx, std::move(l));
           out.rows += part.rows;
           out.merges.clear();
           out.rich.clear();
@@ -1574,6 +1606,7 @@ void ClearSelection(AppState& s, int what) {
   // a filtered list: only the rows it shows are cleared (Excel)
   if (const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr) areas = engine::FilterShownRuns(*sh, areas);
   const std::vector<uint32_t> group = GroupTargets(s, sheet);  // grouped sheets are cleared too (Excel)
+  const auto fit = what == 1 ? std::vector<std::pair<uint32_t, int32_t>>{} : FitRowsAfterClear(s, sheet, areas, what == 2);
   s.engine->PostUser(what == 0 ? TR("Clear Contents") : (what == 1 ? TR("Clear Formats") : TR("Clear All")), [=](Document& d) {
     for (const uint32_t g : group) {
       for (const Rect& a : areas) {
@@ -1583,6 +1616,7 @@ void ClearSelection(AppState& s, int what) {
         else d.ClearAll(g, a, engine::kSrcUser, /*everything=*/true);
       }
     }
+    for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
   });
 }
 
@@ -2685,7 +2719,12 @@ int32_t MeasureColumn(AppState& s, const model::Sheet& sh, uint32_t c, const std
     const std::string text = render::FormatCellText(*s.snap, st, v, -1, nullptr, nullptr, nullptr);
     ImFont* font = ui::CellFont(s.snap->wb.styles->FontName(st), st.bold, st.italic);
     const float px = s.snap->wb.styles->FontSize(st) * (96.0f / 72.0f);
-    float w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, text.c_str()).x;
+    // wrapped text, or text with line breaks, fits its widest line as it is laid out in the column now: AutoFit never
+    // widens a column for it (Excel 16, measured 2026-11-28: "ab" and a 24-letter line wrapped, or not wrapped but on
+    // two lines, leave the column near its standard width, where one line of 26 letters widens it to 26)
+    const bool lines = !v.IsNumeric() && (st.wrap || text.find('\n') != std::string::npos);
+    const float wrap_w = lines ? std::max(1.0f, static_cast<float>(sh.cols->Size(col)) - 8.0f) : 0.0f;
+    float w = font->CalcTextSizeA(px, FLT_MAX, wrap_w, text.c_str()).x;
     // AutoFilter header cells also hold the 17 px drop-down button (rules_ui.cpp), keep the text clear of it
     const auto& af = *sh.autofilter;
     if (af.on && row == af.range.r0 && col >= af.range.c0 && col <= af.range.c1) w += 19.0f;

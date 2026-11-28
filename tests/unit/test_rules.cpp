@@ -215,6 +215,35 @@ TEST_CASE("自動篩選：依值、自訂條件、前 N 項、清除") {
   CHECK_FALSE(t.d.S(s)->autofilter->on);
 }
 
+TEST_CASE("Top 10 Percent shows the whole part of the share, at least one, with the last one's ties") {
+  // Excel 16, measured 2026-11-28 over 11 numbers: 25% shows 2, 9% shows 1, 45% shows 5 (4 and a tie), 55% shows 6
+  yctest::Doc t;
+  const uint32_t s = t.sheet();
+  const int vals[] = {5, 12, 7, 30, 1, 12, 18, 2, 25, 9, 3};
+  t.Set("A1", "V");
+  for (int i = 0; i < 11; ++i) t.Set(("A" + std::to_string(i + 2)).c_str(), std::to_string(vals[i]));
+  t.d.SetAutoFilter(s, R("A1:A12"));
+  auto shown = [&](int pct, bool top) {
+    model::FilterColumn f;
+    f.field = 0;
+    f.kind = 3;
+    f.percent = true;
+    f.top = top;
+    f.count = pct;
+    t.d.SetFilterColumn(s, f);
+    int n = 0;
+    for (uint32_t r = 1; r <= 11; ++r) n += !t.d.S(s)->rows->IsHidden(r);
+    return n;
+  };
+  CHECK(shown(25, true) == 2);
+  CHECK(shown(9, true) == 1);
+  CHECK(shown(45, true) == 5);
+  CHECK(shown(55, true) == 6);
+  CHECK(shown(100, true) == 11);
+  CHECK(shown(25, false) == 2);
+  CHECK(shown(50, false) == 5);
+}
+
 TEST_CASE(".ycg 保存規則") {
   yctest::Doc t;
   const uint32_t s = t.sheet();

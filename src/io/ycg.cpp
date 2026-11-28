@@ -384,7 +384,7 @@ struct ChunkOut {
 
 void WriteDims(MsgWriter& w, const model::DimIndex& d) {
   const auto e = d.Entries();
-  w.Array(3);
+  w.Array(4);
   w.Int(d.default_size());
   w.Array(static_cast<uint32_t>(e.size()));
   for (const auto& x : e) {
@@ -400,6 +400,9 @@ void WriteDims(MsgWriter& w, const model::DimIndex& d) {
     w.Int(i);
     w.Int(l);
   }
+  // the summary lines of collapsed groups (older versions skip the fourth element)
+  w.Array(static_cast<uint32_t>(d.Collapsed().size()));
+  for (const int64_t i : d.Collapsed()) w.Int(i);
 }
 
 bool ReadDims(MsgReader& r, model::DimIndex* d) {
@@ -427,9 +430,20 @@ bool ReadDims(MsgReader& r, model::DimIndex* d) {
       if (lvl > 0) levels[idx] = static_cast<uint8_t>(std::min<int64_t>(lvl, model::DimIndex::kMaxOutline));
     }
   }
-  for (uint32_t k = 3; k < two; ++k) r.Skip();
+  std::set<int64_t> collapsed;
+  if (two >= 4) {
+    uint32_t m;
+    if (!r.Array(&m)) return false;
+    for (uint32_t i = 0; i < m; ++i) {
+      int64_t idx = 0;
+      if (!r.Int(&idx)) return false;
+      if (idx >= 0) collapsed.insert(idx);
+    }
+  }
+  for (uint32_t k = 4; k < two; ++k) r.Skip();
   d->Load(static_cast<int32_t>(def), e);
   d->LoadLevels(std::move(levels));
+  d->LoadCollapsed(std::move(collapsed));
   return true;
 }
 

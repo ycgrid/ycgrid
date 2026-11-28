@@ -322,6 +322,54 @@ void Document::ClearHyperlinks(uint32_t sheet, const Rect& area) {
   if (EraseInRect(s->links.mut(), area)) wb_.dirty = true;
 }
 
+// a cell emptied loses its hyperlink and keeps its formats (Excel 16, measured 2026-11-28: Delete, Backspace and Enter,
+// Range.ClearContents, Value = "" or Empty, Formula = ""); a value written over it keeps the link. A paste or a fill
+// takes the links under it away too, the copied cells' own put in their place (PutLinks)
+void Document::EraseLinksIn(uint32_t sheet, const Rect& rect) {
+  const Sheet* s = S(sheet);
+  if (!s || s->links->empty()) return;
+  const bool hit = std::any_of(s->links->begin(), s->links->end(), [&](const auto& kv) {
+    return rect.Contains(static_cast<uint32_t>(kv.first >> 16), static_cast<uint32_t>(kv.first & 0xFFFF));
+  });
+  if (!hit) return;
+  NoteTouched();
+  if (EraseInRect(M(sheet)->links.mut(), rect)) wb_.dirty = true;
+}
+
+void Document::PutLineSizes(uint32_t sheet, bool rows, uint32_t at, const std::vector<int32_t>& sizes) {
+  const Sheet* s = S(sheet);
+  if (!s) return;
+  const uint64_t limit = rows ? s->row_limit : core::kMaxCols;
+  for (size_t k = 0; k < sizes.size() && at + k < limit; ++k) {
+    const uint32_t i = static_cast<uint32_t>(at + k);
+    const bool hidden = sizes[k] < 0;
+    if (!hidden) {
+      if (rows) {
+        if (S(sheet)->rows->IsHidden(i)) HideRows(sheet, i, i, false);
+        SetRowHeight(sheet, i, i, sizes[k]);
+      } else {
+        if (S(sheet)->cols->IsHidden(i)) HideCols(sheet, i, i, false);
+        SetColWidth(sheet, i, i, sizes[k]);
+      }
+    } else if (rows) {
+      HideRows(sheet, i, i, true);
+    } else {
+      HideCols(sheet, i, i, true);
+    }
+  }
+}
+
+void Document::PutLinks(uint32_t sheet, const std::vector<std::pair<uint64_t, model::Hyperlink>>& links) {
+  if (links.empty() || !S(sheet)) return;
+  NoteTouched();
+  auto& m = M(sheet)->links.mut();
+  for (const auto& [k, l] : links) {
+    if (m.size() >= kMaxSheetLinks && !m.count(k)) break;  // Excel's limit a worksheet
+    m[k] = l;
+  }
+  wb_.dirty = true;
+}
+
 // ---- Conditional formatting ----
 
 uint32_t Document::AddCondFormat(uint32_t sheet, model::CfRule rule) {
@@ -677,7 +725,9 @@ FilterTester::FilterTester(const model::Workbook& wb, const model::Sheet& s, con
       if (v.IsNumeric()) nums.push_back(v.AsDouble());
     }
     if (nums.empty()) continue;
-    size_t n = fc.percent ? static_cast<size_t>(std::ceil(nums.size() * std::clamp(fc.count, 0, 100) / 100.0)) : static_cast<size_t>(std::max(0, fc.count));
+    // Top 10 Percent shows the whole part of that share of the numbers, at least one, and the ties of the last one
+    // (Excel 16, measured 2026-11-28: 25% of 11 numbers shows 2, 9% shows 1, 55% shows 6)
+    size_t n = fc.percent ? nums.size() * static_cast<size_t>(std::clamp(fc.count, 0, 100)) / 100 : static_cast<size_t>(std::max(0, fc.count));
     n = std::clamp<size_t>(n, 1, nums.size());
     std::sort(nums.begin(), nums.end());
     thresholds_[i] = fc.top ? nums[nums.size() - n] : nums[n - 1];

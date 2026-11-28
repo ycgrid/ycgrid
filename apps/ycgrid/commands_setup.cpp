@@ -205,18 +205,21 @@ void SetFontSize(AppState& s, float pt) {
   });
 }
 
+// Increase / Decrease Font Size go to the next size of Excel's steps, 6 then the Font Size list; past 72 (under 6) they
+// change nothing (Excel 16, measured 2026-11-28 through ExecuteMso: 1 grows to 6, 8 shrinks to 6, 72 and 80 stay, 100
+// shrinks to 72, 5 stays)
 float StepFontSize(float pt, int dir) {
-  static const float kSizes[] = {8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
+  static const float kSizes[] = {6, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
   if (dir > 0) {
     for (float s : kSizes) {
       if (s > pt + 0.01f) return s;
     }
-    return pt + 10;
+    return pt;
   }
   for (int i = static_cast<int>(std::size(kSizes)) - 1; i >= 0; --i) {
     if (kSizes[i] < pt - 0.01f) return kSizes[i];
   }
-  return std::max(1.0f, pt - 1);
+  return pt;
 }
 
 const model::Style* ActiveStyle(AppState& s) {
@@ -681,14 +684,46 @@ void RegisterCommands(AppState& s) {
   orient("VerticalText", TR("Vertical Text"), 255);
   orient("RotateTextUp", TR("Rotate Text Up"), 90);
   orient("RotateTextDown", TR("Rotate Text Down"), -90);
-  add(Make("IndentDecrease", TR("Decrease Indent"), icon::IndentDecrease)).execute = style_set(TR("Decrease Indent"), [](model::Style& x) {
-    if (x.indent) --x.indent;
-  });
-  add(Make("IndentIncrease", TR("Increase Indent"), icon::IndentIncrease)).execute = style_set(TR("Increase Indent"), [](model::Style& x) {
-    if (x.indent < 15) ++x.indent;
-    // Excel: centered (filled, justified) text becomes left-aligned with the indent; Right and Distributed keep theirs
-    if (x.halign != model::HAlign::Right && x.halign != model::HAlign::Distributed) x.halign = model::HAlign::Left;
-  });
+  // more than one cell selected (a merged cell is one): Excel's indent buttons act on them as a block (Excel 16,
+  // measured 2026-11-28 through ExecuteMso): Increase makes every cell Left-aligned, Right ones too, and Decrease
+  // changes nothing while any of them is at 0
+  auto many_cells = [&s] {
+    const auto areas = SelAreas(s);
+    if (areas.size() != 1) return true;
+    if (areas[0].IsCell()) return false;
+    const model::Sheet* sh = s.FocusSheet();
+    return !sh || std::none_of(sh->merges->begin(), sh->merges->end(), [&](const Rect& m) { return m == areas[0]; });
+  };
+  add(Make("IndentDecrease", TR("Decrease Indent"), icon::IndentDecrease)).execute = [&s, many_cells](Command&) {
+    if (Editing(s)) return;
+    if (many_cells()) {
+      const model::Sheet* sh = s.FocusSheet();
+      if (!sh || !s.snap) return;
+      const auto& styles = *s.snap->wb.styles;
+      for (const Rect& a0 : SelAreas(s)) {
+        const Rect a{a0.r0, a0.c0, std::min(a0.r1, sh->row_limit - 1), std::min(a0.c1, core::kMaxCols - 1)};
+        if (a.Count() > 1'000'000) return;  // a block that large holds cells nobody indented
+        for (uint32_t r = a.r0; r <= a.r1; ++r) {
+          for (uint32_t c = a.c0; c <= a.c1; ++c) {
+            if (styles.Get(sh->GetStyle(r, c)).indent == 0) return;
+          }
+        }
+      }
+    }
+    ApplyStyle(s, TR("Decrease Indent"), [](model::Style& x) {
+      if (x.indent) --x.indent;
+    });
+  };
+  add(Make("IndentIncrease", TR("Increase Indent"), icon::IndentIncrease)).execute = [&s, many_cells](Command&) {
+    if (Editing(s)) return;
+    const bool many = many_cells();
+    ApplyStyle(s, TR("Increase Indent"), [many](model::Style& x) {
+      if (x.indent < 15) ++x.indent;
+      // centered (filled, justified) text becomes left-aligned with the indent; one cell aligned Right or Distributed
+      // keeps it, several cells don't
+      if (many || (x.halign != model::HAlign::Right && x.halign != model::HAlign::Distributed)) x.halign = model::HAlign::Left;
+    });
+  };
   auto merge = [&s](bool across, bool center, bool unmerge) {
     return [&s, across, center, unmerge](Command&) {
       if (Editing(s)) return;

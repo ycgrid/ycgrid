@@ -1469,10 +1469,7 @@ void DrawMiscDialogs(AppState& s) {
       s.engine->PostUser(m.link_existing ? TR("Edit Hyperlink") : TR("Insert Hyperlink"), [sheet, r, c, l, text, write_text, area, many](Document& d) {
         if (write_text && !text.empty()) d.SetValue(sheet, r, c, core::Value::String(text));
         const Rect cells = many ? area : Rect::Cell(r, c);
-        d.ModifyStyle(sheet, cells, [](Style& x) {
-          x.font_color = model::Rgb(0x05, 0x63, 0xC1);
-          x.underline = model::Underline::Single;
-        });
+        d.ApplyCellStyle(sheet, cells, "Hyperlink");  // as Hyperlinks.Add does (Excel 16, measured)
         for (uint32_t rr = cells.r0; rr <= cells.r1; ++rr) {
           for (uint32_t cc = cells.c0; cc <= cells.c1; ++cc) d.SetHyperlink(sheet, rr, cc, l);
         }
@@ -1683,7 +1680,8 @@ void DrawMiscDialogs(AppState& s) {
         if (m.gs_kind == 7) {
           for (const auto& rule : *sh.cond_formats) take(rule.ranges);
         } else {
-          for (const auto& rule : *sh.validations) take(rule.ranges);
+          engine::SnapshotEvalHost host(s.snap->wb);
+          take(engine::SameValidationAreas(sh, ar, ac, &host));
         }
         std::sort(areas.begin(), areas.end(), [](const Rect& x, const Rect& y) { return x.r0 != y.r0 ? x.r0 < y.r0 : x.c0 < y.c0; });
         areas.erase(std::unique(areas.begin(), areas.end()), areas.end());
@@ -1692,12 +1690,7 @@ void DrawMiscDialogs(AppState& s) {
         s.ShowMessage("YCGrid", TR("No cells were found."));
       } else {
         if (areas.size() > 10000) areas.resize(10000);
-        // the active cell is the first area's corner; the active area is the last one, so the first goes last
-        std::rotate(areas.begin(), areas.begin() + 1, areas.end());
-        view.sel.areas = areas;
-        view.sel.anc_r = view.sel.act_r = areas.back().r0;
-        view.sel.anc_c = view.sel.act_c = areas.back().c0;
-        view.sel.mode = render::SelectMode::Cells;
+        render::SetAreasActiveFirst(view.sel, areas);  // the active cell is the first area's corner
         render::EnsureVisible(sh, view, view.sel.act_r, view.sel.act_c);
       }
       close = true;

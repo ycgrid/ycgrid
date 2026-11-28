@@ -334,9 +334,14 @@ class FormulaParityTest(unittest.TestCase):
         self.keys("k:c-A|t:A1:A3|w:2|k:Enter|w:6")
         self.assertEqual(ws.Range("C2").Formula, "=SUM(A1:A3)*2")
         self.assertEqual(ws.Range("C2").Value, 12)
-        # Ctrl+Shift+A after a function's name types its argument names; Ctrl+A opens its Function Arguments
+        # Ctrl+Shift+A after a function's name types its argument names, without the optional ones' brackets (Excel
+        # 16, measured by keys 2026-11-28: =SUM(number1,number2,...)); Ctrl+A opens its Function Arguments
         self.keys("g:C3|w:2|t:=SUM|w:2|k:c-s-A|w:3")
-        self.assertEqual(self.edit_text(), "=SUM(number1,[number2],...)")
+        self.assertEqual(self.edit_text(), "=SUM(number1,number2,...)")
+        self.keys("k:Escape|w:3|g:C3|w:2|t:=ROUND(|w:2|k:c-s-A|w:3")
+        self.assertEqual(self.edit_text(), "=ROUND(number,num_digits)")
+        self.keys("k:Escape|w:3|g:C3|w:2|t:=VLOOKUP|w:2|k:c-s-A|w:3")
+        self.assertEqual(self.edit_text(), "=VLOOKUP(lookup_value,table_array,col_index_num,range_lookup)")
         self.keys("k:Escape|w:3|g:C4|w:2|t:=ROUND(|w:2|k:c-A|w:8")
         self.assertTrue(self.state().get("dialog"))
         self.keys("k:Escape|w:3|k:Escape|w:3")

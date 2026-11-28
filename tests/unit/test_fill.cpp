@@ -82,11 +82,22 @@ TEST_CASE("fill: custom lists continue and order sorting") {
   CHECK(t.V("B2").str() == "Medium");
   CHECK(t.V("B3").str() == "High");
   CHECK(t.V("B4").str() == "zzz");
-  // descending reverses the list; CustomOrder items work the same way
+  // descending reverses the whole order, the values not in the list first (Excel 16, measured 2026-11-28); CustomOrder
+  // items work the same way
   engine::SortKey k2{1, true};
   k2.custom_items = {"Low", "Medium", "High"};
   t.d.Sort(sh, Rect{0, 1, 3, 1}, {k2}, false);
-  CHECK(t.V("B1").str() == "High");
+  CHECK(t.V("B1").str() == "zzz");
+  CHECK(t.V("B2").str() == "High");
+  CHECK(t.V("B4").str() == "Low");
+  // Case sensitive: an item written in another case isn't the list's (it goes with the values not in it)
+  t.Set("B2", "high");
+  engine::SortKey k3{1, false};
+  k3.custom_items = {"Low", "Medium", "High"};
+  t.d.Sort(sh, Rect{0, 1, 3, 1}, {k3}, false, false, /*match_case=*/true);
+  CHECK(t.V("B1").str() == "Low");
+  CHECK(t.V("B2").str() == "Medium");
+  CHECK(t.V("B3").str() == "high");
   CHECK(t.V("B4").str() == "zzz");
   engine::SetUserFillLists({});
 }

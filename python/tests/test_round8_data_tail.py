@@ -150,6 +150,189 @@ class NamesAndOutlineTest(_Live):
         self.ws.Range("A1").AutoOutline()
         self.assertEqual([self.ws.Rows(r).OutlineLevel for r in range(1, 9)], [3, 3, 2, 3, 3, 2, 1, 1])
 
+    def test_a_subtotal_closed_by_its_button_stays_closed_through_the_grand_total(self):
+        # Excel 16, measured 2026-11-28: the level 2 button closes the subtotals' groups, and they stay closed when the
+        # grand total's group is closed and opened; with every group open, closing and opening it brings all back
+        ws = self.ws
+        ws.Cells.ClearOutline()
+        for r in range(1, 10):
+            ws.Cells(r, 1).Value = r
+        ws.Rows("2:7").Group()
+        ws.Rows("2:3").Group()
+        ws.Rows("5:6").Group()
+
+        def hidden():
+            return "".join("h" if ws.Rows(r).Hidden else "." for r in range(1, 10))
+
+        ws.Rows(8).ShowDetail = False
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".........")
+        ws.Outline.ShowLevels(2)
+        ws.Rows(8).ShowDetail = False
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".hh.hh...")
+        ws.Outline.ShowLevels(1)
+        ws.Rows(8).ShowDetail = True
+        self.assertEqual(hidden(), ".........")
+        ws.Cells.ClearOutline()
+
+    def test_auto_outline_takes_the_side_of_the_first_total(self):
+        # Excel 16, measured 2026-11-28: totals above their details group the rows after them and set Summary rows
+        # above; the first total in reading order picks the side and a total on the other side is left out; totals
+        # left of their columns set Summary columns to the left; nothing to group raises
+        from yc import excel
+
+        def levels(rows=True, n=8):
+            return "".join(str((self.ws.Rows(i) if rows else self.ws.Columns(i)).OutlineLevel) for i in range(1, n + 1))
+
+        def fresh(cells):
+            self.ws.Cells.ClearOutline()
+            self.ws.Cells.Clear()
+            self.ws.Outline.SummaryRow = excel.xlSummaryBelow
+            self.ws.Outline.SummaryColumn = excel.xlSummaryOnRight
+            self.put(cells)
+            self.ws.Range("A1").AutoOutline()
+
+        fresh({"B1": "=SUBTOTAL(9,B2:B4)", "B2": 1, "B3": 2, "B4": 3, "B5": "=SUBTOTAL(9,B6:B7)", "B6": 4, "B7": 5})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("12221221", excel.xlSummaryAbove))
+        fresh({"B1": "=SUM(B2,B5)", "B2": "=SUM(B3:B4)", "B3": 1, "B4": 2, "B5": "=SUM(B6:B7)", "B6": 3, "B7": 4})
+        self.assertEqual(levels(), "12332331")
+        fresh({"B1": "=SUM(B3:B4)", "B3": 1, "B4": 2})
+        self.assertEqual(levels(), "12221111")
+        fresh({"B1": "=SUM(B2:B3)", "B2": 1, "B3": 2, "B4": 4, "B5": 5, "B6": "=SUM(B4:B5)"})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("12211111", excel.xlSummaryAbove))
+        fresh({"B1": 1, "B2": 2, "B3": "=SUM(B1:B2)", "B4": "=SUM(B5:B6)", "B5": 4, "B6": 5})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("22111111", excel.xlSummaryBelow))
+        fresh({"A1": "=SUM(B1:C1)", "B1": 1, "C1": 2, "D1": "=SUM(E1:F1)", "E1": 3, "F1": 4})
+        self.assertEqual((levels(False), self.ws.Outline.SummaryColumn), ("12212211", excel.xlSummaryOnLeft))
+        self.ws.Cells.ClearOutline()
+        self.ws.Cells.Clear()
+        self.put({"B1": "=B2*2", "B2": 1})
+        with self.assertRaises(yc.YcError):
+            self.ws.Range("A1").AutoOutline()
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class SortOrderTailTest(_Live):
+    def test_a_custom_order_descending_and_case_sensitive(self):
+        # Excel 16, measured 2026-11-28 (Sort.SortFields.Add with CustomOrder): descending puts the values not in the
+        # list first; Case sensitive takes only the items as written; blanks stay last
+        ws = self.ws
+
+        def sort(order, match_case=False):
+            ws.Range("A1:B9").Value = [["Risk", 0], ["Mid", 1], ["high", 2], ["Low", 3], [None, 4], ["Mid", 5], ["Other", 6],
+                                       ["low", 7], ["High", 8]]
+            ws.Sort.SortFields.Clear()
+            ws.Sort.SortFields.Add(ws.Range("A2:A9"), 0, order, "Low,Mid,High")
+            ws.Sort.MatchCase = match_case
+            ws.Sort.SetRange(ws.Range("A1:B9"))
+            ws.Sort.Header = 1
+            ws.Sort.Apply()
+            return [int(x) for x in self.col("B2:B9")]
+
+        self.assertEqual(sort(1), [3, 7, 1, 5, 2, 8, 6, 4])
+        self.assertEqual(sort(2), [6, 2, 8, 1, 5, 3, 7, 4])
+        self.assertEqual(sort(1, True), [3, 1, 5, 8, 2, 7, 6, 4])
+
+    def test_sort_takes_excels_arguments_by_position(self):
+        # Range.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, MatchCase, Orientation), as
+        # a macro written for Excel passes them: left to right by row 2 descending, the first column a header
+        # (Excel 16 measured 2026-11-28 through COM)
+        ws = self.ws
+        ws.Range("A1:F3").Value = [["Sym", "C", "A", "B", None, "A"], ["Px", 3, 1, 2, 9, 0], ["Qty", 30, 10, 20, 90, 5]]
+        ws.Range("A1:F3").Sort(ws.Range("A2"), 2, None, None, 1, None, 1, 1, 1, False, 2)
+        self.assertEqual([ws.Cells(3, c).Value for c in range(1, 7)], ["Qty", 90, 30, 20, 10, 5])
+        ws.Range("A1:F3").Value = [["Sym", "C", "A", "B", None, "A"], ["Px", 3, 1, 2, 9, 0], ["Qty", 30, 10, 20, 90, 5]]
+        ws.Range("B1:F3").Sort(ws.Range("B1"), 1, ws.Range("B3"), None, 2, None, 1, 2, 1, False, 2)
+        self.assertEqual([ws.Cells(3, c).Value for c in range(2, 7)], [10, 5, 20, 30, 90])
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class ExcelArgumentsTailTest(_Live):
+    def test_calls_with_excels_arguments_by_position(self):
+        # every method takes Excel's arguments in Excel's order (scripts/check_excel_parity.py checks the names):
+        # Workbook.Close(SaveChanges, Filename), Shapes.AddChart(Type, Left, Top, Width, Height), Areas.Item(Index)
+        import tempfile
+
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:B3").Value = [["x", 1], ["y", 2], ["z", 3]]
+        sh = ws.Shapes.AddChart(4, 10, 20, 300, 200)  # xlLine
+        self.assertEqual(sh.Chart.ChartType, 4)
+        self.assertEqual((sh.Left, sh.Top), (10, 20))
+        self.assertEqual(ws.Range("A1:A2,B3").Areas.Item(Index=2).Address(False, False), "B3")
+        path = os.path.join(tempfile.mkdtemp(), "closed.ycg")
+        excel.ActiveWorkbook.Close(True, path)
+        self.assertTrue(os.path.exists(path))
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class WritablePropertiesTailTest(_Live):
+    def test_properties_excel_sets_are_set(self):
+        # each property Excel's type library lists with put has a setter (scripts/check_excel_parity.py checks); these
+        # had none and a macro setting them raised
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:C2").Value = [[1, 2, 3], [4, 5, 6]]
+        ws.Range("E1:F2").Value = [[3, 2], [1, 9]]
+        g = ws.Range("D1:D2").SparklineGroups.Add(1, f"{ws.Name}!A1:C2")
+        g.SourceData = f"{ws.Name}!E1:F2"
+        self.assertIn("E1:F1", g.SourceData)
+        g.Location = ws.Range("H1:H2")
+        self.assertEqual(g.Location.Address(False, False), "H1:H2")
+        ws.Scenarios().Add("Base", ws.Range("A1"), [1], "first")
+        sc = ws.Scenarios("Base")
+        sc.Comment = "edited"
+        sc.Name = "Bull"
+        self.assertEqual((ws.Scenarios(1).Name, ws.Scenarios(1).Comment, ws.Scenarios().Count), ("Bull", "edited", 1))
+        ws.HPageBreaks.Add(ws.Range("A10"))
+        pb = ws.HPageBreaks(1)
+        pb.Location = ws.Range("A15")
+        self.assertEqual([b.Location.Row for b in ws.HPageBreaks if b.Type == excel.xlPageBreakManual], [15])
+        ws.Range("J1:K4").Value = [["Side", "Qty"], ["Buy", 1], ["Sell", 2], ["Buy", 3]]
+        pc = excel.ActiveWorkbook.PivotCaches().Create(excel.xlDatabase, f"{ws.Name}!J1:K3")
+        pt = pc.CreatePivotTable(f"{ws.Name}!M1", f"PT{ws.Name}")
+        pt.PivotCache().SourceData = f"{ws.Name}!J1:K4"
+        self.assertIn("R4C11", pt.SourceData)
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class GoToSpecialTailTest(_Live):
+    def test_a_multi_area_select_makes_the_first_area_active(self):
+        # Excel 16, measured 2026-11-28: Range("B2,D5").Select is "$B$2,$D$5" with B2 active, D5:E6,A1:B2 keeps its
+        # order with D5 active, E6.Activate in A1:B2,D5:E6 keeps the order, and SpecialCells(...).Select is as Select
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("B2,D5").Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("B2,D5", "B2"))
+        ws.Range("D5:E6,A1:B2").Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("D5:E6,A1:B2", "D5"))
+        ws.Range("A1:B2,D5:E6").Select()
+        ws.Range("E6").Activate()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("A1:B2,D5:E6", "E6"))
+        ws.Range("B2").AddComment("n")
+        ws.Range("D5").AddComment("m")
+        ws.Range("A1").SpecialCells(-4144).Select()
+        self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), ("B2,D5", "B2"))
+
+    def test_same_validation_takes_every_rule_with_the_same_settings(self):
+        # Excel 16, measured 2026-11-28: the same list added to G1:G3 and G8 is one rule; another input message or
+        # "a, b" isn't; =A6>0 in J6 is J1's =A1>0
+        ws = self.ws
+        ws.Range("G1:G3").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G6").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G6").Validation.InputMessage = "pick"
+        ws.Range("G8").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G10").Validation.Add(3, 1, 1, "a, b")
+        ws.Range("J1:J3").Validation.Add(7, 1, 1, "=A1>0")
+        ws.Range("J6").Validation.Add(7, 1, 1, "=A6>0")
+        ws.Range("J8").Validation.Add(7, 1, 1, "=A1>0")
+        self.assertEqual(ws.Range("G2").SpecialCells(-4175).Address(False, False), "G1:G3,G8")
+        self.assertEqual(ws.Range("J2").SpecialCells(-4175).Address(False, False), "J1:J3,J6")
+
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class PivotTailTest(_Live):

@@ -78,6 +78,104 @@ TEST_CASE("Clear Formats takes the conditional formatting; Clear All also notes 
   CHECK(t.d.wb().sheets[0]->links->empty());
 }
 
+TEST_CASE("Whole rows and columns copied or cut bring their sizes (Excel 16, measured)", "[parity_formatting]") {
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  t.Set("A1", "x");
+  t.d.SetRowHeight(sh, 0, 0, 40);
+  t.d.SetColWidth(sh, 0, 0, 150);
+  const int32_t std_h = t.d.S(sh)->rows->default_size();
+  auto rows = [&](uint32_t r0, uint32_t r1) { return Rect{r0, 0, r1, yc::core::kMaxCols - 1}; };
+  // whole rows from the clipboard: the height comes along; cells alone bring none
+  engine::ClipData clip = t.d.Copy(sh, rows(0, 0));
+  clip.carry_notes = true;
+  t.d.Paste(sh, 4, 0, clip);
+  CHECK(t.d.S(sh)->rows->Size(4) == 40);
+  engine::ClipData cells = t.d.Copy(sh, R("A1:C1"));
+  cells.carry_notes = true;
+  t.d.Paste(sh, 6, 0, cells);
+  CHECK(t.d.S(sh)->rows->Size(6) == std_h);
+  // whole columns: the width
+  engine::ClipData col = t.d.Copy(sh, Rect{0, 0, yc::core::kMaxRows - 1, 0});
+  col.carry_notes = true;
+  t.d.Paste(sh, 0, 3, col);
+  CHECK(t.d.S(sh)->cols->Size(3) == 150);
+  // a cut moves the height and leaves the standard one
+  REQUIRE(t.d.MoveCells(sh, rows(0, 0), sh, 8, 0));
+  CHECK(t.d.S(sh)->rows->Size(8) == 40);
+  CHECK(t.d.S(sh)->rows->Size(0) == std_h);
+}
+
+TEST_CASE("A cell emptied loses its hyperlink, a copy and a fill bring one (Excel 16, measured)", "[parity_formatting]") {
+  yctest::Doc t;
+  model::Hyperlink l;
+  l.address = "https://example.com";
+  auto links = [&] { return *t.d.wb().sheets[0]->links; };
+  auto has = [&](const char* a) {
+    const auto p = R(a);
+    return links().count((uint64_t{p.r0} << 16) | p.c0) == 1;
+  };
+  auto setup = [&] {
+    t.d.ClearAll(t.sheet(), R("A1:H20"), engine::kSrcUser, true);
+    t.Set("B4", "lnk");
+    t.d.SetHyperlink(t.sheet(), 3, 1, l);
+  };
+  // emptied: ClearContents (Delete), an empty entry, an empty value among others
+  setup();
+  t.d.ClearContents(t.sheet(), R("B4"));
+  CHECK_FALSE(has("B4"));
+  setup();
+  t.d.SetInput(t.sheet(), 3, 1, "");
+  CHECK_FALSE(has("B4"));
+  setup();
+  t.d.SetValues(t.sheet(), R("B4:C4"), {yc::core::Value(), yc::core::Value::Number(1)});
+  CHECK_FALSE(has("B4"));
+  // a value written over it keeps it
+  setup();
+  t.Set("B4", "x");
+  CHECK(has("B4"));
+  // a copy brings it, a plain cell copied over takes it away
+  setup();
+  t.Set("C4", "5");
+  t.d.Paste(t.sheet(), 3, 3, t.d.Copy(t.sheet(), R("B4")), engine::PasteMode::All);
+  CHECK(has("D4"));
+  t.d.Paste(t.sheet(), 3, 1, t.d.Copy(t.sheet(), R("C4")), engine::PasteMode::All);
+  CHECK_FALSE(has("B4"));
+  // Paste Values leaves the links where they are
+  setup();
+  t.d.Paste(t.sheet(), 3, 1, t.d.Copy(t.sheet(), R("C4")), engine::PasteMode::Values);
+  CHECK(has("B4"));
+  // Fill Down repeats it
+  setup();
+  t.d.FillDown(t.sheet(), R("B4:B6"));
+  CHECK(has("B5"));
+  CHECK(has("B6"));
+  // a cut moves it
+  setup();
+  t.d.MoveCells(t.sheet(), R("B4"), t.sheet(), 6, 3);
+  CHECK_FALSE(has("B4"));
+  CHECK(has("D7"));
+  // the fill handle repeats it
+  setup();
+  t.d.AutoFill(t.sheet(), R("B4"), R("B4:B6"));
+  CHECK(has("B6"));
+  // a sort moves it with its row, and so does Remove Duplicates
+  setup();
+  t.Set("B2", "s");
+  t.Set("B3", "z");
+  t.d.Sort(t.sheet(), R("B2:B4"), {engine::SortKey{1}}, false);
+  CHECK(t.V("B2").str() == "lnk");
+  CHECK(has("B2"));
+  CHECK_FALSE(has("B4"));
+  setup();
+  t.Set("B2", "x");
+  t.Set("B3", "x");
+  t.d.RemoveDuplicates(t.sheet(), R("B2:B4"), {1}, false);
+  CHECK(t.V("B3").str() == "lnk");
+  CHECK(has("B3"));
+  CHECK_FALSE(has("B4"));
+}
+
 TEST_CASE("Paste and Format Painter bring the conditional formatting (item 11)", "[parity_formatting]") {
   yctest::Doc t;
   t.Set("A1", "9");

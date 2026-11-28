@@ -149,12 +149,17 @@ class ShapeKeysTest(InsertParityBase):
         sp = self.ws.Shapes.AddShape(1, 100, 40, 120, 60)
         self.click_shape(sp)
         self.assertEqual(self.selected(), [sp.Name])
+        # a screen pixel a press, Ctrl too; Shift+Down 10% lower about the center (Excel 16, measured 2026-11-28)
+        from yc import ui
+
+        x0, _, x1, _ = ui.cell_rect("A1")
+        px = 1.0 / ((x1 - x0) / self.ws.Range("A1").Width)
         self.keys("k:RightArrow|w:2|k:RightArrow|w:4")
-        self.assertAlmostEqual(sp.Left, 106, delta=0.01)
+        self.assertAlmostEqual(sp.Left, 100 + 2 * px, delta=0.02)
         self.keys("k:s-DownArrow|w:4")
-        self.assertAlmostEqual(sp.Height, 63, delta=0.01)
+        self.assertAlmostEqual(sp.Height, 60 / 1.1, delta=0.02)
         self.keys("k:c-LeftArrow|w:4")
-        self.assertAlmostEqual(sp.Left, 105.25, delta=0.01)
+        self.assertAlmostEqual(sp.Left, 100 + px, delta=0.02)
 
     def test_ctrl_keys_act_on_the_shape_not_the_cells(self):
         # H2: Ctrl+D filled the hidden cell down, Ctrl+B bolded it, Ctrl+1 opened Format Cells; objects couldn't be copied
@@ -482,9 +487,9 @@ class ProtectionTest(InsertParityBase):
         self.assertEqual(self.active(), "D5")
         self.keys("k:s-Tab|w:3")
         self.assertEqual(self.active(), "B2")
-        # arrows skip the locked cells
+        # Right goes to the next unlocked cell in reading order, all the way round (Excel 16, measured 2026-11-28)
         self.keys("k:RightArrow|w:3")
-        self.assertEqual(self.active(), "B2")
+        self.assertEqual(self.active(), "D5")
         self.ws.Unprotect()
 
 

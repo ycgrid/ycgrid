@@ -172,10 +172,20 @@ ClipData Document::Copy(uint32_t sheet, const Rect& rect_in) const {
     clip.arrays.push_back(ClipData::ArrayPart{Rect{in.r0 - rect.r0, in.c0 - rect.c0, in.r1 - rect.r0, in.c1 - rect.c0}, wb_.formulas->Share(fid)});
   }
   for (uint32_t c = rect.c0; c <= rect.c1; ++c) clip.col_widths.push_back(s->cols->Size(c));
+  if (clip.area.c0 == 0 && clip.area.c1 >= core::kMaxCols - 1 && clip.area.Rows() <= 65536) {
+    for (uint32_t r = clip.area.r0; r <= clip.area.r1; ++r) clip.line_heights.push_back(s->rows->IsHidden(r) ? -1 : s->rows->Size(r));
+  }
+  if (clip.area.r0 == 0 && clip.area.r1 >= core::kMaxRows - 1) {
+    for (uint32_t c = clip.area.c0; c <= clip.area.c1; ++c) clip.line_widths.push_back(s->cols->IsHidden(c) ? -1 : s->cols->Size(c));
+  }
   for (const auto& [k, rt] : *s->rich) {
     const uint32_t rr = static_cast<uint32_t>(k >> 16), cc = static_cast<uint32_t>(k & 0xFFFF);
     if (!rect.Contains(rr, cc)) continue;
     if (const model::RichText* live = RichTextAt(sheet, rr, cc)) clip.rich.emplace_back(static_cast<size_t>(rr - rect.r0) * clip.cols + (cc - rect.c0), *live);
+  }
+  for (auto it = s->links->lower_bound(uint64_t{rect.r0} << 16); it != s->links->end() && (it->first >> 16) <= rect.r1; ++it) {
+    const uint32_t rr = static_cast<uint32_t>(it->first >> 16), cc = static_cast<uint32_t>(it->first & 0xFFFF);
+    if (rect.Contains(rr, cc)) clip.links.emplace_back(static_cast<size_t>(rr - rect.r0) * clip.cols + (cc - rect.c0), it->second);
   }
   for (const model::CfRule& rule : *s->cond_formats) {
     if (rule.ranges.empty()) continue;
@@ -546,6 +556,24 @@ Rect Document::Paste(uint32_t sheet, uint32_t r, uint32_t c, const ClipData& cli
     }
     s = M(sheet);
   }
+  if (all_like) {  // the copied cells' hyperlinks, in place of those under the paste (Excel); Skip Blanks keeps them
+    if (!skip_blanks) EraseLinksIn(sheet, dest);
+    std::vector<std::pair<uint64_t, model::Hyperlink>> put;
+    for (const auto& [idx, l] : clip.links) {
+      const uint32_t i = static_cast<uint32_t>(idx / clip.cols), j = static_cast<uint32_t>(idx % clip.cols);
+      const uint32_t dr = r + (transpose ? j : i), dc = c + (transpose ? i : j);
+      if (dest.Contains(dr, dc)) put.emplace_back((uint64_t{dr} << 16) | dc, l);
+    }
+    PutLinks(sheet, put);
+    s = M(sheet);
+  }
+  // whole rows (columns) from the clipboard bring their heights (widths), hidden ones hidden (Excel 16, measured
+  // 2026-11-28: Rows(1).Copy Rows(5), Columns(1).Copy Columns(4), one row over two)
+  if (all_like && clip.carry_notes && !transpose) {
+    if (c == 0 && !clip.line_heights.empty()) PutLineSizes(sheet, true, r, clip.line_heights);
+    if (r == 0 && !clip.line_widths.empty()) PutLineSizes(sheet, false, c, clip.line_widths);
+    s = M(sheet);
+  }
   if (all_like && !clip.cut && clip.carry_notes) {
     paste_notes();
     paste_validation();
@@ -660,6 +688,7 @@ ClipData Document::CopyShown(uint32_t sheet, const Rect& rect) const {
     const size_t base = static_cast<size_t>(out.rows) * out.cols;
     for (const Rect& m : part.merges) out.merges.push_back(Rect{m.r0 + out.rows, m.c0, m.r1 + out.rows, m.c1});
     for (auto& [idx, rt] : part.rich) out.rich.emplace_back(base + idx, std::move(rt));
+    for (auto& [idx, l] : part.links) out.links.emplace_back(base + idx, std::move(l));
     for (auto& [k, n] : part.notes) out.notes.emplace_back(k + (uint64_t{out.rows} << 16), std::move(n));
     out.cells.insert(out.cells.end(), std::make_move_iterator(part.cells.begin()), std::make_move_iterator(part.cells.end()));
     out.rows += part.rows;
@@ -707,6 +736,45 @@ model::CfRule Document::RebasedRule(model::CfRule x, core::CellPos from, core::C
   x.formula2 = moved(x.formula2);
   for (auto& t : x.icon_thresholds) t.formula = moved(t.formula);
   return x;
+}
+
+// Go To Special > Data validation > Same: the cells whose rule has every setting of the one at (r, c), messages too,
+// its formulas the same relative to each rule's first cell (Excel 16, measured 2026-11-28: a list "a,b" added to G1:G3
+// and to G8 is one rule, "a, b" or another input message isn't; =A6>0 in J6 is J1's =A1>0)
+std::vector<Rect> SameValidationAreas(const model::Sheet& sh, uint32_t r, uint32_t c, const formula::SheetResolver* sheets) {
+  const model::Sheet* s = &sh;
+  const model::DvRule* own = nullptr;
+  for (const auto& v : *s->validations) {
+    for (const Rect& q : v.ranges) {
+      if (q.Contains(r, c)) own = &v;
+    }
+  }
+  if (!own || own->ranges.empty()) return {};
+  auto moved = [&](const std::string& f, core::CellPos from, core::CellPos to) -> std::string {
+    if (f.empty() || from == to) return f;
+    std::string_view t = f;
+    const bool eq = t[0] == '=';
+    if (!eq) return f;  // a list typed into the rule, a number
+    formula::ParseResult pr = formula::Parse(t.substr(1), from, sheets);
+    return pr.ok ? "=" + formula::ToA1(pr.root, to, sheets) : f;
+  };
+  model::DvRule mine = *own;
+  mine.ranges.clear();
+  const core::CellPos at{own->ranges.front().r0, own->ranges.front().c0};
+  std::vector<Rect> out;
+  for (const auto& v : *s->validations) {
+    if (v.ranges.empty()) continue;
+    if (&v != own) {
+      model::DvRule x = v;
+      x.ranges.clear();
+      const core::CellPos base{v.ranges.front().r0, v.ranges.front().c0};
+      x.formula1 = moved(x.formula1, base, at);
+      x.formula2 = moved(x.formula2, base, at);
+      if (!(x == mine)) continue;
+    }
+    out.insert(out.end(), v.ranges.begin(), v.ranges.end());
+  }
+  return out;
 }
 
 void Document::FillEdge(uint32_t sheet, const Rect& rect_in, int dir, bool whole_target) {
@@ -886,6 +954,19 @@ void Document::FillLinesInBulk(uint32_t sheet, const Rect& edge, const Rect& des
         for (uint32_t c = a.c0; c <= a.c1; ++c) rich[(uint64_t{r} << 16) | c] = rt;
       }
     }
+  }
+  // hyperlinks go with the cells too, as a paste takes them (Excel 16, measured: FillDown)
+  EraseLinksIn(sheet, dest);
+  if (!line.links.empty()) {
+    std::vector<std::pair<uint64_t, model::Hyperlink>> put;
+    for (const auto& [idx, l] : line.links) {
+      const Rect a = lane(static_cast<uint32_t>(idx));
+      for (uint32_t r = a.r0; r <= a.r1 && put.size() < kMaxSheetLinks; ++r) {
+        for (uint32_t c = a.c0; c <= a.c1 && put.size() < kMaxSheetLinks; ++c) put.emplace_back((uint64_t{r} << 16) | c, l);
+      }
+    }
+    std::sort(put.begin(), put.end(), [](const auto& x, const auto& y) { return x.first < y.first; });
+    PutLinks(sheet, put);
   }
   // the copied cells' conditional formats cover their lanes: a rule that looks the same as one already on the sheet
   // grows that one, as a paste per line grows it a line at a time (a million times over a whole column)
@@ -1881,6 +1962,12 @@ void Document::AutoFill(uint32_t sheet, const Rect& src, const Rect& dest, int t
       const uint32_t i = vertical ? k : lane, j = vertical ? lane : k;
       seq[k] = &clip.cells[static_cast<size_t>(i) * clip.cols + j];
     }
+    // the source cells' hyperlinks repeat with them (Excel 16, measured: AutoFill of a linked cell)
+    std::vector<const model::Hyperlink*> seq_link(n, nullptr);
+    for (const auto& [idx, l] : clip.links) {
+      const uint32_t i = static_cast<uint32_t>(idx / clip.cols), j = static_cast<uint32_t>(idx % clip.cols);
+      if ((vertical ? j : i) == lane) seq_link[vertical ? i : j] = &l;
+    }
     // detect the kind of sequence
     bool all_num = true, any_formula = false, mixed_kinds = false;
     std::vector<FillKind> kinds(n, FillKind::General);
@@ -2049,6 +2136,7 @@ void Document::AutoFill(uint32_t sheet, const Rect& src, const Rect& dest, int t
       ClipData one;
       one.rows = one.cols = 1;
       one.cells.push_back(base);
+      if (seq_link[k]) one.links.emplace_back(0, *seq_link[k]);
       const int64_t sign = (dir == 0 || dir == 1) ? 1 : -1;
       // Copy Cells / Fill Formatting Only: the source repeats
       if (type == 1 || type == 3) {
@@ -2323,10 +2411,11 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
   auto list_pos = [&](const SortKey& k, const Value& v) -> int {
     const bool own = !k.custom_items.empty();
     if ((!own && (k.custom_list < 0 || k.custom_list >= static_cast<int>(lists.size()))) || !v.IsString()) return -1;
-    const std::string low = Lower(v.str());
+    // Case sensitive takes the list's items as they are written: high isn't High (Excel 16, measured 2026-11-28)
+    const std::string low = match_case ? std::string(v.str()) : Lower(v.str());
     const auto& L = own ? k.custom_items : lists[static_cast<size_t>(k.custom_list)];
     for (size_t i = 0; i < L.size(); ++i) {
-      if (Lower(L[i]) == low) return static_cast<int>(i);
+      if ((match_case ? L[i] : Lower(L[i])) == low) return static_cast<int>(i);
     }
     return -1;
   };
@@ -2383,11 +2472,12 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
       const Value& va = cell(a, j).value;
       const Value& vb = cell(b, j).value;
       if (k.custom_list >= 0 || !k.custom_items.empty()) {
-        // the list's order (reversed when descending); values not in the list come after it
+        // the list's order; values not in the list come after it, and before it when descending (the whole order
+        // reversed); blanks stay last (Excel 16, measured 2026-11-28)
         const int pa = list_pos(k, va), pb = list_pos(k, vb);
         if (pa >= 0 || pb >= 0) {
-          if (pa < 0) return false;
-          if (pb < 0) return true;
+          if (pa < 0) return k.descending && rank(va) != 4;
+          if (pb < 0) return !(k.descending && rank(vb) != 4);
           if (pa != pb) return k.descending ? pa > pb : pa < pb;
           continue;
         }
@@ -2451,6 +2541,18 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
   // a sort that leaves every line where it was is still a step, as Excel's (measured 2026-11-16: Undo is enabled after
   // sorting 1, 2, 3): a Ctrl+Z after it took back the edit before it
   if (std::equal(order.begin(), order.end(), slots.begin(), slots.end())) NoteRegion(sheet, rect);
+  // the fonts inside a line's texts and its hyperlinks move with it (Excel 16, measured 2026-11-28 for the links): the
+  // paste of the line takes those of the cells under it away. at(i, j): the cell's index in the line, -1 off it
+  auto carry = [&](ClipData& line, const auto& at) {
+    for (const auto& [idx, rt] : data.rich) {
+      const int64_t x = at(static_cast<uint32_t>(idx / data.cols), static_cast<uint32_t>(idx % data.cols));
+      if (x >= 0) line.rich.emplace_back(static_cast<size_t>(x), rt);
+    }
+    for (const auto& [idx, l] : data.links) {
+      const int64_t x = at(static_cast<uint32_t>(idx / data.cols), static_cast<uint32_t>(idx % data.cols));
+      if (x >= 0) line.links.emplace_back(static_cast<size_t>(x), l);
+    }
+  };
   for (size_t k = 0; k < slots.size(); ++k) {
     if (order[k] == slots[k]) continue;
     ClipData line;
@@ -2467,6 +2569,7 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
         fit_line(tmp, delta, int64_t{rect.c0} + static_cast<int64_t>(slots[k]));
         line.arrays.push_back(ClipData::ArrayPart{Rect{part.rect.r0, 0, part.rect.r0, 0}, tmp.formula});
       }
+      carry(line, [&](uint32_t i, uint32_t j) { return j == order[k] ? static_cast<int64_t>(i) : -1; });
       Paste(sheet, rect.r0, rect.c0 + slots[k], line);
     } else {
       line.rows = 1;
@@ -2482,6 +2585,7 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
         fit_line(tmp, delta, int64_t{rect.r0} + static_cast<int64_t>(slots[k]));
         line.arrays.push_back(ClipData::ArrayPart{Rect{0, part.rect.c0, 0, part.rect.c0}, tmp.formula});
       }
+      carry(line, [&](uint32_t i, uint32_t j) { return i == order[k] ? static_cast<int64_t>(j) : -1; });
       Paste(sheet, rect.r0 + slots[k], rect.c0, line);
     }
   }
@@ -2756,6 +2860,9 @@ bool Document::Find(uint32_t sheet, const Rect& within_in, std::string_view what
   };
   auto matches = [&](uint32_t r, uint32_t c) {
     if (filtered(r)) return false;
+    // Look in Values searches what the sheet shows: a hidden row or column is passed over, where Look in Formulas
+    // finds it (Excel 16, measured 2026-11-28: Find("TSMC", LookIn:=xlValues) skips D2 in a hidden column)
+    if (!look_in_formulas && (s->rows->IsHidden(r) || s->cols->IsHidden(c))) return false;
     if (fmt && !FormatMatches(wb_.styles->Get(s->GetStyle(r, c)), *wb_.styles, *fmt)) return false;
     if (what.empty()) return true;  // by format only
     std::string text;

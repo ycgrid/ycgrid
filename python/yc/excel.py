@@ -2740,7 +2740,7 @@ class Workbook:
         _rq("print.preview")
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save every visible sheet as one PDF (Type=xlTypePDF)."""
         return _export_pdf(self._sheet_ids(), Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish)
 
@@ -2877,7 +2877,8 @@ class Workbook:
         _rq("wb.save")
 
     def SaveAs(self, Filename, FileFormat=None, Password=None, WriteResPassword=None, ReadOnlyRecommended=None,  # noqa: N802,N803
-               CreateBackup=None, AccessMode=None, ConflictResolution=None, AddToMru=None):
+               CreateBackup=None, AccessMode=None, ConflictResolution=None, AddToMru=None, TextCodepage=None, TextVisualLayout=None,  # noqa: N803
+               Local=None):
         """Save under a new name; Password encrypts the file (an empty string removes the encryption)."""
         if WriteResPassword:
             raise UnsupportedError("A password to modify (WriteResPassword) is not supported; use Password to encrypt the file")
@@ -2913,10 +2914,13 @@ class Workbook:
     def SaveCopyAs(self, Filename):  # noqa: N802,N803
         _rq("wb.save", path=str(Filename), copy=True)
 
-    def Close(self, SaveChanges=None):  # noqa: N802,N803
-        """Close the workbook (SaveChanges True saves first, False discards changes). This window's workbook is replaced
-        by a new blank one and YCGrid stays open, like Excel after its last workbook closes (Application.Quit closes
-        YCGrid); another window's workbook closes that window."""
+    def Close(self, SaveChanges=None, Filename=None, RouteWorkbook=None):  # noqa: N802,N803
+        """Close the workbook (SaveChanges True saves first, under Filename when one is given; False discards changes).
+        This window's workbook is replaced by a new blank one and YCGrid stays open, like Excel after its last workbook
+        closes (Application.Quit closes YCGrid); another window's workbook closes that window. RouteWorkbook (a routing
+        slip) is taken and ignored, as Excel 16 has no routing."""
+        if SaveChanges and Filename:
+            self.SaveAs(Filename)
         _rq("wb.close", save=None if SaveChanges is None else bool(SaveChanges), keep=self._cx is None)
         if self._cx is not None:
             _REMOTE.pop(self._pid, None)
@@ -5471,6 +5475,15 @@ class _PivotCacheObj:
     def SourceData(self):  # noqa: N802
         return _source_r1c1(self._pt._get()["source"] if self._pt else self._source)
 
+    @SourceData.setter
+    def SourceData(self, v):  # noqa: N802
+        """Point the cache at another source (a range, its address or a table's name), as Excel's PivotCache.SourceData =
+        does: the report using it reads the new source at its next refresh."""
+        if self._pt is None:
+            self._source = v.Address(External=True) if isinstance(v, Range) else str(v)
+            return
+        self._pt.SourceData = v
+
     @property
     def MissingItemsLimit(self):  # noqa: N802
         """xlMissingItemsNone (0): YCGrid lists only the items the source has now (a filter's list drops an item the
@@ -6321,9 +6334,29 @@ class _PageBreak:
             return Range._from(self._sheet, [(self._index, 0, self._index, MAX_COLS - 1)])
         return Range._from(self._sheet, [(0, self._index, ROW_END, self._index)])
 
+    @Location.setter
+    def Location(self, v):  # noqa: N802
+        """Move the break before another row (column): a manual break there, the old one taken away when it was manual."""
+        a = (v if isinstance(v, Range) else _make_range(self._sheet, str(v)))._a
+        idx = int(a[0] if self._rows else a[1])
+        if self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, remove=self._index)
+        _rq("page.breaks", sheet=self._sheet, rows=self._rows, add=idx)
+        self._index, self._manual = idx, True
+
     @property
     def Type(self):  # noqa: N802
         return xlPageBreakManual if self._manual else xlPageBreakAutomatic
+
+    @Type.setter
+    def Type(self, v):  # noqa: N802
+        """xlPageBreakManual makes an automatic break a manual one where it is, xlPageBreakAutomatic takes a manual one away."""
+        manual = int(v) == xlPageBreakManual
+        if manual and not self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, add=self._index)
+        elif not manual and self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, remove=self._index)
+        self._manual = manual
 
     @property
     def Extent(self):  # noqa: N802
@@ -6584,10 +6617,18 @@ class SparklineGroup:
         r1, c1 = max(a[2] for a in cells), max(a[3] for a in cells)
         return Range._from(self._sheet, [(r0, c0, r1, c1)])
 
+    @Location.setter
+    def Location(self, v):  # noqa: N802
+        self.ModifyLocation(v)
+
     @property
     def SourceData(self):  # noqa: N802
         items = self._get()["items"]
         return ",".join(it["source"] for it in items)
+
+    @SourceData.setter
+    def SourceData(self, v):  # noqa: N802
+        self.ModifySourceData(v)
 
     @property
     def SeriesColor(self):  # noqa: N802
@@ -7179,7 +7220,7 @@ class Worksheet:
         _rq("print.preview")
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save the sheet as PDF with its page setup (Type=xlTypePDF); returns the file's full path."""
         return _export_pdf([self._id], Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish)
 
@@ -7878,9 +7919,13 @@ class Range:
 
     def AutoOutline(self):  # noqa: N802
         """Data > Group > Auto Outline: group the rows (columns) that SUM / SUBTOTAL formulas in the range add up.
-        A single cell works on the whole sheet's data. Returns the number of groups made."""
+        A single cell works on the whole sheet's data. Returns the number of groups made; with nothing to group it
+        raises "Cannot create an outline.", as Excel's does (measured)."""
         a = self._a
-        return _rq("outline.auto", sheet=self._sheet, rect=list(a))
+        n = _rq("outline.auto", sheet=self._sheet, rect=list(a))
+        if not n:
+            raise ApplicationDefinedError("Cannot create an outline.")
+        return n
 
     def ClearOutline(self):  # noqa: N802
         """Remove the row and column groups of the range's rows and columns; one cell clears the whole sheet's outline,
@@ -7918,7 +7963,7 @@ class Range:
         _print_out([self._sheet], From, To, Copies, Preview, ActivePrinter, PrintToFile, Collate, PrToFileName, area=self._a)
 
     def ExportAsFixedFormat(self, Type=0, Filename=None, Quality=0, IncludeDocProperties=True, IgnorePrintAreas=False, From=None, To=None,  # noqa: N802,N803
-                            OpenAfterPublish=False):
+                            OpenAfterPublish=False, FixedFormatExtClassPtr=None):
         """Save only this range as PDF."""
         return _export_pdf([self._sheet], Type, Filename, Quality, IncludeDocProperties, IgnorePrintAreas, From, To, OpenAfterPublish, area=self._a)
 
@@ -8652,7 +8697,14 @@ class Range:
     def IndentLevel(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
-        self._style(indent=int(v))
+        # several cells (a merged cell is one) are indented as a block: every one becomes Left-aligned, Right ones too
+        block = self.Count > 1
+        if block and len(self._areas) == 1:
+            try:  # one merged cell is one cell
+                block = self.Cells(1, 1).MergeArea.Address != self.Address
+            except Exception:  # noqa: BLE001 (a reply without the area: indent as several cells)
+                pass
+        self._style(indent=int(v), **({"indent_block": True} if block else {}))
 
     def InsertIndent(self, InsertAmount):  # noqa: N802,N803
         """Add InsertAmount (may be negative) to the indent level (0..15)."""
@@ -9079,15 +9131,20 @@ class Range:
         return True
 
     def Sort(self, Key1=None, Order1=xlAscending, Key2=None, Type=None, Order2=xlAscending, Key3=None, Order3=xlAscending, Header=2,  # noqa: N802,N803
-             OrderCustom=None, **kw):
+             OrderCustom=None, MatchCase=False, Orientation=None, SortMethod=None, DataOption1=None, DataOption2=None,  # noqa: N803
+             DataOption3=None, **kw):
         """OrderCustom: 1 + the number of a custom list (Application.GetCustomListContents) that orders Key1, as in
         Excel (1 is the normal order; recorded macros write OrderCustom:=1).
         Header: xlNo (the default), xlYes or xlGuess (a first row of text over other values is a header). One cell
-        sorts its current region, as in Excel."""
+        sorts its current region, as in Excel. The arguments come in Excel's order (MatchCase, Orientation,
+        SortMethod and the DataOptions after OrderCustom), so a call written with all of them by position works."""
         _one_area(self)
+        if Orientation is None:
+            Orientation = kw.get("Orientation", xlTopToBottom)
+        MatchCase = bool(MatchCase or kw.get("MatchCase", False))
         if self.Count == 1 and self.CurrentRegion.Count > 1:
-            return self.CurrentRegion.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, **kw)
-        ltr = kw.get("Orientation", xlTopToBottom) == xlLeftToRight
+            return self.CurrentRegion.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, MatchCase, Orientation)
+        ltr = Orientation == xlLeftToRight
         keys = []
         for k, o in ((Key1, Order1), (Key2, Order2), (Key3, Order3)):
             if k is None:
@@ -9099,8 +9156,7 @@ class Range:
         if OrderCustom and int(OrderCustom) > 1:  # Excel 16, measured: OrderCustom n + 1 orders by list n
             keys[0].append(int(OrderCustom) - 2)
         header = Header == xlYes or (Header == xlGuess and not ltr and _guess_header(self._sheet, self._a))
-        _rq("range.sort", sheet=self._sheet, rect=list(self._a), keys=keys, header=header, match_case=bool(kw.get("MatchCase", False)),
-            left_to_right=ltr)
+        _rq("range.sort", sheet=self._sheet, rect=list(self._a), keys=keys, header=header, match_case=MatchCase, left_to_right=ltr)
 
     def Subtotal(self, GroupBy, Function, TotalList, Replace=True, PageBreaks=False, SummaryBelowData=1):  # noqa: N802,N803
         """Data > Subtotal: GroupBy and TotalList are field numbers (1 = the list's first column); Function xlSum,
@@ -9680,8 +9736,8 @@ class _Areas:
     def __init__(self, rng):
         self._r = rng
 
-    def __call__(self, i):
-        return Range._from(self._r._sheet, [self._r._areas[i - 1]])
+    def __call__(self, Index):  # noqa: N803 (Excel's name, so Item(Index=2) works)
+        return Range._from(self._r._sheet, [self._r._areas[Index - 1]])
 
     Item = __call__
 
@@ -12352,9 +12408,27 @@ class Scenario:
     def Name(self):  # noqa: N802
         return self._get()["name"]
 
+    @Name.setter
+    def Name(self, v):  # noqa: N802
+        """Rename the scenario (Scenario Manager > Edit > Scenario name)."""
+        new = str(v)
+        old = self._get()["name"]
+        if new == old:
+            return
+        if new.lower() != old.lower() and any(x["name"].lower() == new.lower() for x in _rq("scenario.list", sheet=self._sheet)):
+            raise ApplicationDefinedError(f"A scenario named {new} already exists")
+        self._set(name=new)
+        if new.lower() != old.lower():
+            _rq("scenario.delete", sheet=self._sheet, name=old)
+        self._name = new
+
     @property
     def Comment(self):  # noqa: N802
         return self._get()["comment"]
+
+    @Comment.setter
+    def Comment(self, v):  # noqa: N802
+        self._set(comment=str(v))
 
     @property
     def Locked(self):  # noqa: N802
@@ -13158,9 +13232,10 @@ class Hyperlink:
         self.Range.Value = str(v)
 
     def Delete(self):  # noqa: N802
-        _rq("link.clear", sheet=self._sheet, rect=[self._r, self._c, self._r, self._c])
+        # Remove Hyperlinks: the cell's formats go too (Excel 16, measured); Range.ClearHyperlinks keeps them
+        _rq("link.clear", sheet=self._sheet, rect=[self._r, self._c, self._r, self._c], formats=True)
 
-    def Follow(self, NewWindow=False):  # noqa: N802,N803
+    def Follow(self, NewWindow=False, AddHistory=None, ExtraInfo=None, Method=None, HeaderInfo=None):  # noqa: N802,N803
         import os as _os
 
         d = self._get()
@@ -13217,7 +13292,7 @@ class _Hyperlinks:
 
     def Delete(self):  # noqa: N802
         for x in self._list():
-            _rq("link.clear", sheet=self._sheet, rect=[x["row"], x["col"], x["row"], x["col"]])
+            _rq("link.clear", sheet=self._sheet, rect=[x["row"], x["col"], x["row"], x["col"]], formats=True)
 
 # ---------------------------------------------------------------------------
 # MsgBox, InputBox

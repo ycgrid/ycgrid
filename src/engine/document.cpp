@@ -1009,6 +1009,10 @@ void Document::SetValue(uint32_t sheet, uint32_t r, uint32_t c, Value v, uint8_t
     UnregisterFormulaCell(sheet, r, c);
     s->SetFormula(r, c, 0);
   }
+  if (v.IsEmpty()) {
+    EraseLinksIn(sheet, Rect::Cell(r, c));
+    s = M(sheet);
+  }
   if (wb_.precision_as_displayed) RoundShown(sheet, r, c, &v);  // Set precision as displayed: what is written too
   s->SetValue(r, c, std::move(v));
   MarkChanged(sheet, Rect::Cell(r, c), src);
@@ -1048,6 +1052,15 @@ void Document::SetValues(uint32_t sheet, const Rect& rect, const std::vector<Val
       }
       s->SetValue(r, c, values[i]);
     }
+  }
+  if (!S(sheet)->links->empty()) {  // the cells emptied lose their hyperlinks (Excel): a walk of the links, not the cells
+    std::vector<uint32_t> rows, cols;
+    for (const auto& [k, l] : *S(sheet)->links) {
+      const uint32_t r = static_cast<uint32_t>(k >> 16), c = static_cast<uint32_t>(k & 0xFFFF);
+      if (!rect.Contains(r, c)) continue;
+      if (values[static_cast<size_t>(r - rect.r0) * rect.Cols() + (c - rect.c0)].IsEmpty()) rows.push_back(r), cols.push_back(c);
+    }
+    for (size_t k = 0; k < rows.size(); ++k) EraseLinksIn(sheet, Rect::Cell(rows[k], cols[k]));
   }
   MarkChanged(sheet, rect, src);
 }
@@ -1294,6 +1307,7 @@ void Document::ClearContents(uint32_t sheet, const Rect& rect, uint8_t src) {
   });
   for (auto [r, c] : cells) s->SetValue(r, c, Value());
   EraseRich(sheet, rect);
+  EraseLinksIn(sheet, rect);
   MarkChanged(sheet, rect, src);
 }
 

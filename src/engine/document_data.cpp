@@ -14,6 +14,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace yc::engine {
@@ -21,6 +22,17 @@ namespace yc::engine {
 using model::Sheet;
 
 namespace {
+
+// the hyperlinks of the rows Remove Duplicates keeps go up with them (the rows of `out`, in the order of `keep`)
+void CarryKeptLinks(const ClipData& all, const std::vector<uint32_t>& keep, ClipData* out) {
+  if (all.links.empty() || all.cols == 0) return;
+  std::unordered_map<uint32_t, uint32_t> at;  // source row -> its row in out
+  for (uint32_t p = 0; p < keep.size() && p < out->rows; ++p) at.emplace(keep[p], p);
+  for (const auto& [idx, l] : all.links) {
+    const auto it = at.find(static_cast<uint32_t>(idx / all.cols));
+    if (it != at.end()) out->links.emplace_back(static_cast<size_t>(it->second) * all.cols + idx % all.cols, l);
+  }
+}
 
 // a cell as a comparable key: Excel judges duplicates by the value shown (1.001 and 1.002 shown as "1.00" are the
 // same; one date shown two ways is not), text case-insensitively; TRUE and the text "true" are one, while 1 and the
@@ -135,6 +147,7 @@ uint32_t Document::RemoveDuplicates(uint32_t sheet, const Rect& rect_in, const s
     for (uint32_t i : keep) {
       for (uint32_t j = 0; j < all.cols; ++j) out.cells.push_back(all.cells[static_cast<size_t>(i) * all.cols + j]);
     }
+    CarryKeptLinks(all, keep, &out);
     Paste(sheet, first, body.c0, out, PasteMode::All);
     DeleteCells(sheet, Rect{first + out.rows, body.c0, rect.r1, body.c1}, true);
     return removed;
@@ -162,6 +175,7 @@ uint32_t Document::RemoveDuplicates(uint32_t sheet, const Rect& rect_in, const s
       for (uint32_t j = 0; j < all.cols; ++j) out.cells.push_back(all.cells[static_cast<size_t>(i) * all.cols + j]);
       ++out.rows;
     }
+    CarryKeptLinks(all, keep, &out);
     ClearAll(sheet, body, kSrcUser, false, /*to_lines=*/true);
     if (out.rows) Paste(sheet, first, c0, out, PasteMode::All);
   }
@@ -474,8 +488,11 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
   // its row), with only blank cells between them and it, makes the rows (columns) from the first of them to the one
   // before it a group; a referenced cell that is itself such a total brings its group in (=SUM(A3,A6) over the totals
   // of rows 1-2 and 4-5 groups rows 1-6, nesting the two). One cell (=A3*2) or a value in between makes no group
+  // The summaries are below (right of) their details or above (left of) them, whichever the first such total in
+  // reading order is, and only that side's totals group then; the side becomes the sheet's Summary rows below /
+  // columns to the right (Excel 16, measured 2026-11-28: =SUM(B2:B3) in B1 groups rows 2:3 and sets xlAbove, a total
+  // below it after that one is left out; =SUM(B3:B4) in B1 over a blank B2 groups 2:4)
   std::set<std::pair<uint32_t, uint32_t>> row_groups, col_groups;
-  std::map<std::pair<uint32_t, uint32_t>, uint32_t> row_tops, col_tops;  // a total's (line, place) -> its group's start
   auto blank = [&](uint32_t r, uint32_t c) { return !s->GetFormula(r, c) && s->GetValue(r, c).IsEmpty(); };
   std::vector<formula::ResolvedRef> refs;
   // the formula cells only, in reading order (a total takes in the groups of the totals found before it): asking every
@@ -485,42 +502,76 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
     if (t.formula[idx]) formula_cells.emplace_back(r, c);
   });
   std::sort(formula_cells.begin(), formula_cells.end());
+  // the details a formula adds up along one axis on one side (after: they come after it, above / left summaries):
+  // false when it isn't such a total there; otherwise the first and last line it reads
+  auto details = [&](uint32_t r, uint32_t c, bool by_rows, bool after, uint32_t* first, uint32_t* last) {
+    const formula::CompiledFormula* f = Formula(s->GetFormula(r, c));
+    if (!f) return false;
+    refs.clear();
+    formula::CollectRefs(f->root, core::CellPos{r, c}, &refs);
+    if (refs.empty()) return false;
+    uint64_t cells = 0;
+    *first = UINT32_MAX;
+    *last = 0;
+    for (const auto& ref : refs) {
+      const Rect& x = ref.rect;
+      const bool own = ref.sheet < 0 || ref.sheet == static_cast<int32_t>(sheet);
+      if (!own) return false;
+      if (by_rows ? (x.c0 != c || x.c1 != c || (after ? x.r0 <= r : x.r1 >= r)) : (x.r0 != r || x.r1 != r || (after ? x.c0 <= c : x.c1 >= c))) return false;
+      cells += by_rows ? x.Rows() : x.Cols();
+      *first = std::min(*first, by_rows ? x.r0 : x.c0);
+      *last = std::max(*last, by_rows ? x.r1 : x.c1);
+    }
+    if (cells < 2) return false;
+    const uint32_t at = by_rows ? r : c;
+    const uint32_t from = after ? at + 1 : *last + 1, to = after ? *first : at;  // only blanks between it and them
+    for (uint32_t k = from; k < to; ++k) {
+      if (!(by_rows ? blank(k, c) : blank(r, k))) return false;
+    }
+    return true;
+  };
+  // the side of each axis: the first total in reading order (a formula is a row total before a column total)
+  int side_rows = -1, side_cols = -1;  // 0: below / right, 1: above / left
   for (const auto& [r, c] : formula_cells) {
-    {
-      const formula::CompiledFormula* f = Formula(s->GetFormula(r, c));
-      if (!f) continue;
-      refs.clear();
-      formula::CollectRefs(f->root, core::CellPos{r, c}, &refs);
-      if (refs.empty()) continue;
-      for (const bool by_rows : {true, false}) {
-        uint64_t cells = 0;
-        uint32_t first = UINT32_MAX, last = 0;
-        bool ok = true;
-        for (const auto& ref : refs) {
-          const Rect& x = ref.rect;
-          const bool own = ref.sheet < 0 || ref.sheet == static_cast<int32_t>(sheet);
-          if (!own || (by_rows ? (x.c0 != c || x.c1 != c || x.r1 >= r) : (x.r0 != r || x.r1 != r || x.c1 >= c))) {
-            ok = false;
-            break;
-          }
-          cells += by_rows ? x.Rows() : x.Cols();
-          first = std::min(first, by_rows ? x.r0 : x.c0);
-          last = std::max(last, by_rows ? x.r1 : x.c1);
-        }
-        if (!ok || cells < 2) continue;
-        const uint32_t at = by_rows ? r : c;
-        for (uint32_t k = last + 1; k < at && ok; ++k) ok = by_rows ? blank(k, c) : blank(r, k);
-        if (!ok) continue;
-        auto& tops = by_rows ? row_tops : col_tops;
-        const uint32_t line = by_rows ? c : r;
-        uint32_t top = first;
-        for (auto it = tops.lower_bound({line, first}); it != tops.end() && it->first.first == line && it->first.second <= last; ++it) {
-          top = std::min(top, it->second);
-        }
-        tops[{line, at}] = top;
-        (by_rows ? row_groups : col_groups).insert({top, at - 1});
+    if (side_rows >= 0 && side_cols >= 0) break;
+    uint32_t f0, f1;
+    for (const bool by_rows : {true, false}) {
+      int& side = by_rows ? side_rows : side_cols;
+      bool found = false;
+      for (const bool after : {false, true}) {
+        if (!details(r, c, by_rows, after, &f0, &f1)) continue;
+        if (side < 0) side = after ? 1 : 0;
+        found = true;
         break;
       }
+      if (found) break;
+    }
+  }
+  for (const bool by_rows : {true, false}) {
+    const int side = by_rows ? side_rows : side_cols;
+    if (side < 0) continue;
+    const bool after = side == 1;
+    // a total that reads another total takes in that one's group: the totals below (right) are met in reading order,
+    // those above (left) from the end, so the inner ones are found first
+    std::map<std::pair<uint32_t, uint32_t>, uint32_t> ends;  // a total's (line, place) -> its group's far end
+    auto& groups = by_rows ? row_groups : col_groups;
+    auto visit = [&](uint32_t r, uint32_t c) {
+      uint32_t first, last;
+      // a formula that is a row total isn't a column total too
+      if (!by_rows && (details(r, c, true, false, &first, &last) || details(r, c, true, true, &first, &last))) return;
+      if (!details(r, c, by_rows, after, &first, &last)) return;
+      const uint32_t at = by_rows ? r : c, line = by_rows ? c : r;
+      uint32_t end = after ? last : first;
+      for (auto it = ends.lower_bound({line, first}); it != ends.end() && it->first.first == line && it->first.second <= last; ++it) {
+        end = after ? std::max(end, it->second) : std::min(end, it->second);
+      }
+      ends[{line, at}] = end;
+      groups.insert(after ? std::make_pair(at + 1, end) : std::make_pair(end, at - 1));
+    };
+    if (after) {
+      for (auto it = formula_cells.rbegin(); it != formula_cells.rend(); ++it) visit(it->first, it->second);
+    } else {
+      for (const auto& [r, c] : formula_cells) visit(r, c);
     }
   }
   if (row_groups.empty() && col_groups.empty()) return 0;
@@ -528,6 +579,10 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
   ClearOutline(sheet, false);
   for (const auto& [a, b] : row_groups) GroupOutline(sheet, true, a, b, true);
   for (const auto& [a, b] : col_groups) GroupOutline(sheet, false, a, b, true);
+  if (const Sheet* now = S(sheet)) {
+    SetOutlineSettings(sheet, row_groups.empty() ? now->outline_below : side_rows == 0, col_groups.empty() ? now->outline_right : side_cols == 0,
+                       now->outline_styles);
+  }
   return static_cast<int>(row_groups.size() + col_groups.size());
 }
 
@@ -542,6 +597,13 @@ void Document::ClearOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b) {
   for (int64_t i : idx) {
     if (d.IsHidden(i)) d.Hide(i, false);
     d.SetLevel(i, 0);
+  }
+  if (!d.Collapsed().empty()) {  // the groups go, and so does what was collapsed of them (a summary line beside them too)
+    std::set<int64_t> keep;
+    for (const int64_t i : d.Collapsed()) {
+      if (i + 1 < int64_t{a} || i > int64_t{b} + 1) keep.insert(i);
+    }
+    d.LoadCollapsed(std::move(keep));
   }
   changes_.push_back(CellChange{sheet, Rect{0, 0, core::kRowEnd, core::kMaxCols - 1}, kSrcUser});
   wb_.dirty = true;
@@ -559,6 +621,41 @@ void Document::ShowOutlineLevel(uint32_t sheet, bool rows, int level) {
   std::vector<std::pair<int64_t, bool>> todo;
   for (const auto& [i, l] : (rows ? *s->rows : *s->cols).Levels()) todo.emplace_back(i, l >= level);
   HideLineRuns(sheet, rows, todo);
+  // the groups the level button closes are collapsed, every other group is not: after the button for level 2, a
+  // subtotal's group stays closed when the grand total's is closed and opened again; after level 1 it opens with it
+  // (Excel 16, measured 2026-11-28)
+  std::vector<int64_t> closed;
+  {
+    const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
+    int64_t run0 = -1, prev = -2;
+    auto end_run = [&] {
+      if (run0 < 0) return;
+      if (const int64_t at = SummaryLine(sheet, rows, run0, prev); at >= 0) closed.push_back(at);
+      run0 = -1;
+    };
+    for (const auto& [i, l] : d.Levels()) {
+      if (l < level || i != prev + 1) end_run();
+      if (l >= level && run0 < 0) run0 = i;
+      prev = i;
+    }
+    end_run();
+    if (d.Collapsed().empty() && closed.empty()) return;
+  }
+  NoteTouched();
+  auto& m = rows ? M(sheet)->rows.mut() : M(sheet)->cols.mut();
+  m.LoadCollapsed(std::set<int64_t>(closed.begin(), closed.end()));
+  wb_.dirty = true;
+}
+
+// the summary line of the group over lines [a, b]: below it (right of it) or above it (left), as the sheet's outline
+// settings say; -1 off the sheet
+int64_t Document::SummaryLine(uint32_t sheet, bool rows, int64_t a, int64_t b) const {
+  const Sheet* s = S(sheet);
+  if (!s) return -1;
+  const bool after = rows ? s->outline_below : s->outline_right;
+  const int64_t at = after ? b + 1 : a - 1;
+  const int64_t limit = rows ? int64_t{s->row_limit} : int64_t{core::kMaxCols};
+  return at >= 0 && at < limit ? at : -1;
 }
 
 // consecutive lines given the same choice are hidden or shown in one call: a line at a time, the million rows of a
@@ -608,18 +705,49 @@ void Document::SetGroupCollapsed(uint32_t sheet, bool rows, uint32_t index, int 
   } off{&outline_toggle_};
   uint32_t a, b;
   if (!OutlineBlock(sheet, rows, index, level, &a, &b)) return;
+  // the group's summary line keeps whether a person collapsed it (Excel's collapsed flag)
+  auto mark = [&](int64_t at, bool on) {
+    if (at < 0) return;
+    const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
+    if (d.IsCollapsed(at) == on) return;
+    NoteTouched();
+    (rows ? M(sheet)->rows.mut() : M(sheet)->cols.mut()).SetCollapsed(at, on);
+    wb_.dirty = true;
+  };
   if (collapse) {
     if (rows) HideRows(sheet, a, b, true);
     else HideCols(sheet, a, b, true);
+    mark(SummaryLine(sheet, rows, a, b), true);
     return;
   }
-  // expanding shows the rows of this level; deeper groups keep their state (a collapsed inner group stays collapsed)
-  const Sheet* s = S(sheet);
-  const auto& d = rows ? *s->rows : *s->cols;
+  // expanding shows the lines of this level and every inner group but those a person collapsed, which stay closed
+  // (Excel 16, measured 2026-11-28: a subtotal's group closed by its own button stays closed when the grand total's
+  // opens; one hidden only with the grand total's opens with it)
+  const auto& d = rows ? *S(sheet)->rows : *S(sheet)->cols;
   std::vector<std::pair<int64_t, bool>> show;
-  for (auto it = d.Levels().lower_bound(a); it != d.Levels().end() && it->first <= b; ++it) {
-    if (it->second == level) show.emplace_back(it->first, false);
+  // the lines of [lo, hi] at level k and deeper, skipping the inner groups whose summary is collapsed
+  std::vector<std::tuple<int64_t, int64_t, int>> todo{{a, b, level}};
+  while (!todo.empty()) {
+    const auto [lo, hi, k] = todo.back();
+    todo.pop_back();
+    int64_t run0 = -1, prev = -2;
+    auto end_run = [&] {
+      if (run0 < 0) return;
+      const int64_t at = SummaryLine(sheet, rows, run0, prev);
+      if (at < 0 || !d.IsCollapsed(at)) todo.emplace_back(run0, prev, k + 1);
+      run0 = -1;
+    };
+    for (auto it = d.Levels().lower_bound(lo); it != d.Levels().end() && it->first <= hi; ++it) {
+      const int64_t i = it->first;
+      if (it->second <= k || i != prev + 1) end_run();
+      if (it->second == k) show.emplace_back(i, false);
+      else if (it->second > k && run0 < 0) run0 = i;
+      prev = i;
+    }
+    end_run();
   }
+  std::sort(show.begin(), show.end());
+  mark(SummaryLine(sheet, rows, a, b), false);
   HideLineRuns(sheet, rows, show);
 }
 
@@ -901,6 +1029,14 @@ bool Document::MoveCells(uint32_t src_sheet, const Rect& src_in, uint32_t dst_sh
   const int64_t drow = int64_t{dr} - src.r0, dcol = int64_t{dc} - src.c0;
   if (drow == 0 && dcol == 0 && src_sheet == dst_sheet) return true;
   const Rect dst{dr, dc, static_cast<uint32_t>(dr + src.Rows() - 1), static_cast<uint32_t>(dc + src.Cols() - 1)};
+  // the sizes of whole rows (columns) cut, taken before anything moves (set at the end)
+  std::vector<int32_t> line_sizes[2];
+  if (src_in.c0 == 0 && src_in.c1 >= core::kMaxCols - 1 && src.Rows() <= 65536) {
+    for (uint32_t r = src.r0; r <= src.r1; ++r) line_sizes[0].push_back(S(src_sheet)->rows->IsHidden(r) ? -1 : S(src_sheet)->rows->Size(r));
+  }
+  if (src_in.r0 == 0 && src.r1 >= S(src_sheet)->row_limit - 1) {
+    for (uint32_t c = src.c0; c <= src.c1; ++c) line_sizes[1].push_back(S(src_sheet)->cols->IsHidden(c) ? -1 : S(src_sheet)->cols->Size(c));
+  }
   // an array entered over several cells doesn't land in a table, as it can't be entered there: its value became a
   // header's text, and a calculation on open made it a number again (doc_fuzz seed 99007204). A table cut with it
   // goes along and isn't in the way.
@@ -1346,6 +1482,21 @@ bool Document::MoveCells(uint32_t src_sheet, const Rect& src_in, uint32_t dst_sh
   SyncTableHeaders(dst_sheet);
   if (src_sheet != dst_sheet) SyncTableHeaders(src_sheet);
   for (const std::string& name : merged_away) RewriteTableRefs(name, std::string(), std::string(), std::string());  // #REF!
+  // whole rows (columns) cut move their heights (widths): the rows left take the standard height, those pasted onto
+  // the cut ones' (Excel 16, measured 2026-11-28: Rows(1).Cut Rows(9) gives row 9 row 1's 30 points, row 1 the
+  // standard height)
+  if (!line_sizes[0].empty() || !line_sizes[1].empty()) {
+    for (int k = 0; k < 2; ++k) {
+      const bool rows = k == 0;
+      const auto& sizes = line_sizes[k];
+      if (sizes.empty()) continue;
+      const uint32_t from = rows ? src.r0 : src.c0, to = rows ? dr : dc;
+      const auto& dim = rows ? *S(src_sheet)->rows : *S(src_sheet)->cols;
+      std::vector<int32_t> standard(sizes.size(), dim.default_size());
+      PutLineSizes(src_sheet, rows, from, standard);
+      PutLineSizes(dst_sheet, rows, to, sizes);
+    }
+  }
   changes_.push_back(CellChange{src_sheet, src, kSrcUser});
   changes_.push_back(CellChange{dst_sheet, dst, kSrcUser});
   wb_.dirty = true;

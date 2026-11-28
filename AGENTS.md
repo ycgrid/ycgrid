@@ -1110,6 +1110,15 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - A multi-cell array formula over a table is refused, as in Excel ("Multi-cell array formulas aren't allowed in tables."): its header held a result as text and turned into a number on reopen (doc_fuzz seed 112).
 - The same workbook is the same bytes: what the model keeps in edit order (merged areas) is written in reading order, and `io::ContentDump` hashes a style by its strings, not the string table's numbers, so a dump compares across a save and an open (doc_fuzz seeds 1, 102).
 - A sort moves each line's formulas as a copy would, with two exceptions (Excel 16, measured): references to other sheets keep naming the same cells, and a range moved partly past the sheet's edge is cut to it (`=SUM(B0:B2)` is `=SUM(B1:B2)`; one cell past it is #REF!). Shifting every reference made 40 of 46 random sequences with a sort differ from Excel; single-operation sort cases never showed it, since their formulas read their own row.
+- A state Excel keeps that the screen doesn't show (an outline group a person closed, Excel's collapsed flag) can't
+  be worked out from what is hidden: a group hidden under a closed outer group looks the same whether it was open or
+  closed. Expanding the grand total's group left every subtotal closed, since YCGrid read "hidden" as "closed";
+  `DimIndex::IsCollapsed` keeps it on the summary line. Measure the sequence (close, close the outer, open the outer),
+  not only one click.
+- A paste replaces what the cells under it hold beside their contents (fonts inside the text, hyperlinks): a clip
+  built by hand from a `Copy` (a sort's lines, Remove Duplicates' kept rows, AutoFill's one cell) carries the copied
+  cells' `rich` and `links` too, or the paste erases them. A sort lost every rich text that way, and a cell's link
+  stayed when it was emptied, copied over or sorted away (Excel 16 takes it with the cell, measured 2026-11-28).
 - How an operation rewrites the references it touches is measured over a grid of cases and a random set, not over
   the cases a round showed: the cut and paste rule for a range's edges (`MoveEdges`) was written from a few and was
   wrong in 236 of 5,029 cuts over B2:D5. `scripts\measure_excel_moves.py` measures 13,617 cuts and
@@ -1359,6 +1368,11 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - An error value's number in Python is Excel's CVErr number (`XlError.Number`: #SPILL! is 2045, #CALC! 2050), from
   the one table in `yc/types.py`, with its `xlErr...` constant: a new error value gets its line there and in
   `tests.test_core`, or it reads as 2000 plus an internal number no script expects.
+- A Python member takes Excel's arguments in Excel's order, all of them (the ones YCGrid has no use for taken and
+  ignored): macros written for Excel pass them by position, and `Range.Sort(..., OrderCustom, MatchCase,
+  Orientation)` raised a TypeError, `Workbook.Close(True, path)` too, and `Shapes.AddChart(xlLine, ...)` read the
+  type as a chart style. `scripts/check_excel_parity.py` compares every method with
+  `tests/data/excel_method_params.json` (`scripts/measure_excel_params.py`, from Excel's interop assembly).
 - A collection Excel returns from a method (`PivotCaches`, `PivotTables`, `Scenarios`, `Trendlines`, `DataLabels`,
   `ChartObjects`) is a property returning a callable collection (`__call__()` is itself, `__call__(i)` its Item):
   recorded macros write `PivotCaches.Create(...)` without parentheses, and a bound method has no `Create`.

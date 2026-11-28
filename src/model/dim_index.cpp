@@ -162,6 +162,11 @@ void DimIndex::Insert(int64_t at, int64_t count) {
     levels_ = std::move(o);
     CountLevels();
   }
+  if (!collapsed_.empty()) {
+    std::set<int64_t> o;
+    for (const int64_t i : collapsed_) o.emplace_hint(o.end(), i >= at ? i + count : i);
+    collapsed_ = std::move(o);
+  }
   dirty_ = true;
 }
 
@@ -186,6 +191,13 @@ void DimIndex::Remove(int64_t at, int64_t count) {
     }
     levels_ = std::move(o);
     CountLevels();
+  }
+  if (!collapsed_.empty()) {
+    std::set<int64_t> o;
+    for (const int64_t i : collapsed_) {
+      if (i < at || i >= at + count) o.emplace_hint(o.end(), i >= at + count ? i - count : i);
+    }
+    collapsed_ = std::move(o);
   }
   dirty_ = true;
 }

@@ -244,7 +244,14 @@ TEST_CASE("outline groups") {
   CHECK(t.d.wb().sheets[0]->rows->IsHidden(3));
   t.d.SetGroupCollapsed(t.sheet(), true, 1, 1, false);
   CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(1));
-  CHECK(t.d.wb().sheets[0]->rows->IsHidden(2));  // the inner group stays collapsed
+  // the inner group was hidden by the level button, not closed by its own: it opens too (Excel 16, measured
+  // 2026-11-28); closed by its own button it stays closed
+  CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(2));
+  t.d.SetGroupCollapsed(t.sheet(), true, 2, 2, true);
+  t.d.SetGroupCollapsed(t.sheet(), true, 1, 1, true);
+  t.d.SetGroupCollapsed(t.sheet(), true, 1, 1, false);
+  CHECK_FALSE(t.d.wb().sheets[0]->rows->IsHidden(1));
+  CHECK(t.d.wb().sheets[0]->rows->IsHidden(2));
   uint32_t a = 0, b = 0;
   REQUIRE(t.d.OutlineBlock(t.sheet(), true, 3, 2, &a, &b));
   CHECK(a == 2);
