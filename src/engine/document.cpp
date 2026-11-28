@@ -1489,6 +1489,25 @@ Value Document::EvaluateFormula(uint32_t sheet, std::string_view text, std::stri
   return v;
 }
 
+bool Document::ValidationFormulaFails(uint32_t sheet, core::CellPos at, std::string_view text, bool list) {
+  if (!text.empty() && text[0] == '=') text.remove_prefix(1);
+  formula::ParseResult pr = formula::Parse(text, at, this);
+  if (!pr.ok) return true;
+  SettleForRead();
+  const uint64_t saved = current_cell_;
+  current_cell_ = Key(sheet, at.row, at.col);
+  bool fails = false;
+  try {
+    const int32_t sh = static_cast<int32_t>(sheet);
+    if (!(list && pr.root.kind != formula::NK::Name && formula::EvaluatesToReference(pr.root, *host_, sh, at)))
+      fails = formula::EvaluateCell(pr.root, *host_, sh, at).IsError();
+  } catch (const formula::NeedCell&) {
+    fails = false;  // reads a cell a cycle keeps uncalculated: not an error it gives
+  }
+  current_cell_ = saved;
+  return fails;
+}
+
 Value Document::EvaluateAt(uint32_t sheet, const formula::Node& root, core::CellPos at) {
   const uint64_t saved = current_cell_;
   current_cell_ = Key(sheet, at.row, at.col);

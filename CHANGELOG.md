@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python: `Validation.Add` and `Modify` raise for a formula that gives an error at the range's first cell, as Excel's
+  do (a list that refers to cells is taken whatever they hold); YCGrid kept a rule that never let a value in.
 - An array entered with Ctrl+Shift+Enter that reads its own cell is calculated after the cells it reads further on:
   `=TRANSPOSE(A1:B2)` beside `{=A1:B2*2}` in B1 showed 0 without spilling until something else calculated it again.
 - Python: one formula written over whole rows through a table's header row is relative to the first cell it

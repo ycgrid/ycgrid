@@ -327,6 +327,35 @@ class ExcelDiffTailTest(_Live):
         with self.assertRaises(yc.YcError):
             ws.Range("K2:L2,K4").AddComment("y")
 
+    def test_validation_refuses_a_formula_that_gives_an_error(self):
+        # Excel 16 (2026-11-28): Validation.Add and Modify refuse a formula that gives an error at the range's first
+        # cell, of any type; a list takes a reference whatever its cell holds, but not through a name
+        ws = self.ws
+        ws.Range("N1").Formula = "=1/0"
+        ws.Range("O1").Value2 = 3
+        ws.Range("M2").Formula = "=1/0"
+        self.ws.Parent.Names.Add("ErrCell", "=$N$1")
+        refused = [(7, 1, "=1/0", None, "M1"), (7, 1, "=M1>N1", None, "M1"), (7, 1, "=M2>O1", None, "M2:M3"),
+                   (1, 1, "1", "=1/0", "M1"), (1, 5, "=N1", None, "M1"), (3, 1, "=NA()", None, "M1"),
+                   (3, 1, "=ErrCell", None, "M1"), (3, 1, "=N1*1", None, "M1"), (7, 1, "=XYZ1Q", None, "M1")]
+        for t, op, f1, f2, at in refused:
+            r = ws.Range(at)
+            r.Validation.Delete()
+            with self.assertRaises(yc.YcError, msg=f1):
+                r.Validation.Add(t, 1, op, f1, f2)
+        for t, op, f1, at in [(7, 1, "=ISERROR(N1)", "M1"), (7, 1, "=M1>O1", "M1:M2"), (3, 1, "=N1", "M1"),
+                              (3, 1, "=OFFSET(N1,0,0)", "M1"), (3, 1, "a,b", "M1")]:
+            r = ws.Range(at)
+            r.Validation.Delete()
+            r.Validation.Add(t, 1, op, f1)
+            self.assertEqual(r.Validation.Formula1, f1)
+        r = ws.Range("M1")
+        r.Validation.Delete()
+        r.Validation.Add(1, 1, 1, "1", "10")
+        with self.assertRaises(yc.YcError):
+            r.Validation.Modify(1, 1, 1, "=1/0", "10")
+        self.assertEqual(r.Validation.Formula1, "1")
+
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class FreshReadsTailTest(_Live):

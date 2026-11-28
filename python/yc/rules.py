@@ -833,6 +833,7 @@ class Validation:
         rule = {"type": int(Type), "alert": int(1 if AlertStyle is None else AlertStyle), "op": int(1 if Operator is None else Operator),
                 "formula1": _f(Formula1), "formula2": _f(Formula2)}
         _check_dv(rule)
+        self._check_formulas(rule)
         if self._has_any():
             raise ApplicationDefinedError("The range already has data validation (use Validation.Delete or Modify)")
         for a in self._rng._areas:
@@ -854,7 +855,22 @@ class Validation:
             merged = {"type": cur.get("type", 0), "op": cur.get("op", 1), "formula1": cur.get("formula1", ""), "formula2": cur.get("formula2", "")}
             merged.update({k: v for k, v in rule.items() if k in merged})
             _check_dv(merged)
+            self._check_formulas(merged)
         self._modify(**rule)
+
+    def _check_formulas(self, rule: dict):
+        # a formula that gives an error at the range's first cell: Excel 16 refuses it (1004, measured 2026-11-28),
+        # where its dialog asks "The formula currently evaluates to an error"
+        t, op = int(rule.get("type", 0)), int(rule.get("op", 1))
+        if t == 0:
+            return
+        fs = [rule.get("formula1") or ""]
+        if t in (1, 2, 4, 5, 6) and op in (1, 2):
+            fs.append(rule.get("formula2") or "")
+        a = self._rng._areas[0]
+        for f in fs:
+            if f.startswith("=") and _rq("dv.formula_fails", sheet=self._sheet, row=a[0], col=a[1], formula=f, list=t == 3):
+                raise ApplicationDefinedError("The formula currently evaluates to an error: " + f)
 
     def Delete(self):  # noqa: N802
         for a in self._rng._areas:

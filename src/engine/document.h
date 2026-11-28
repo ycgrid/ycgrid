@@ -423,6 +423,11 @@ class Document : public formula::SheetResolver {
   // a parsed formula worked out as if it stood in (sheet, at): its relative references count from there (the
   // computed criteria of Advanced Filter, one record at a time); a cell not calculated yet gives #CALC!
   Value EvaluateAt(uint32_t sheet, const formula::Node& root, core::CellPos at);
+  // a data validation formula (Formula1 / Formula2, "=..."), worked out at the rule's first cell, gives an error:
+  // Excel's Validation.Add and Modify refuse it (Excel 16, measured 2026-11-28: =1/0, =NA(), =B1 over an error, a
+  // name, a formula that can't be read). A list takes a reference whatever its cells hold (=B1, =OFFSET(B1,0,0)), but
+  // not through a name (=ErrCell over B1 is refused, measured)
+  bool ValidationFormulaFails(uint32_t sheet, core::CellPos at, std::string_view text, bool list);
   std::string GetFormulaA1(uint32_t sheet, uint32_t r, uint32_t c) const;  // "=SUM(A1:A3)"; "" when there is no formula
   std::string GetInputText(uint32_t sheet, uint32_t r, uint32_t c) const;  // text shown in the formula bar
 
