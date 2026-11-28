@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Arrow keys move a selected shape, chart or control one screen pixel (Ctrl too), and Shift+arrows make it 10% wider,
+  narrower, taller or lower about its center (Ctrl+Shift: 1%), as in Excel; an object a script selected
+  (`Shape.Select`) takes the keys before any click.
 - Go To Special > Data validation > Same takes every cell whose rule has the same settings, as Excel does, not only the cells the rule was first given to.
 - Find with Look in: Values passes over hidden rows and columns, as Excel does; Look in: Formulas still finds them.
 - Top 10 Percent filters show the whole part of the share (25% of 11 numbers shows 2, not 3), at least one, as Excel does.

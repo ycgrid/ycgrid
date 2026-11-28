@@ -213,6 +213,7 @@ struct UiState {
   // where the selected shape was drawn last (typing on it starts editing its text there)
   ImRect sel_screen;
   float sel_scale = 1.0f;
+  double sel_px_per_pt = 96.0 / 72.0;  // the selected object's screen pixels per point (zoom and display scale)
   bool text_cursor_end = false;  // the text editor opens with the caret at the end
   float text_scale = 1.0f;       // screen pixels per sheet pixel where the text is edited
   bool drag_copy = false;        // Ctrl was down when the move started: the drop makes a copy
@@ -5612,6 +5613,7 @@ void DrawSheetObjects(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
     // a chart sheet's chart fills the window
     const bool sheet_chart = ch && sh->chart_sheet;
     ImRect r = ScreenRect(g, pl, gm);
+    if (u.sel == me) u.sel_px_per_pt = kPx * g.sc;
     if (sheet_chart) {
       r = g.cells;
       r.Expand(-S(12));
@@ -6631,17 +6633,28 @@ void HandleObjectKeys(AppState& s) {
     }
   }
   if (SelectionProtected(s)) return;
-  // like Excel: an arrow moves the object a few pixels (Ctrl: one pixel); Shift+arrow sizes it
-  const double step = io.KeyCtrl ? 0.75 : 3.0;
+  // as Excel 16 (measured 2026-11-28 by keys): an arrow, with Ctrl too, moves the object one screen pixel at the zoom;
+  // Shift+Right / Up make it 10% wider / taller about its center and Shift+Left / Down 10% narrower / lower (Ctrl+Shift:
+  // 1%); it stops at the sheet's top and left edges
+  const double step = 1.0 / std::max(0.01, u.sel_px_per_pt);
   const bool size = io.KeyShift;
+  const double grow = io.KeyCtrl ? 1.01 : 1.1;
   const std::vector<ObjSel> all = SelectedList();
   if (!size && u.preview_on) u.preview_on = false;
-  s.engine->PostUser(size ? TR("Resize Object") : TR("Move Object"), [all, dx, dy, step, size](Document& d) {
+  s.engine->PostUser(size ? TR("Resize Object") : TR("Move Object"), [all, dx, dy, step, size, grow](Document& d) {
     for (const ObjSel& o : all) {
       auto mv = [&](auto& x) {
         if (size) {
-          x.width = std::max(6.0, x.width + dx * step);
-          x.height = std::max(6.0, x.height + dy * step);
+          if (dx != 0) {
+            const double w = std::max(1.0, dx > 0 ? x.width * grow : x.width / grow);
+            x.left = std::max(0.0, x.left + (x.width - w) / 2);
+            x.width = w;
+          }
+          if (dy != 0) {
+            const double h = std::max(1.0, dy < 0 ? x.height * grow : x.height / grow);
+            x.top = std::max(0.0, x.top + (x.height - h) / 2);
+            x.height = h;
+          }
         } else {
           x.left = std::max(0.0, x.left + dx * step);
           x.top = std::max(0.0, x.top + dy * step);
@@ -10242,11 +10255,10 @@ void DrawObjectWindows(AppState& s) {
     u.insert_kind = -1;
     s.SetStatus("");
   }
-  // when an object is selected: arrow keys and Delete go to the object (grid keyboard handling is off)
+  // when an object is selected: arrow keys and Delete go to the object (grid keyboard handling is off), wherever the
+  // sheet's own keys would go (SheetHasKeyboard): an object a script selected (Shape.Select, before any click) took no key
   if (u.sel && s.FocusSheet() && u.sel.sheet == s.focus_sheet && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
-    ImGuiWindow* nav = GImGui->NavWindow;
-    const bool grid_focus = nav && (std::strstr(nav->Name, "###yc_sheet_") || std::strstr(nav->Name, "###yc_gridhost"));
-    if (grid_focus) HandleObjectKeys(s);
+    if (SheetHasKeyboard()) HandleObjectKeys(s);
   }
 }
 

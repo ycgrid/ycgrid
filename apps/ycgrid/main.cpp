@@ -2943,6 +2943,8 @@ void FillBigData(engine::Document& d) {
 }  // namespace
 
 namespace yc::app {
+bool SheetHasKeyboard() { return KeyboardTarget(); }
+
 std::string QueueUiScript(const std::string& script) {
   std::string err = ParseScript(script);
   ui::RequestRedrawIn(0.0);

@@ -1293,6 +1293,8 @@ ImTextureID TextureFromRgba(const uint8_t* px, int w, int h);
 // main.cpp: simulated input (shared by --keys and MCP yc_ui_input)
 std::string QueueUiScript(const std::string& script);  // "" or why the script was refused (an unknown key)
 bool UiScriptBusy();
+// whether the keys typed now go to the focused sheet (a sheet window, the ribbon, the formula bar...), not a pane
+bool SheetHasKeyboard();
 // [YC] ui.cell_rect: a range of the active sheet in the window pixels ui.input takes (scrolled into view first)
 bool RangeWindowRect(const std::string& addr, float out[4]);
 // where Page Layout view drew the range last frame (its first cell's page); false: not on a page shown

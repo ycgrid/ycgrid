@@ -700,6 +700,25 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_arrows_nudge_a_shape_a_pixel_and_shift_scales_it_about_its_center(self):
+        # Excel 16, measured 2026-11-28 by keys: an arrow (with Ctrl too) moves a shape one screen pixel, Shift+Right
+        # makes it 10% wider about its center, Shift+Down 10% lower; a shape a script selected takes the keys
+        shp = self.ws.Shapes.AddShape(1, 100, 100, 80, 40)
+        x0, _, x1, _ = yc.ui.cell_rect("A1")
+        px = 1.0 / ((x1 - x0) / self.ws.Range("A1").Width)  # points in a screen pixel
+        try:
+            for keys, want in (("k:RightArrow", (100 + px, 100, 80, 40)), ("k:c-DownArrow", (100, 100 + px, 80, 40)),
+                               ("k:s-RightArrow", (96, 100, 88, 40)), ("k:s-DownArrow", (100, 100 + (40 - 40 / 1.1) / 2, 80, 40 / 1.1)),
+                               ("k:c-s-RightArrow", (99.6, 100, 80.8, 40))):
+                shp.Left, shp.Top, shp.Width, shp.Height = 100, 100, 80, 40
+                shp.Select()
+                self.keys(f"w:3|{keys}|w:4")
+                for got, exp in zip((shp.Left, shp.Top, shp.Width, shp.Height), want):
+                    self.assertAlmostEqual(got, exp, delta=0.02, msg=keys)
+        finally:
+            self.keys("k:Escape|w:2")
+            shp.Delete()
+
     def test_keys_walk_the_unlocked_cells_of_a_protected_sheet(self):
         # Excel 16, measured 2026-11-28 by keys: locked cells not selectable, the keys go round the unlocked ones:
         # Right / Left in reading order, Down / Up and Enter in column order, Home the first; the other moves stay
