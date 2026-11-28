@@ -3229,5 +3229,8 @@ class ObjectModelParityTest(unittest.TestCase):
             ws.Columns("E").ColumnWidth = 300
         with self.assertRaises(errors.ApplicationDefinedError):
             ws.Rows(7).RowHeight = -5
-        with self.assertRaises(errors.ApplicationDefinedError):
-            ws.Name = "History"
+        # History is reserved in the UI only: Excel 16's Worksheet.Name takes it (measured 2026-11-28)
+        old_name = ws.Name
+        ws.Name = "History"
+        self.assertEqual(ws.Name, "History")
+        ws.Name = old_name

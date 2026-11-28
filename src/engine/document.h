@@ -423,6 +423,11 @@ class Document : public formula::SheetResolver {
   // a parsed formula worked out as if it stood in (sheet, at): its relative references count from there (the
   // computed criteria of Advanced Filter, one record at a time); a cell not calculated yet gives #CALC!
   Value EvaluateAt(uint32_t sheet, const formula::Node& root, core::CellPos at);
+  // a data validation formula (Formula1 / Formula2, "=..."), worked out at the rule's first cell, gives an error:
+  // Excel's Validation.Add and Modify refuse it (Excel 16, measured 2026-11-28: =1/0, =NA(), =B1 over an error, a
+  // name, a formula that can't be read). A list takes a reference whatever its cells hold (=B1, =OFFSET(B1,0,0)), but
+  // not through a name (=ErrCell over B1 is refused, measured)
+  bool ValidationFormulaFails(uint32_t sheet, core::CellPos at, std::string_view text, bool list);
   std::string GetFormulaA1(uint32_t sheet, uint32_t r, uint32_t c) const;  // "=SUM(A1:A3)"; "" when there is no formula
   std::string GetInputText(uint32_t sheet, uint32_t r, uint32_t c) const;  // text shown in the formula bar
 
@@ -576,7 +581,8 @@ class Document : public formula::SheetResolver {
 
   uint32_t AddSheet(std::string name = {}, int32_t index = -1);  // returns the id
   bool DeleteSheet(uint32_t id);
-  bool RenameSheet(uint32_t id, std::string_view name, std::string* error = nullptr);
+  // reserved_ok: the name History is taken (a script's Worksheet.Name, as Excel's object model takes it)
+  bool RenameSheet(uint32_t id, std::string_view name, std::string* error = nullptr, bool reserved_ok = false);
   bool MoveSheet(uint32_t id, int32_t new_index);
   uint32_t CopySheet(uint32_t id, int32_t new_index = -1);
   // false when refused: the last visible sheet can't be hidden. very: xlSheetVeryHidden (not offered by Unhide)
@@ -883,6 +889,12 @@ class Document : public formula::SheetResolver {
   // in Excel (which calculates during the write). Only when nothing else was waiting to be calculated.
   void RecalcWithoutEvents();
   void CalcEntered();  // manual calculation: just the formulas entered since the last call (Excel computes those)
+  // before a request reads what the cells show (values, the formats rules give them): the formulas just written have
+  // their values, as Excel's object model calculates after each write (manual calculation: the ones entered)
+  void SettleForRead() {
+    if (auto_calc) Recalc();
+    else CalcEntered();
+  }
   void RecalcAll();  // every formula (Ctrl+Alt+F9)
   // F9 (Calculate Now): what waits and the volatile formulas, and the data tables also when they are left out of
   // automatic calculation (Automatic except for data tables)
@@ -1473,7 +1485,8 @@ class Document : public formula::SheetResolver {
   void ResolveCycles();  // after a pass: the cycles it met (iterated, or reported)
   // an array entered with Ctrl+Shift+Enter that met itself as a cycle by reading its own cells: calculated when no
   // value of it reads itself (true), as in Excel; else its cells are as they were (false)
-  bool SettleArrayReadingItself(uint64_t anchor);
+  // *waits_for: the cell not calculated yet that it read, when that is why it didn't settle
+  bool SettleArrayReadingItself(uint64_t anchor, uint64_t* waits_for = nullptr);
   // several arrays entered with Ctrl+Shift+Enter that read each other's cells (and nothing else of the cycle): their
   // values settled together, each read of the others' cells waiting until that value is set (doc_fuzz --xlsx seed
   // 24002581569: B3 {=A1:B3*2} and A2:A4 {=A1:B3*2} met as a cycle in one order of calculation, not in another)

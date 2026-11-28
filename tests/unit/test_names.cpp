@@ -20,6 +20,21 @@ TEST_CASE("名稱規則") {
   CHECK_FALSE(yc::engine::ValidateName("a+b", &err));
 }
 
+TEST_CASE("Names: _xlfn and a wide space are refused, as Excel's") {
+  // Excel 16's Names.Add over 79 names (measured 2026-11-28): a reference past the last column names no cell and is a
+  // name; _xlfn and the ideographic space are refused. One past row 1,048,576 (Z9999999) is a cell in YCGrid, whose
+  // rows go on, and stays refused (docs/excel-parity-backlog.md, kept on purpose)
+  std::string err;
+  for (const char* ok : {"XFE1", "XFE1048577", "AAAA1", "x?", "a\\", "_x"}) {
+    INFO(ok);
+    CHECK(yc::engine::ValidateName(ok, &err));
+  }
+  for (const char* no : {"XFD1048576", "Z9999999", "IV65536", "AAA1", "_xlfn", "_XLFN", "x\xE3\x80\x80y", "RC", "R1C", "\\\\"}) {
+    INFO(no);
+    CHECK_FALSE(yc::engine::ValidateName(no, &err));
+  }
+}
+
 TEST_CASE("活頁簿與工作表層級的名稱、公式使用名稱") {
   yctest::Doc t;
   const uint32_t s1 = t.sheet();

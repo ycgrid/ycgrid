@@ -202,12 +202,15 @@ bool CompareOp(CmpOp op, const Value& v, const Value& a, const Value& b) {
   return false;
 }
 
+// a color scale's color between two points: each channel moves from a's toward b's by the share t, the step cut
+// toward zero (Excel 16, measured 2026-11-28: red to green at 0.375 is 160, 95, 0, where rounding gave 159, 96)
 uint32_t Lerp(uint32_t a, uint32_t b, double t) {
   t = std::clamp(t, 0.0, 1.0);
   uint32_t out = 0xFF000000u;
   for (int sh = 0; sh < 24; sh += 8) {
-    const double x = ((a >> sh) & 0xFF) * (1 - t) + ((b >> sh) & 0xFF) * t;
-    out |= static_cast<uint32_t>(std::lround(x)) << sh;
+    const int ca = static_cast<int>((a >> sh) & 0xFF), cb = static_cast<int>((b >> sh) & 0xFF);
+    const int x = ca + static_cast<int>(std::trunc((cb - ca) * t));
+    out |= static_cast<uint32_t>(std::clamp(x, 0, 255)) << sh;
   }
   return out;
 }
@@ -311,6 +314,7 @@ void CondFormatEval::BuildStats(Prepared& p) {
     ForEachValueRowMajor(*sh_, r, [&](uint32_t, uint32_t, const Value& v) {
       ++st.cells;
       if (v.IsNumeric()) st.nums.push_back(v.AsDouble());
+      else if (v.IsError()) ++st.errors;
       if (need_counts && !v.IsEmpty()) ++st.counts[KeyOf(v)];
       return true;
     });
@@ -362,8 +366,13 @@ bool CondFormatEval::Match(Prepared& p, uint32_t r, uint32_t c, const Value& v, 
     }
     case CfType::TextContains: {
       // the value as text (as SEARCH, LEFT and RIGHT read it: 1234 in #,##0 is "1234", a date its serial), not as
-      // shown; an error cell matches none of the four (Excel)
-      if (v.IsError()) return false;
+      // shown; an error cell matches only Does Not Contain, which is ISERROR(SEARCH(...)) (Excel 16, measured
+      // 2026-11-28: #DIV/0! is highlighted by "does not contain apple")
+      if (v.IsError()) {
+        if (rule.text_op != 1) return false;
+        Apply(rule.fmt, out);
+        return true;
+      }
       const std::string text = v.IsEmpty() ? std::string() : Lower(formula::Evaluator::ToText(v));
       const std::string want = Lower(rule.text);
       // contains / does not contain search as Excel's SEARCH does: * ? and ~ are wildcards ("a*c" finds "abc")
@@ -437,6 +446,9 @@ bool CondFormatEval::Match(Prepared& p, uint32_t r, uint32_t c, const Value& v, 
       if (st.nums.empty()) return false;
       const double x = v.AsDouble();
       double at = st.avg;
+      // a standard deviation over a range holding an error is an error: the rule highlights nothing, where the average
+      // passes errors over (Excel 16, measured 2026-11-28)
+      if (rule.std_dev > 0 && st.errors) return false;
       if (rule.std_dev > 0 && st.nums.size() > 1) {
         // Excel: the population standard deviation of the range (STDEV.P, divided by n)
         double ss = 0;

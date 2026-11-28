@@ -233,6 +233,9 @@ class Evaluator {
 // implicit intersection and arrays give their first value.
 Value EvaluateCell(const Node& root, EvalHost& host, int32_t sheet, core::CellPos origin, std::shared_ptr<Array>* spill = nullptr);
 
+// the formula's result is a reference (=B1, =B1:B4, =OFFSET(B1,0,0), =IF(TRUE,B1)), not a value
+bool EvaluatesToReference(const Node& root, EvalHost& host, int32_t sheet, core::CellPos origin);
+
 // a number at 15 significant digits, the precision Excel shows numbers with and compares them at
 double Round15(double x);
 

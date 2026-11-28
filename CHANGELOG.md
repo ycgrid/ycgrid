@@ -39,6 +39,32 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- A fill over rows that hold a whole array entered with Ctrl+Shift+Enter writes over it, as Excel's; each row was
+  refused on its own and the rows past the array were filled. From Python, Insert and Delete over several areas
+  refuse all of them when one is refused (the last area was done first), whole rows or columns in several areas
+  through a table are refused, and `Merge` refuses a table's cells, as Excel's object model does.
+- Python: `Range.Next` and `Previous` on a protected sheet go to the unlocked cells, as Tab does; formats read over
+  several areas are None where the areas differ (the first area was read), and a mixed fill's `Interior.Color`
+  reads 0, as Excel's. A defined name can't be `_xlfn` or hold an ideographic space.
+- Python: `SpecialCells` over several areas takes a single cell among them as that cell (it searched the whole sheet),
+  and `Locked` and `FormulaHidden` raise over part of a merged cell and change nothing, as Excel's do.
+- Python: `Validation.Add` and `Modify` raise for a formula that gives an error at the range's first cell, as Excel's
+  do (a list that refers to cells is taken whatever they hold); YCGrid kept a rule that never let a value in.
+- An array entered with Ctrl+Shift+Enter that reads its own cell is calculated after the cells it reads further on:
+  `=TRANSPOSE(A1:B2)` beside `{=A1:B2*2}` in B1 showed 0 without spilling until something else calculated it again.
+- Python: one formula written over whole rows through a table's header row is relative to the first cell it
+  writes (cells past the table got 0), `Range.Text` over several areas is None when they show different text, and
+  `AddComment` over several one-cell areas puts the note on the first, as Excel's object model does.
+- Fill Down and Fill Up over a filtered list act on the cells the filter shows, as Excel does: one row shown takes the
+  row beside it (hidden or not), several take the first row shown; from Python, several areas take the cells shown
+  of each, and Fill Left or Right over one column the filter splits changes nothing.
+- Python against Excel's object model (`scripts/excel_diff.py`): a value written to whole rows or columns leaves a
+  merged cell they cut alone, `Select` takes in the merged cells it cuts, a fill over several areas on a protected
+  sheet changes nothing when one target is locked, and `HasArray` over a range an array covers in part is None.
+- A script can name a sheet History, as Excel's object model allows (the name stays reserved when a person renames a tab).
+- Color scales give Excel's colors to the unit: each channel's step toward the end color is cut toward zero (they were rounded, one unit off in most cells).
+- Conditional formats: Text that Does Not Contain highlights error cells, and a standard deviation rule over a range holding an error highlights nothing, as in Excel.
+- `Range.DisplayFormat`, `yc.data.read_range` / `read_table`, the Analysis ToolPak's input and a chart's linked texts read right after a script writes a formula see its value; they read it uncalculated (empty, and the conditional format not applied).
 - Properties Excel can set are set from Python too: `PivotCache.SourceData`, `SparklineGroup.SourceData` and
   `Location`, `Scenario.Name` and `Comment`, `HPageBreak.Location` and `Type` raised. `scripts/check_excel_parity.py`
   fails on a property Excel sets that YCGrid only reads, unless `[read_only]` gives the reason.

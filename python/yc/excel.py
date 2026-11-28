@@ -8015,9 +8015,13 @@ class Range:
 
     @property
     def HasArray(self):  # noqa: N802
-        """True when the (first) cell is part of an array formula (Ctrl+Shift+Enter)."""
-        s = self._spill()
-        return bool(s) and bool(s["cse"])
+        """True when the cell is part of an array formula (Ctrl+Shift+Enter); over several cells True when arrays cover
+        every one, False when none, None when some (Excel's Null, measured)."""
+        if self.Count == 1:
+            s = self._spill()
+            return bool(s) and bool(s["cse"])
+        states = {_rq("range.has_array", sheet=self._sheet, rect=list(a)) for a in self._areas}
+        return states.pop() if len(states) == 1 else None
 
     @property
     def CurrentArray(self):  # noqa: N802
@@ -8194,13 +8198,23 @@ class Range:
         """The cell right of the range's first cell, as Tab goes (Excel 16, measured 2026-11-20: B2:C4's is C2, rows 2:3's B2);
         the whole range moved was given."""
         a = self._a
+        if self.Worksheet.ProtectContents:
+            return self._next_unlocked(False)
         return Range._from(self._sheet, [(a[0], a[1], a[0], a[1])]).Offset(0, 1)
 
     @property
     def Previous(self):  # noqa: N802
         """The cell left of the range's first cell, as Shift+Tab goes."""
         a = self._a
+        if self.Worksheet.ProtectContents:
+            return self._next_unlocked(True)
         return Range._from(self._sheet, [(a[0], a[1], a[0], a[1])]).Offset(0, -1)
+
+    def _next_unlocked(self, back):
+        # a protected sheet: the next (previous) unlocked cell, as Tab goes there, or within the range's own cells
+        # (Excel 16, measured 2026-11-28: E6's Next is B1 with B:D unlocked over A1:E6, C2:C9's is C3)
+        r, c = _rq("range.next_unlocked", sheet=self._sheet, areas=[list(x) for x in self._areas], back=back)
+        return Range._from(self._sheet, [(r, c, r, c)])
 
     @property
     def PrefixCharacter(self):  # noqa: N802
@@ -8537,7 +8551,11 @@ class Range:
 
     @property
     def Text(self):  # noqa: N802
-        # what the cells show, as Excel reads it for a range: their text when they all show the same, else None (Null)
+        # what the cells show, as Excel reads it for a range: their text when they all show the same, else None (Null),
+        # over every area (Excel 16, measured 2026-11-28: B2,D4 showing 10 and 2 is Null; the first area alone was read)
+        if len(self._areas) > 1:
+            each = {Range._from(self._sheet, [a]).Text for a in self._areas}
+            return each.pop() if len(each) == 1 else None
         v = self._get("text")
         if isinstance(v, list):
             texts = {x for row in v for x in (row if isinstance(row, list) else [row])}
@@ -8609,6 +8627,19 @@ class Range:
         if raw:
             st = _rq("range.style_get", sheet=self._sheet, row=a[0], col=a[1], raw=True)
             st.pop("mixed", None)
+            return st
+        if len(self._areas) > 1:
+            # every area's, as Excel reads several areas: what they don't share is None (Excel 16, measured 2026-11-28:
+            # B2,D4 with B2 bold reads Bold, Locked, NumberFormat, Size Null; the first area alone was read)
+            st = None
+            for x in self._areas:
+                o = Range._from(self._sheet, [x])._style_get()
+                if st is None:
+                    st = dict(o)
+                    continue
+                for k in set(st) | set(o):
+                    if st.get(k) != o.get(k):
+                        st[k] = None
             return st
         if a[0] == a[2] and a[1] == a[3]:
             st = _rq("range.style_get", sheet=self._sheet, row=a[0], col=a[1])
@@ -8756,7 +8787,15 @@ class Range:
     def Locked(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
+        self._no_cut_merge("Locked")
         self._style(locked=bool(v))
+
+    def _no_cut_merge(self, prop):
+        # Excel 16 refuses Locked and FormulaHidden over part of a merged cell, its first cell alone or whole rows
+        # through it, and changes nothing (measured 2026-11-28); Interior, WrapText and the other formats go ahead
+        for a in self._areas:
+            if _rq("range.cuts_merge", sheet=self._sheet, rect=list(a)):
+                raise ApplicationDefinedError(f"Unable to set the {prop} property of the Range class: the range holds part of a merged cell")
 
     @property
     def FormulaHidden(self):  # noqa: N802
@@ -8766,6 +8805,7 @@ class Range:
     def FormulaHidden(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
+        self._no_cut_merge("FormulaHidden")
         self._style(hidden=bool(v))
 
     @property
@@ -8805,6 +8845,19 @@ class Range:
 
     def Clear(self):  # noqa: N802
         _rq("range.clear", **self._p(what=2, events=Application.EnableEvents))
+
+    def _no_lines_through_table(self, areas, Shift, insert):  # noqa: N803
+        # whole rows or columns in several areas that run through a table: Excel 16 refuses them all, inserted or
+        # deleted, the areas outside the table's cells too (measured 2026-11-28: EntireRow.Delete of B2,B4 or H2,H4
+        # beside a table in A1:E6, EntireColumn.Insert of B8,D8); one area goes ahead
+        if len(areas) < 2:
+            return
+        tables = [lo.Range._a for lo in self.Worksheet.ListObjects]
+        for a in areas:
+            mode = self._shift_mode(a, Shift, insert)
+            for t in tables:
+                if (mode == "rows" and a[0] <= t[2] and t[0] <= a[2]) or (mode == "cols" and a[1] <= t[3] and t[1] <= a[3]):
+                    raise ApplicationDefinedError("This operation is not allowed. The operation is attempting to shift cells in a table on your worksheet.")
 
     def _shift_mode(self, a, Shift, insert):  # noqa: N803
         """How Delete / Insert moves the cells of area a: whole columns or rows, else Shift; without Shift, Excel's
@@ -8846,7 +8899,14 @@ class Range:
         return sorted(areas, key=lambda a: (a[0], a[1]), reverse=True)
 
     def Delete(self, Shift=None):  # noqa: N802,N803
-        for a in self._areas_last_first():
+        areas = self._areas_last_first()
+        self._no_lines_through_table(areas, Shift, False)
+        # several areas: each is asked before any is deleted, as Excel 16 refuses them all at once (measured 2026-11-28:
+        # EntireRow.Delete of B2:C3,E5 through an array in G2:G4 deletes nothing; row 5 was deleted first)
+        if len(areas) > 1:
+            for a in areas:
+                _rq("range.delete", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, False), check=True)
+        for a in areas:
             _rq("range.delete", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, False))
 
     def Insert(self, Shift=None, CopyOrigin=None):  # noqa: N802,N803
@@ -8857,6 +8917,10 @@ class Range:
             if _rq("app.cut_copy_mode") and _rq("cells.insert_copied", sheet=self._sheet, rect=list(a),
                                                   mode=self._shift_mode(a, Shift, True).replace("_auto", "")):
                 return
+        self._no_lines_through_table(areas, Shift, True)
+        if len(areas) > 1:  # each asked first, as Delete
+            for a in areas:
+                _rq("range.insert", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, True), check=True)
         for a in areas:
             # CopyOrigin: xlFormatFromLeftOrAbove (default) or xlFormatFromRightOrBelow, the formats the new cells take
             _rq("range.insert", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, True), origin=1 if CopyOrigin == 1 else 0)
@@ -9031,6 +9095,12 @@ class Range:
 
     def Merge(self, Across=False):  # noqa: N802,N803
         _no_overlap(self)
+        # a table holds no merged cells: Excel 16 raises for one of its cells too (measured 2026-11-28: A1 or B3 of a
+        # table), where the merge of one cell changed nothing and passed
+        for lo in self.Worksheet.ListObjects:
+            t = lo.Range._a
+            if any(a[0] <= t[2] and t[0] <= a[2] and a[1] <= t[3] and t[1] <= a[3] for a in self._areas):
+                raise ApplicationDefinedError("Merged cells aren't allowed in a table.")
         for a in self._areas:
             _rq("range.merge", sheet=self._sheet, rect=list(a), across=bool(Across))
 
@@ -9086,11 +9156,30 @@ class Range:
             if edge:
                 raise ApplicationDefinedError(f"{('FillDown', 'FillRight', 'FillUp', 'FillLeft')[d]} method of Range class failed: "
                                               "there is no row or column beside the range to fill it from")
-            _rq("range.fill", sheet=self._sheet, rect=a, dir=d)
+            _rq("range.fill", sheet=self._sheet, rect=a, dir=d, orig=list(self._a))
             return
+        # a filtered list: the fill acts on the cells the filter shows, as areas of their own (Excel 16, measured
+        # 2026-11-28: B2:C3,E5 with row 2 filtered out changes nothing, C2:C3,C5:C6 fills C5:C6 from C3)
+        if self.Worksheet.AutoFilterMode or any(lo.ShowAutoFilter for lo in self.Worksheet.ListObjects):
+            runs = [tuple(x) for a in self._areas for x in _rq("range.shown_runs", sheet=self._sheet, rect=list(a))]
+            if runs and runs != [tuple(a) for a in self._areas]:
+                return Range._from(self._sheet, runs)._fill(d)
         vertical = d in (0, 2)
         lo_end = d in (0, 1)  # the source is at the low end (top, left)
         ar = [tuple(a) for a in self._areas]
+        # a protected sheet: one locked cell among the cells any area fills and nothing is filled (Excel 16, measured
+        # 2026-11-28: A1:B2,D4:E5 with B:D unlocked raises and leaves B1:B2 as they were); the first area was filled
+        if self.Worksheet.ProtectContents:
+            for a in ar:
+                last = a[2] if a[2] != ROW_END else 1048575
+                if vertical:
+                    tgt = (a[0] + 1, a[1], last, a[3]) if lo_end else (a[0], a[1], last - 1, a[3])
+                else:
+                    tgt = (a[0], a[1] + 1, last, a[3]) if lo_end else (a[0], a[1], last, a[3] - 1)
+                if tgt[0] > tgt[2] or tgt[1] > tgt[3]:
+                    continue
+                if Range._from(self._sheet, [tgt]).Locked is not False:
+                    raise ProtectedError()
         # the source line (row for a vertical fill, column otherwise) of each column (row) the areas cover
         src = {}
         for a in ar:
@@ -9205,9 +9294,9 @@ class Range:
         _rq("view.set", activate_sheet=self._sheet, ensure_visible=[a[0], a[1]])
 
     def AddComment(self, Text=""):  # noqa: N802,N803
-        _one_area(self)
-        a = self._a
-        if a[0] != a[2] or a[1] != a[3]:  # Excel 16 refuses several cells (measured 2026-11-20)
+        # Excel 16 refuses several cells, but takes several areas of one cell each and puts the note on the first
+        # area's cell (measured 2026-11-20 and 2026-11-28: B2,D4 notes B2, D4,B2 notes D4, B2:C2,D4 raises)
+        if any(x[0] != x[2] or x[1] != x[3] for x in self._areas):
             raise ApplicationDefinedError("AddComment method of Range class failed: a note goes on one cell")
         if _rq("note.get", sheet=self._sheet, row=self._a[0], col=self._a[1]):
             # Excel refuses a second note (error 1004): change it with Comment.Text, or ClearComments first
@@ -9398,7 +9487,8 @@ class Range:
         # one merged cell whole is one cell: the whole sheet, as a single cell (Excel 16, measured)
         mine = [(self._a[0], self._a[1], self._a[0], self._a[1])] if len(self._areas) == 1 and self._one_cell() else self._areas
         for a in mine:
-            areas += [tuple(x) for x in _rq("range.special", sheet=self._sheet, rect=list(a), kind=int(Type), values=values, **anchor)]
+            areas += [tuple(x) for x in _rq("range.special", sheet=self._sheet, rect=list(a), kind=int(Type), values=values,
+                                            part=len(mine) > 1, **anchor)]
             if len(self._areas) == 1 or Type == xlCellTypeLastCell:
                 break
         if not areas:
@@ -10363,7 +10453,7 @@ class Interior(_StyleObj):
     def Color(self):  # noqa: N802
         c = self._g()["fill_color"]
         if c is None:
-            return None
+            return 0  # cells with different fills: Excel 16 reads 0, not Null (measured 2026-11-28; ColorIndex is Null)
         return _argb_to_bgr(c) if c else 16777215
 
     @Color.setter
@@ -12277,7 +12367,7 @@ def _active_sheet_id() -> int:
 # ---------------------------------------------------------------------------
 def _one_area(rng):
     """Excel 16 refuses several areas for RemoveDuplicates, TextToColumns, ListObjects.Add, ListObject.Resize, Sort,
-    AutoFilter, Group, Ungroup, Subtotal, AddComment and Resize (measured 2026-11-20); the first area alone was done."""
+    AutoFilter, Group, Ungroup, Subtotal and Resize (measured 2026-11-20); the first area alone was done."""
     if len(rng._areas) > 1:
         raise ApplicationDefinedError("This can't be done on a multiple range selection. Select a single range and try again.")
 

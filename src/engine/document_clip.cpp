@@ -640,10 +640,19 @@ bool Document::FillDownShown(uint32_t sheet, const Rect& a_in, bool up) {
   if (a.r0 >= a.r1) return false;
   const std::vector<Rect> runs = FilterShownRuns(*fs, {a});
   if (runs.empty() || (runs.size() == 1 && runs[0] == a)) return false;
-  // the first (Fill Up: last) row shown goes over each run of rows shown at once (Excel 16, measured: FillUp skips the
-  // rows a filter hides as FillDown does). A row at a time, a whole filtered column was a million pastes and ran out
-  // of memory
-  const uint32_t src = up ? runs.back().r1 : runs.front().r0;
+  // the fill acts on the cells the filter shows, as on a range of their own (Excel 16, measured 2026-11-28 over 25
+  // ranges): several runs of them take the first (Fill Up: last) row shown, at once in each run (a row at a time, a
+  // whole filtered column was a million pastes and ran out of memory); one run of one row takes the row beside it,
+  // hidden or not, as Fill Down over one row takes the row above (B2:C3 with row 2 filtered out gives B3 B2's value,
+  // B2:C4 gives B4 B3's). The range's first row, always taken, filled C2:C9 from a row the filter hid
+  uint32_t src;
+  if (runs.size() == 1 && runs[0].r0 == runs[0].r1) {
+    const uint32_t row = runs[0].r0;
+    if (up ? row + 1 >= fs->row_limit : row == 0) return true;  // nothing beside it
+    src = up ? row + 1 : row - 1;
+  } else {
+    src = up ? runs.back().r1 : runs.front().r0;
+  }
   const ClipData top = Copy(sheet, Rect{src, a.c0, src, a.c1});
   for (Rect run : runs) {
     if (run.r0 == src) ++run.r0;
@@ -805,6 +814,18 @@ void Document::FillEdge(uint32_t sheet, const Rect& rect_in, int dir, bool whole
   // 2026-11-20: FillRight over A1:E1 with B:D unlocked raises and writes nothing); the cells were refused one by one
   // and the unlocked ones filled
   if (Refuse(sheet, &dest)) return;
+  // an array entered with Ctrl+Shift+Enter that the target holds whole goes, the line written over it (Excel 16,
+  // measured 2026-11-28: FillUp over rows 2:6 through {=B2:B4*2} in G2:G4 writes row 6 there). A line at a time, each
+  // line met part of the array and was refused, and the lines past it were filled before the call raised
+  {
+    std::vector<Rect> whole;
+    for (const auto& [k, sp] : *s0->spills) {
+      if (sp.cse && dest.Contains(sp.rect)) whole.push_back(sp.rect);
+    }
+    for (const Rect& a : whole) ClearContents(sheet, a);
+    s0 = S(sheet);
+    if (!s0) return;
+  }
   // a fill down (right) past a table's last row (column) grows the table, as a write there does (Excel 16, measured
   // 2026-11-20: FillDown over B6:B10 grows A1:D6 to A1:D10, its calculated column with it); it stayed
   if ((dir == 0 || dir == 1) && !s0->tables->empty()) {

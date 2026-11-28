@@ -268,6 +268,267 @@ class ExcelArgumentsTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class ExcelDiffTailTest(_Live):
+    def test_merges_protection_and_arrays_as_excel(self):
+        # scripts/excel_diff.py against Excel 16 (2026-11-28): a write over part of a merged cell leaves it alone, a
+        # fill over several areas on a protected sheet changes nothing when one target is locked, and HasArray over
+        # a range an array covers in part is Null
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.Range("B3:C4").Merge()
+        ws.Range("B:B").Value2 = 5
+        self.assertEqual((ws.Range("B2").Value2, ws.Range("B3").Value2), (5, 20))
+        ws.Range("B3").Value2 = 7  # the merged cell's own cell alone is written
+        self.assertEqual(ws.Range("B3").Value2, 7)
+        ws.Range("B2:C3").Value2 = 8  # and by a range that isn't whole rows or columns
+        self.assertEqual(ws.Range("B3").Value2, 8)
+        ws.Range("B:B").Select()  # Select takes in the merged cells it cuts
+        from yc import excel
+
+        self.assertEqual(excel.Selection.Address(), "$B:$C")
+        ws.Range("B3:C4").UnMerge()
+        ws.Range("G2:G4").FormulaArray = "=B2:B4*2"
+        self.assertIsNone(ws.Range("2:3").HasArray)
+        self.assertTrue(ws.Range("G2:G3").HasArray)
+        self.assertFalse(ws.Range("A2:B3").HasArray)
+        ws.Range("B:D").Locked = False
+        ws.Protect()
+        try:
+            with self.assertRaises(yc.YcError):
+                ws.Range("A1:B2,D4:E5").FillRight()
+            self.assertEqual(ws.Range("B1").Value2, 5)  # nothing filled, the first area neither
+        finally:
+            ws.Unprotect()
+
+    def test_a_table_header_text_and_notes_over_areas_as_excel(self):
+        # Excel 16 (2026-11-28): one formula over whole rows through a table's header row is relative to the first
+        # cell it writes (the header keeps its text); Text over areas that show different text is Null; a note over
+        # several one-cell areas goes on the first area's cell
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.ListObjects.Add(1, ws.Range("A1:E6"), None, 1)
+        ws.Range("1:1").Formula = "=ROW()*10+COLUMN()"
+        # the header row holds text, as Excel writes it there: "0", "02", "03", "04", "05" (measured)
+        self.assertEqual([ws.Cells(1, c).Value2 for c in range(1, 6)], ["0", "02", "03", "04", "05"])
+        self.assertEqual(ws.Range("F1").Formula, "=ROW()*10+COLUMN()")
+        self.assertEqual(ws.Range("G1").Value2, 17)
+        ws.Range("H2").Value2 = 10
+        ws.Range("J4").Formula = "=1+1"
+        self.assertIsNone(ws.Range("H2,J4").Text)
+        ws.Range("J4").Value2 = 10
+        self.assertEqual(ws.Range("H2,J4").Text, "10")
+        ws.Range("J4,H2").AddComment("x")
+        self.assertEqual(ws.Range("J4").Comment.Text(), "x")
+        self.assertIsNone(ws.Range("H2").Comment)
+        with self.assertRaises(yc.YcError):
+            ws.Range("K2:L2,K4").AddComment("y")
+
+    def test_special_cells_over_areas_and_protection_over_a_cut_merge(self):
+        # Excel 16 (2026-11-28): a single cell that is one area of several is that cell for SpecialCells (it searched
+        # the used range); Locked and FormulaHidden refuse part of a merged cell and change nothing
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        self.assertEqual(ws.Range("B2:C3,E5").SpecialCells(2).Address(), "$B$2:$C$3,$E$5")
+        ws.Range("H3:I4").Merge()
+        for rg in ("H2:I3", "H3", "I4", "H:H", "3:3", "K5,H2:I3"):
+            with self.assertRaises(yc.YcError, msg=rg):
+                ws.Range(rg).Locked = False
+            with self.assertRaises(yc.YcError, msg=rg):
+                ws.Range(rg).FormulaHidden = True
+        self.assertTrue(ws.Range("H3").Locked)
+        self.assertTrue(ws.Range("K5").Locked)
+        ws.Range("H2:I3").Interior.Color = 255  # the other formats go ahead
+        ws.Range("H3:I4").Locked = False
+        self.assertFalse(ws.Range("H3").Locked)
+
+    def test_next_on_a_protected_sheet_and_formats_over_areas(self):
+        # Excel 16 (2026-11-28): Next / Previous on a protected sheet go to the unlocked cells, as Tab does over the
+        # used range (one cell) or within the range's own cells; formats read over areas that differ are Null, and a
+        # mixed fill's Color reads 0
+        ws = self.ws
+        ws.Range("A1:E6").Value2 = 1
+        ws.Range("B2").Font.Bold = True
+        ws.Range("B2").Interior.Color = 255
+        self.assertIsNone(ws.Range("B2,D4").Font.Bold)
+        self.assertIsNone(ws.Range("B2,D4").Interior.ColorIndex)
+        self.assertEqual(ws.Range("B2,D4").Interior.Color, 0)
+        self.assertEqual(ws.Range("B2:D4").Interior.Color, 0)
+        self.assertTrue(ws.Range("B2,B2").Font.Bold)
+        self.assertEqual(ws.Range("B2:C4").Next.Address(False, False), "C2")  # unprotected: right of the first cell
+        ws.Range("B:D").Locked = False
+        ws.Protect()
+        try:
+            self.assertIsNone(ws.Range("B2:C3,E5").Locked)
+            cases = {"A1": ("B1", "D6"), "D1": ("B2", "C1"), "E6": ("B1", "D6"), "A6": ("B6", "D5"), "D7": ("B1", "C7"),
+                     "Z100": ("B1", "D100"), "A100": ("B100", "D99"), "B2:C4": ("C2", "C4"), "C2:C9": ("C3", "C9"),
+                     "A:A": ("A1", "A1"), "2:6": ("B2", "D6"), "B2,D4": ("D4", "D4")}
+            got = {k: (ws.Range(k).Next.Address(False, False), ws.Range(k).Previous.Address(False, False)) for k in cases}
+            self.assertEqual(got, cases)
+        finally:
+            ws.Unprotect()
+
+    def test_insert_and_delete_over_areas_refuse_all_at_once(self):
+        # Excel 16 (2026-11-28): an area that cuts an array refuses the whole call, the other areas left as they were;
+        # YCGrid did the last area first and then raised
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.Range("G2:G4").FormulaArray = "=B2:B4*2"
+        with self.assertRaises(yc.YcError):
+            ws.Range("B2:C3,E5").EntireRow.Delete()
+        self.assertEqual(ws.Range("A5").Value2, "NVDA")
+        with self.assertRaises(yc.YcError):
+            ws.Range("B2:C3,E5").Insert(-4161)  # xlShiftToRight
+        self.assertEqual(ws.Range("E5").Value2, 45003)
+        self.assertEqual(ws.Range("G2").FormulaArray, "=B2:B4*2")
+
+    def test_lines_over_areas_and_merges_through_a_table(self):
+        # Excel 16 (2026-11-28), a table in A1:E6: whole rows or columns in several areas through it are refused, the
+        # areas outside its cells too; merging any of its cells is refused; cells deleted in it take its rows / columns
+        ws = self.ws
+        measured = [("B2,B4", "rowdel", False, "A1:E6"), ("H2,H4", "rowdel", False, "A1:E6"), ("2:2,4:4", "rowdel", False, "A1:E6"),
+                    ("B2:C3,E5", "rowdel", False, "A1:E6"), ("H8,H10", "rowdel", True, "A1:E6"), ("B2,B4", "rowins", False, "A1:E6"),
+                    ("B2,D4", "colins", False, "A1:E6"), ("B8,D8", "colins", False, "A1:E6"), ("B2,D4", "coldel", False, "A1:E6"),
+                    ("B2,B4", "cellsup", True, "A1:E4"), ("A1", "merge", False, "A1:E6"), ("B3", "merge", False, "A1:E6"),
+                    ("B3", "delleft", True, "A1:D6"), ("B3", "delup", True, "A1:E5"), ("B3", "insright", False, "A1:E6")]
+        got = []
+        for rg, op, _, _ in measured:
+            for lo in list(ws.ListObjects):
+                lo.Unlist()
+            ws.Cells.Clear()
+            ws.Range("A1:E6").Value = [[f"r{r}c{c}" for c in range(1, 6)] for r in range(1, 7)]
+            ws.Range("H1:H10").Value2 = "x"
+            ws.ListObjects.Add(1, ws.Range("A1:E6"), None, 1)
+            r = ws.Range(rg)
+            act = {"rowdel": lambda: r.EntireRow.Delete(), "rowins": lambda: r.EntireRow.Insert(), "colins": lambda: r.EntireColumn.Insert(),
+                   "coldel": lambda: r.EntireColumn.Delete(), "cellsup": lambda: r.Delete(-4162), "merge": lambda: r.Merge(),
+                   "delleft": lambda: r.Delete(-4159), "delup": lambda: r.Delete(-4162), "insright": lambda: r.Insert(-4161)}[op]
+            try:
+                act()
+                ok = True
+            except yc.YcError:
+                ok = False
+            got.append((rg, op, ok, ws.ListObjects(1).Range.Address(False, False)))
+        self.assertEqual(got, measured)
+
+    def test_validation_refuses_a_formula_that_gives_an_error(self):
+        # Excel 16 (2026-11-28): Validation.Add and Modify refuse a formula that gives an error at the range's first
+        # cell, of any type; a list takes a reference whatever its cell holds, but not through a name
+        ws = self.ws
+        ws.Range("N1").Formula = "=1/0"
+        ws.Range("O1").Value2 = 3
+        ws.Range("M2").Formula = "=1/0"
+        self.ws.Parent.Names.Add("ErrCell", "=$N$1")
+        refused = [(7, 1, "=1/0", None, "M1"), (7, 1, "=M1>N1", None, "M1"), (7, 1, "=M2>O1", None, "M2:M3"),
+                   (1, 1, "1", "=1/0", "M1"), (1, 5, "=N1", None, "M1"), (3, 1, "=NA()", None, "M1"),
+                   (3, 1, "=ErrCell", None, "M1"), (3, 1, "=N1*1", None, "M1"), (7, 1, "=XYZ1Q", None, "M1")]
+        for t, op, f1, f2, at in refused:
+            r = ws.Range(at)
+            r.Validation.Delete()
+            with self.assertRaises(yc.YcError, msg=f1):
+                r.Validation.Add(t, 1, op, f1, f2)
+        for t, op, f1, at in [(7, 1, "=ISERROR(N1)", "M1"), (7, 1, "=M1>O1", "M1:M2"), (3, 1, "=N1", "M1"),
+                              (3, 1, "=OFFSET(N1,0,0)", "M1"), (3, 1, "a,b", "M1")]:
+            r = ws.Range(at)
+            r.Validation.Delete()
+            r.Validation.Add(t, 1, op, f1)
+            self.assertEqual(r.Validation.Formula1, f1)
+        r = ws.Range("M1")
+        r.Validation.Delete()
+        r.Validation.Add(1, 1, 1, "1", "10")
+        with self.assertRaises(yc.YcError):
+            r.Validation.Modify(1, 1, 1, "=1/0", "10")
+        self.assertEqual(r.Validation.Formula1, "1")
+
+
+# FillDown measured in Excel 16 (2026-11-28) over A1:E6 with D2:D6 =B*C: R filters B > 15 (row 2 hidden), F filters
+# B <> 30 (row 4 hidden), P has no filter, H hides row 3 by hand; rows 2 to 9 of A:E, as Formula reads them
+MEASURED_FILLS = [
+    ('R', 'B2:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,10,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,20,2.25,=B5*C5,45003', 'AMZN,20,2.25,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C9', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,2.25,,', ',,2.25,,', ',,2.25,,']),
+    ('R', 'B3:C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,20,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B1:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,Qty,Price,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', '2:3', ['AAPL,10,1.5,=B2*C2,45000', 'AAPL,10,1.5,=B3*C3,45000', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', '2:6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'MSFT,20,2.25,=B4*C4,45001', 'MSFT,20,2.25,=B5*C5,45001', 'MSFT,20,2.25,=B6*C6,45001', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C3,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:B3,C2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C3,C5:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C7', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,2.25,,', ',,,,', ',,,,']),
+    ('R', 'C5:C8', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,4.75,=B6*C6,45004', ',,4.75,,', ',,4.75,,', ',,,,']),
+    ('F', 'C2:C9', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,1.5,,', ',,1.5,,', ',,1.5,,']),
+    ('F', 'C3:C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C4:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,4.75,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', '3:6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'MSFT,20,2.25,=B5*C5,45001', 'MSFT,20,2.25,=B6*C6,45001', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C2:C3,C5:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'B3:C3,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3,C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3:C4,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('H', 'C2:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,1.5,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('H', 'C2:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+]
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class FilteredFillTest(_Live):
+    def test_fill_down_over_a_filter_acts_on_the_cells_it_shows(self):
+        # a filtered list fills the cells it shows as areas of their own: one run of one row takes the row above,
+        # several runs take the first row shown, areas follow the per-column rule; rows hidden by hand get it all
+        ws = self.ws
+        data = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000], ["MSFT", 20, 2.25, None, 45001],
+                ["TSMC", 30, 3, None, 45002], ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        bad = []
+        for mode, rg, rows in MEASURED_FILLS:
+            if ws.AutoFilterMode:
+                ws.AutoFilterMode = False
+            ws.Rows.Hidden = False
+            ws.Cells.Clear()
+            ws.Range("A1:E6").Value = data
+            for r in range(2, 7):
+                ws.Range(f"D{r}").Formula = f"=B{r}*C{r}"
+            if mode == "R":
+                ws.Range("A1:E6").AutoFilter(2, ">15")
+            elif mode == "F":
+                ws.Range("A1:E6").AutoFilter(2, "<>30")
+            elif mode == "H":
+                ws.Rows(3).Hidden = True
+            ws.Range(rg).FillDown()
+            got = [",".join(str(ws.Cells(r, c).Formula or "") for c in range(1, 6)) for r in range(2, 10)]
+            if got != rows:
+                bad.append((mode, rg, [(i + 2, g, e) for i, (g, e) in enumerate(zip(got, rows)) if g != e]))
+        self.assertEqual(bad, [])
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class FreshReadsTailTest(_Live):
+    def test_reads_right_after_a_formula_is_written_see_its_value(self):
+        # Excel's object model calculates after each write: DisplayFormat and a DataFrame read right after a formula is
+        # written see its value (they read it uncalculated: empty, and the rule not applied)
+        import yc.data as data
+
+        ws = self.ws
+        ws.Range("A1:B1").Value = [["x", "y"]]
+        for i in range(5):
+            ws.Range("A2").Value = i
+            ws.Range("B2").Formula = "=A2*10"
+            self.assertEqual(data.read_range(ws.Range("A1:B2"), pandas=False)["y"][0], i * 10)
+            ws.Range("C1").Formula = f"=A2+{i}"
+            ws.Range("C1").FormatConditions.Delete()
+            ws.Range("C1").FormatConditions.Add(1, 3, f"={2 * i}").Interior.Color = 255
+            self.assertEqual(ws.Range("C1").DisplayFormat.Interior.Color, 255)
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class WritablePropertiesTailTest(_Live):
     def test_properties_excel_sets_are_set(self):
         # each property Excel's type library lists with put has a setter (scripts/check_excel_parity.py checks); these

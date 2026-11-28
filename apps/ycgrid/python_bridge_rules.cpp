@@ -448,6 +448,12 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
       return r ? DvToMV(*r) : MV();
     });
   }
+  if (m == "dv.formula_fails") {  // Validation.Add / Modify: the formula gives an error at the rule's first cell
+    const std::string text = p.GetStr("formula");
+    const core::CellPos at{static_cast<uint32_t>(p.GetInt("row")), static_cast<uint32_t>(p.GetInt("col"))};
+    const bool list = p.GetBool("list", false);
+    return MV::Bool(eng.Call([&](Document& d) { return d.S(sheet) && d.ValidationFormulaFails(sheet, at, text, list); }));
+  }
   if (m == "dv.set" || m == "dv.clear" || m == "dv.modify") {
     const MV* rr = p.Get("rect");
     if (!rr) return err("E_ARG", "rect is required");

@@ -586,4 +586,37 @@ TEST_CASE("A table's own filter: clearing and Fill Down leave the rows it hides,
   CHECK(t.T("C3") == "y");  // hidden: kept
   CHECK(t.T("C4") == "top");
   CHECK(t.T("C5") == "w");
+  // one row shown (C4 of C3:C5): it takes the row above, hidden or not, as Fill Down over one row does (Excel 16,
+  // measured 2026-11-28 over 25 ranges)
+  t.Set("C3", "hidden first");
+  CHECK(t.d.FillDownShown(sh, Rect{2, 2, 4, 2}));
+  CHECK(t.T("C4") == "hidden first");
+}
+
+TEST_CASE("Fill Up over rows that hold a whole array entered with Ctrl+Shift+Enter writes over it") {
+  // Excel 16 (measured 2026-11-28): FillUp over rows 2:6 through {=B2:B4*2} in G2:G4 copies row 6 over all of it;
+  // each line met part of the array and was refused, the lines past it filled before the call raised
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  for (int r = 2; r <= 6; ++r) t.Set(("B" + std::to_string(r)).c_str(), std::to_string(r * 10).c_str());
+  std::string err;
+  REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("G2:G4"), "B2:B4*2", &err));
+  t.d.Begin("fill");
+  t.d.FillEdge(sh, Rect{1, 0, 5, yc::core::kMaxCols - 1}, 2);
+  t.d.Commit();
+  t.d.Recalc();
+  for (int r = 2; r <= 5; ++r) {
+    INFO(r);
+    CHECK(t.N(("B" + std::to_string(r)).c_str()) == 60);
+    CHECK(t.d.GetFormulaA1(sh, static_cast<uint32_t>(r - 1), 6).empty());
+    CHECK(t.T(("G" + std::to_string(r)).c_str()).empty());
+  }
+  // a fill down from the array's first row cuts it: refused, nothing written
+  t.d.Undo();
+  t.d.Recalc();
+  t.d.Begin("fill");
+  t.d.FillEdge(sh, Rect{1, 0, 5, yc::core::kMaxCols - 1}, 0);
+  t.d.Commit();
+  CHECK(t.N("B5") == 50);
+  CHECK(t.d.GetFormulaA1(sh, 1, 6) == "=B2:B4*2");
 }

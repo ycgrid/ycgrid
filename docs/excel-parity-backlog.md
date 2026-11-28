@@ -18,9 +18,10 @@ at the moment (measured against Excel 16 on 2026-11-08), except:
   split into areas another way: Excel's `Areas` (and `Address`) list the areas by their last row and may join
   cells down a column where YCGrid joins them along a row (`B3:B4,B5:C6` where YCGrid gives `B3:B5,C5:C6`), so a
   macro's `For Each a In r.Areas` meets the same cells in another grouping.
-- Python: `Range("E1:E2,G1:G2").Select()` makes G1 the active cell; Excel's is E1, the first area's first cell, and
-  typing with Enter then goes E1, E2, G1, G2 (YCGrid: G1, G2, E1, E2). The selection keeps its active area last, so the
-  fix is a selection that knows which area is active (measured 2026-11-11).
+- Python on a protected sheet: `Range("2:3").Value = 5` (and `Formula`) with columns B:D unlocked writes 5 into
+  B2:D3 and then raises in Excel 16, the locked cells left; YCGrid refuses the whole write and changes nothing, as its
+  UI refuses typing over locked cells. `CurrentRegion` and `Range.Dependents` raise on such a sheet in Excel, and work
+  in YCGrid. Measured 2026-11-28 through scripts/excel_diff.py: to decide whether to copy them.
 - Data > tables: cells deleted inside a table across part of its width delete its whole rows (columns), as in Excel,
   and the cells end the same; but Excel's table then also takes in the row (column) of cells that moved up next to
   it (C9 deleted up in C7:D10 with `below` in C11 leaves the table C7:D10 holding `below`; YCGrid's is C7:D9).
@@ -117,6 +118,8 @@ These are not differences to fix; they stay:
 - `Range.Formula` is `Formula2` (dynamic arrays): `B3.Formula = "=A1:A5"` spills, where Excel's legacy `Formula`
   writes `=@A1:A5`. Scripts written for YCGrid get one meaning; `Formula2` is there for Excel's own scripts.
 - A dynamic array spilling past row 1,048,576 grows the sheet (rows grow on demand); Excel shows #SPILL!.
+- A defined name that reads as a cell past row 1,048,576 (`Z9999999`, `XFD1048577`) is refused: Excel takes it, as
+  no cell has that row, where a YCGrid sheet's rows go on and `=Z9999999` is a cell (measured 2026-11-28).
 - A whole row or column in a dynamic array formula is cut to the used area: `=2:2` in E1 spills row 2's filled cells,
   where Excel's 16,384 columns don't fit from column E and show #SPILL! (measured 2026-11-11). A whole column is a
   million cells; formulas that take one (`=SUM(B:B)`, `=B:B*2` beside the data) stay fast.

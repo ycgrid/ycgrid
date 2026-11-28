@@ -1416,7 +1416,7 @@ void Document::DeleteCells(uint32_t sheet, const Rect& rect_in, bool shift_up) {
 // ---- Sheets ----
 
 namespace {
-bool ValidSheetName(std::string_view n, std::string* error) {
+bool ValidSheetName(std::string_view n, std::string* error, bool reserved_ok = false) {
   if (n.empty()) {
     if (error) *error = TR("The sheet name can't be blank.");
     return false;
@@ -1429,7 +1429,9 @@ bool ValidSheetName(std::string_view n, std::string* error) {
     if (error) *error = TR("Sheet names can't contain : \\ / ? * [ ] and can't begin or end with an apostrophe.");
     return false;
   }
-  if (n.size() == 7 && Lower(n) == "history") {  // Excel keeps it for the change history sheet
+  // Excel keeps it for the change history sheet: its UI refuses it, its object model takes it (Excel 16, measured
+  // 2026-11-28: Worksheet.Name = "History" names the sheet)
+  if (!reserved_ok && n.size() == 7 && Lower(n) == "history") {
     if (error) *error = TR("History is a reserved name. Type a different name.");
     return false;
   }
@@ -1593,12 +1595,12 @@ bool Document::DeleteSheet(uint32_t id) {
   return true;
 }
 
-bool Document::RenameSheet(uint32_t id, std::string_view name, std::string* error) {
+bool Document::RenameSheet(uint32_t id, std::string_view name, std::string* error, bool reserved_ok) {
   if (RefuseStructure()) {
     if (error) *error = "The workbook is protected";
     return false;
   }
-  if (!ValidSheetName(name, error)) return false;
+  if (!ValidSheetName(name, error, reserved_ok)) return false;
   const int32_t other = wb_.FindSheet(name);
   if (other >= 0 && wb_.sheets[static_cast<size_t>(other)]->id != id) {
     if (error) *error = TR("That name is already taken. Try a different one.");  // Excel 16's message, measured

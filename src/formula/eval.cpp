@@ -1048,6 +1048,11 @@ EV Evaluator::EvalTop(const Node& root) {
   return e;
 }
 
+bool EvaluatesToReference(const Node& root, EvalHost& host, int32_t sheet, core::CellPos origin) {
+  Evaluator ev(host, sheet, origin);
+  return ev.EvalTop(root).k == EV::K::Range;
+}
+
 Value EvaluateCell(const Node& root, EvalHost& host, int32_t sheet, core::CellPos origin, std::shared_ptr<Array>* spill) {
   Evaluator ev(host, sheet, origin);
   const EV e = ev.EvalTop(root);

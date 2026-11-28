@@ -1489,6 +1489,25 @@ Value Document::EvaluateFormula(uint32_t sheet, std::string_view text, std::stri
   return v;
 }
 
+bool Document::ValidationFormulaFails(uint32_t sheet, core::CellPos at, std::string_view text, bool list) {
+  if (!text.empty() && text[0] == '=') text.remove_prefix(1);
+  formula::ParseResult pr = formula::Parse(text, at, this);
+  if (!pr.ok) return true;
+  SettleForRead();
+  const uint64_t saved = current_cell_;
+  current_cell_ = Key(sheet, at.row, at.col);
+  bool fails = false;
+  try {
+    const int32_t sh = static_cast<int32_t>(sheet);
+    if (!(list && pr.root.kind != formula::NK::Name && formula::EvaluatesToReference(pr.root, *host_, sh, at)))
+      fails = formula::EvaluateCell(pr.root, *host_, sh, at).IsError();
+  } catch (const formula::NeedCell&) {
+    fails = false;  // reads a cell a cycle keeps uncalculated: not an error it gives
+  }
+  current_cell_ = saved;
+  return fails;
+}
+
 Value Document::EvaluateAt(uint32_t sheet, const formula::Node& root, core::CellPos at) {
   const uint64_t saved = current_cell_;
   current_cell_ = Key(sheet, at.row, at.col);
@@ -1978,7 +1997,7 @@ void Document::ResolveCycles() {
   }
 }
 
-bool Document::SettleArrayReadingItself(uint64_t key) {
+bool Document::SettleArrayReadingItself(uint64_t key, uint64_t* waits_for) {
   const uint32_t sheet = KeySheet(key), r = KeyRow(key), c = KeyCol(key);
   Sheet* s = M(sheet);
   const model::SpillRange* sp = s ? s->SpillOf(r, c) : nullptr;
@@ -2013,11 +2032,13 @@ bool Document::SettleArrayReadingItself(uint64_t key) {
   const bool blocked = cycle_block_.erase(key) > 0;
   const bool was_pending = IsPending(key);
   if (was_pending) ErasePending(key);
+  uint64_t need = ~0ull;
   auto evaluate = [&](Value* v, std::shared_ptr<formula::Array>* arr) {
     try {
       *v = EvaluateFormulaCell(key, arr);
       return true;
-    } catch (const formula::NeedCell&) {  // it reads a cell still waiting (another cycle's)
+    } catch (const formula::NeedCell& n) {  // it reads a cell still waiting (another cycle's, or one not calculated yet)
+      need = Key(static_cast<uint32_t>(n.sheet), n.row, n.col);
       return false;
     } catch (const std::exception&) {
       return false;
@@ -2068,6 +2089,7 @@ bool Document::SettleArrayReadingItself(uint64_t key) {
   if (!ok) {
     if (blocked) cycle_block_.insert(key);
     if (was_pending) AddPending(key);
+    if (waits_for) *waits_for = need;
     return false;
   }
   StoreResult(key, std::move(v), std::move(arr));
@@ -2413,11 +2435,21 @@ void Document::EvaluatePendingSerial(int64_t only_sheet) {
             host_->soft_self = false;
             host_->ResetSelf();
             in_progress_.erase(top);
-            if (SettleArrayReadingItself(top)) {
+            uint64_t need = ~0ull;
+            if (SettleArrayReadingItself(top, &need)) {
               stack.pop_back();
               continue;
             }
             in_progress_.insert(top);
+            // its values read a cell not calculated yet (the read of its own cell stopped the formula before it got
+            // there): that cell is calculated first and the array settled again, as any formula waits for what it
+            // reads. Taken for a cycle, B1 {=A1:B2*2} met B2 still waiting at every pass, B1 was reported circular
+            // or set aside what read it, and =TRANSPOSE(A1:B2) in B4 showed 0 unspilled (doc_fuzz --xlsx seed 2400534)
+            if (need != ~0ull && need != top && IsPending(need) && !in_progress_.count(need)) {
+              stack.push_back(need);
+              in_progress_.insert(need);
+              continue;
+            }
           }
           AbortStack(stack, top);
           continue;

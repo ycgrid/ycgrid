@@ -101,10 +101,7 @@ std::vector<Rect> AreasOf(const MV& p) {
 
 // before a request reads what cells show (Go To Special's kinds, a sort's order): formulas just written by this
 // connection have their values (with manual calculation, the entered ones, as Excel shows them)
-void Settle(Document& d) {
-  if (d.auto_calc) d.Recalc();
-  else d.CalcEntered();
-}
+void Settle(Document& d) { d.SettleForRead(); }
 
 // clamp entire columns (r1 = ROW_END) to the sheet's current row count
 Rect Clamp(const model::Sheet& s, Rect r) {
@@ -1977,7 +1974,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
         return true;
       }
-      if (m == "sheet.rename") return d.RenameSheet(id, p.GetStr("name"), &err);
+      if (m == "sheet.rename") return d.RenameSheet(id, p.GetStr("name"), &err, /*reserved_ok=*/true);
       if (m == "sheet.move") return d.MoveSheet(id, static_cast<int32_t>(p.GetInt("index")));
       if (m == "sheet.visible") {
         if (!d.SetSheetVisible(id, p.GetBool("visible", true), p.GetBool("very", false))) {
@@ -2113,6 +2110,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     // Range.DisplayFormat: the first cell's format as the sheet shows it, its conditional formats applied (the font's
     // color and style, the fill and its pattern, the number format)
     return eng.Call([&](Document& d) {
+      d.SettleForRead();  // a formula written just before has its value, and the rules read it (Settle)
       const model::Sheet* s = d.S(sheet);
       if (!s) return MV();
       const auto& t = *d.wb().styles;
@@ -2322,6 +2320,68 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     });
   }
   // Range.MergeCells of a range: 0 no cell merged, 1 every cell in a merged area, 2 some (Excel's Null)
+  if (m == "range.next_unlocked") {
+    // Range.Next / Previous on a protected sheet (Excel 16, measured 2026-11-28): one cell goes to the next (previous)
+    // unlocked cell in reading order over the used range and the cell, wrapping, as Tab does; a range of several cells
+    // walks its own cells, area after area, and stays on its first cell when none is unlocked
+    std::vector<Rect> areas;
+    if (const MV* a = p.Get("areas")) {
+      for (const MV& x : a->a) areas.push_back(RectOf(x));
+    }
+    const bool back = p.GetBool("back", false);
+    return eng.Call([&](Document& d) -> MV {
+      const model::Sheet* s = d.S(sheet);
+      if (!s || areas.empty()) return MV();
+      std::function<bool(uint32_t, uint32_t)> unlocked, selectable;
+      ProtectionCellRules(*s, &d.wb().styles.get(), &unlocked, &selectable);
+      auto cell = [](uint32_t r, uint32_t c) {
+        MV x = MV::Array();
+        x.Push(MV::Int(r));
+        x.Push(MV::Int(c));
+        return x;
+      };
+      for (Rect& a : areas) a = Rect{a.r0, a.c0, std::min(a.r1, s->row_limit - 1), std::min(a.c1, core::kMaxCols - 1)};
+      const Rect& first = areas[0];
+      if (!unlocked) return cell(first.r0, first.c0);
+      if (areas.size() == 1 && first.IsCell()) {
+        uint32_t nr = first.r0, nc = first.c0;
+        int64_t add_row = -1;
+        render::TabTarget(*s, first.r0, first.c0, back, unlocked, nullptr, &nr, &nc, &add_row);
+        return cell(nr, nc);
+      }
+      // the range's own cells in reading order, area after area, from its first cell (bounded: a whole column with no
+      // unlocked cell is a million steps)
+      uint64_t total = 0;
+      for (const Rect& a : areas) total += a.Count();
+      size_t ai = 0;
+      uint32_t r = first.r0, c = first.c0;
+      for (uint64_t k = 0; k < total && k < 4000000; ++k) {
+        const Rect& a = areas[ai];
+        if (!back) {
+          if (c < a.c1) ++c;
+          else if (r < a.r1) c = a.c0, ++r;
+          else ai = (ai + 1) % areas.size(), r = areas[ai].r0, c = areas[ai].c0;
+        } else {
+          if (c > a.c0) --c;
+          else if (r > a.r0) c = a.c1, --r;
+          else ai = (ai + areas.size() - 1) % areas.size(), r = areas[ai].r1, c = areas[ai].c1;
+        }
+        if (unlocked(r, c)) return cell(r, c);
+      }
+      return cell(first.r0, first.c0);
+    });
+  }
+  if (m == "range.cuts_merge") {  // a merged cell the range holds part of
+    const Rect want = RectOf(*p.Get("rect"));
+    return MV::Bool(eng.Call([&](Document& d) {
+      const model::Sheet* s = d.S(sheet);
+      if (!s) return false;
+      for (const Rect& mr : *s->merges) {
+        if (mr.Intersects(want) && !want.Contains(mr)) return true;
+      }
+      return false;
+    }));
+  }
   if (m == "range.merge_state") {
     const MV* rv = p.Get("rect");
     if (!rv) return MV::Int(0);
@@ -2339,6 +2399,25 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     }));
   }
   // dynamic array / array formula covering a cell: {anchor: [r, c], rect: [r0, c0, r1, c1], cse} or nil
+  if (m == "range.has_array") {
+    // Range.HasArray over several cells: True when an array entered with Ctrl+Shift+Enter covers every one, False
+    // when none, Null (nil) when some (Excel 16, measured 2026-11-28: Range("2:3").HasArray through G2:G4 is Null)
+    const Rect req = RectOf(*p.Get("rect"));
+    return eng.Call([&](Document& d) {
+      const model::Sheet* sh = d.S(sheet);
+      if (!sh) return MV::Bool(false);
+      const Rect r = Clamp(*sh, req);
+      uint64_t in = 0;
+      for (const auto& [k, sp] : *sh->spills) {
+        if (!sp.cse || !sp.rect.Intersects(r)) continue;
+        const Rect x{std::max(sp.rect.r0, r.r0), std::max(sp.rect.c0, r.c0), std::min(sp.rect.r1, r.r1), std::min(sp.rect.c1, r.c1)};
+        in += x.Count();
+      }
+      if (in == 0) return MV::Bool(false);
+      if (in >= r.Count()) return MV::Bool(true);
+      return MV();
+    });
+  }
   if (m == "range.spill") {
     return eng.Call([&](Document& d) {
       if (d.auto_calc) d.Recalc();  // manual calculation: read what the cells show (Excel), new formulas computed
@@ -2857,9 +2936,15 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       for (const Rect& mg : *s->merges) {
         if (mg.Intersects(r)) merges_in.push_back(mg);
       }
+      // and whole rows or columns that take only part of a merged cell leave it alone, its first cell too (Excel 16,
+      // measured 2026-11-28: Range("B:B").Value = 5 and Range("2:3").Value = 5 over the merged B3:C4 keep B3's value,
+      // where Range("B2:C3").Value = 5 and Range("B3").Value = 5 write it)
+      const bool whole_lines = (r.r0 == 0 && r.r1 >= s->row_limit - 1) || (r.c0 == 0 && r.c1 >= core::kMaxCols - 1);
       auto covered = [&](uint32_t rr, uint32_t cc) {
         for (const Rect& mg : merges_in) {
-          if (mg.Contains(rr, cc) && (rr != mg.r0 || cc != mg.c0)) return true;
+          if (!mg.Contains(rr, cc)) continue;
+          if (rr != mg.r0 || cc != mg.c0) return true;
+          if (whole_lines && !r.Contains(mg)) return true;
         }
         return false;
       };
@@ -2887,6 +2972,11 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
         if (scalar) break;
       }
+      // a merged cell the range cuts keeps its first cell's value (above); one holding a formula is left by the
+      // cell-by-cell path below, as a block write would replace it
+      for (const Rect& mg : merges_in) {
+        if (fast && whole_lines && !r.Contains(mg) && r.Contains(mg.r0, mg.c0) && s->GetFormula(mg.r0, mg.c0)) fast = false;
+      }
       if (fast) {
         std::vector<core::Value> buf;
         buf.reserve(static_cast<size_t>(r.Count()));
@@ -2894,7 +2984,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           for (uint32_t j = 0; j < r.Cols(); ++j) {
             const MV* v = cell(i, j);
             int dk;
-            if (!merges_in.empty() && covered(r.r0 + i, r.c0 + j)) buf.emplace_back();
+            const uint32_t rr = r.r0 + i, cc = r.c0 + j;
+            if (!merges_in.empty() && covered(rr, cc)) buf.push_back(s->GetValue(rr, cc));  // (empty under a merge)
             else buf.push_back(v ? MVToValue(*v, &dk) : MVToValue(kNA, &dk));
           }
         }
@@ -2904,29 +2995,35 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // one formula for many cells: parse at the upper-left cell, offset relative references for the others (like Excel's Range.Formula)
         const model::Sheet* sb = d.S(sheet);
         const uint32_t fmt_before = sb ? d.wb().styles->Get(sb->GetStyle(r.r0, r.c0)).numfmt : 0;
-        // the cell the others are pasted from is not a table's header, which makes a formula text at once:
-        // Range("B:B").Formula through a table pasted the header's "0" into every cell
-        uint32_t sr = r.r0;
-        auto header = [&](uint32_t rr) {
+        // the cell the others are pasted from is not a table's header, which makes a formula text at once: the first
+        // cell in reading order that isn't one. Range("B:B").Formula through a table pasted the header's "0" into
+        // every cell, and Range("1:1").Formula through a header row into F1:J1 beside the table too
+        uint32_t sr = r.r0, sc = r.c0;
+        auto header = [&](uint32_t rr, uint32_t cc) {
           for (const auto& tb : *sb->tables) {
-            if (tb.header && rr == tb.range.r0 && r.c0 >= tb.range.c0 && r.c0 <= tb.range.c1) return true;
+            if (tb.header && rr == tb.range.r0 && cc >= tb.range.c0 && cc <= tb.range.c1) return true;
           }
           return false;
         };
-        while (sb && sr < r.r1 && header(sr)) ++sr;
+        bool found = !sb || !header(sr, sc);
+        for (uint32_t i = r.r0; !found && i <= r.r1 && i - r.r0 < 64; ++i) {
+          for (uint32_t j = r.c0; !found && j <= r.c1 && j - r.c0 < 16384; ++j) {
+            if (!header(i, j)) sr = i, sc = j, found = true;
+          }
+        }
         std::string text(std::string_view(vals->s).substr(1));
-        if (sr != r.r0) {
+        if (sr != r.r0 || sc != r.c0) {
           formula::ParseResult pr = formula::Parse(text, core::CellPos{r.r0, r.c0}, &d);
-          if (pr.ok) text = formula::ToA1(pr.root, core::CellPos{sr, r.c0}, &d);
+          if (pr.ok) text = formula::ToA1(pr.root, core::CellPos{sr, sc}, &d);
         }
         const std::string inferred = d.InferredFormat(sheet, r.r0, r.c0, std::string_view(vals->s).substr(1));
-        if (!d.SetFormula(sheet, sr, r.c0, text, &err, engine::kSrcPython)) {
+        if (!d.SetFormula(sheet, sr, sc, text, &err, engine::kSrcPython)) {
           err_code = "E_FORMULA";
         } else {
-          const auto clip = d.Copy(sheet, Rect::Cell(sr, r.c0));
+          const auto clip = d.Copy(sheet, Rect::Cell(sr, sc));
           for (uint32_t i = r.r0; i <= r.r1; ++i) {
             for (uint32_t j = r.c0; j <= r.c1; ++j) {
-              if ((i != sr || j != r.c0) && !covered(i, j)) d.Paste(sheet, i, j, clip, engine::PasteMode::Formulas);
+              if ((i != sr || j != sc) && !covered(i, j)) d.Paste(sheet, i, j, clip, engine::PasteMode::Formulas);
             }
           }
           // the format the first cell's formula gives its result goes to every cell without a format, whether or
@@ -3461,6 +3558,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         const std::vector<Rect> runs = s ? engine::FilterShownRuns(*s, {r}) : std::vector<Rect>{r};
         mode = runs.size() == 1 && runs[0] == r ? "left" : "up";
       }
+      if (p.GetBool("check", false)) {
+        // only whether it is refused (an area of several, asked before any is done: Excel refuses them all at once)
+        if (mode == "rows") d.RefuseRowsCols(sheet, true, ins, r.r0, static_cast<uint32_t>(r.Rows()));
+        else if (mode == "cols") d.RefuseRowsCols(sheet, false, ins, r.c0, static_cast<uint32_t>(r.Cols()));
+        else if (ins) d.RefuseInsertCells(sheet, r, mode == "down");
+        else d.RefuseDeleteCells(sheet, r, mode == "up");
+        return;
+      }
       if (mode == "rows") {
         // whole rows of a filtered list deleted: the rows it shows, bottom up (Excel 16's object model, measured)
         std::vector<Rect> runs{r};
@@ -3821,9 +3926,27 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       return x;
     });
   }
+  if (m == "range.shown_runs") {  // the parts of a range a filter shows (FilterShownRuns): Python's fills over areas
+    const Rect r = RectOf(*p.Get("rect"));
+    return eng.Call([&](Document& d) {
+      MV out = MV::Array();
+      const model::Sheet* s = d.S(sheet);
+      if (!s) return out;
+      const Rect in{r.r0, r.c0, std::min(r.r1, s->row_limit - 1), r.c1};
+      for (const Rect& run : engine::FilterShownRuns(*s, {in})) {
+        MV x = MV::Array();  // a run to the range's end keeps its end (a whole column's end marker)
+        for (const uint32_t v : {run.r0, run.c0, run.r1 == in.r1 ? r.r1 : run.r1, run.c1}) x.Push(MV::Int(static_cast<int64_t>(v)));
+        out.Push(std::move(x));
+      }
+      return out;
+    });
+  }
   if (m == "range.fill") {
     const Rect r = RectOf(*p.Get("rect"));
     const int dir = static_cast<int>(p.GetInt("dir"));
+    // the range the script gave, before a line beside it was taken in (FillDown on B3 fills B2:B3): what a filter
+    // shows of it decides the fill
+    const Rect orig = p.Get("orig") ? RectOf(*p.Get("orig")) : r;
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       // a fill over a merged cell does nothing, as Excel 16's FillDown (measured: B2:B5 through B2:C3), and so does one
@@ -3836,11 +3959,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
       }
       // a filtered list: the rows it shows (Excel 16, measured: FillDown and FillUp)
-      if ((dir == 0 || dir == 2) && d.FillDownShown(sheet, r, dir == 2)) return;
+      if ((dir == 0 || dir == 2) && d.FillDownShown(sheet, orig, dir == 2)) return;
       if (dir == 1 || dir == 3) {  // right / left: each run of rows it shows (Excel 16's FillRight, measured)
         const model::Sheet* s = d.S(sheet);
         std::vector<Rect> runs = s && r.r1 < s->row_limit ? engine::FilterShownRuns(*s, {r}) : std::vector<Rect>{r};
         if (runs.empty()) runs = {r};  // rows the filter all hides: the cells themselves (Excel 16 fills A2:C2 left, measured)
+        // one column the filter cuts into several runs is several areas one column wide: nothing to fill from (Excel
+        // 16, measured 2026-11-28: FillLeft over A:A of a filtered list changes nothing; it copied column B in)
+        if (orig.c0 == orig.c1 && runs.size() > 1) return;
         for (const Rect& run : runs) d.FillEdge(sheet, run, dir);
         return;
       }
@@ -4169,7 +4295,9 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       MV out = MV::Array();
       if (!s) return out;
       Rect w = Clamp(*s, req);
-      const bool one = w.IsCell();
+      // a cell that is one area of several is that cell (Excel 16, measured 2026-11-28: B2:C3,E5's constants are
+      // $B$2:$C$3,$E$5); it searched the whole sheet
+      const bool one = w.IsCell() && !p.GetBool("part", false);
       // a single cell = the whole sheet (like Excel); notes, rules and validation can sit on empty cells outside the used
       // range, so for them the whole grid, as Go To Special does
       const bool on_empty = kind == -4144 || kind == -4172 || kind == -4173 || kind == -4174 || kind == -4175;
@@ -5073,6 +5201,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           given.push_back(r);
         }
         if (given.empty()) given.push_back(Rect{});
+        // an area takes in the merged cells it cuts, as Excel's Select does (Excel 16, measured 2026-11-28:
+        // Range("B:B").Select over the merged B3:C4 selects $B:$C, Range("2:3") $2:$4)
+        for (Rect& g : given) {
+          for (bool grew = true; grew;) {
+            grew = false;
+            for (const Rect& mg : *sh->merges) {
+              if (mg.Intersects(g) && !g.Contains(mg)) g = g.Union(mg), grew = true;
+            }
+          }
+        }
         render::SetAreasActiveFirst(v.sel, given);
         render::NormalizeWholeSelection(v, *sh);  // Range("C:C").Select(): whole columns, as in Excel
         if (v.sel.areas.size() > 1) {  // Excel's order again, over the areas as normalized

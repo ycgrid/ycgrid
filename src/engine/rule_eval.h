@@ -106,6 +106,7 @@ class CondFormatEval {
     double avg = 0, lo = 0, hi = 0, mid = 0, threshold = 0;
     std::unordered_map<std::string, int> counts;
     size_t cells = 0;      // the cells gathered
+    size_t errors = 0;     // the error values among them
     double built_at = 0;   // when (steady clock, seconds)
   };
   struct Prepared {
