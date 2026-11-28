@@ -150,6 +150,41 @@ class NamesAndOutlineTest(_Live):
         self.ws.Range("A1").AutoOutline()
         self.assertEqual([self.ws.Rows(r).OutlineLevel for r in range(1, 9)], [3, 3, 2, 3, 3, 2, 1, 1])
 
+    def test_auto_outline_takes_the_side_of_the_first_total(self):
+        # Excel 16, measured 2026-11-28: totals above their details group the rows after them and set Summary rows
+        # above; the first total in reading order picks the side and a total on the other side is left out; totals
+        # left of their columns set Summary columns to the left; nothing to group raises
+        from yc import excel
+
+        def levels(rows=True, n=8):
+            return "".join(str((self.ws.Rows(i) if rows else self.ws.Columns(i)).OutlineLevel) for i in range(1, n + 1))
+
+        def fresh(cells):
+            self.ws.Cells.ClearOutline()
+            self.ws.Cells.Clear()
+            self.ws.Outline.SummaryRow = excel.xlSummaryBelow
+            self.ws.Outline.SummaryColumn = excel.xlSummaryOnRight
+            self.put(cells)
+            self.ws.Range("A1").AutoOutline()
+
+        fresh({"B1": "=SUBTOTAL(9,B2:B4)", "B2": 1, "B3": 2, "B4": 3, "B5": "=SUBTOTAL(9,B6:B7)", "B6": 4, "B7": 5})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("12221221", excel.xlSummaryAbove))
+        fresh({"B1": "=SUM(B2,B5)", "B2": "=SUM(B3:B4)", "B3": 1, "B4": 2, "B5": "=SUM(B6:B7)", "B6": 3, "B7": 4})
+        self.assertEqual(levels(), "12332331")
+        fresh({"B1": "=SUM(B3:B4)", "B3": 1, "B4": 2})
+        self.assertEqual(levels(), "12221111")
+        fresh({"B1": "=SUM(B2:B3)", "B2": 1, "B3": 2, "B4": 4, "B5": 5, "B6": "=SUM(B4:B5)"})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("12211111", excel.xlSummaryAbove))
+        fresh({"B1": 1, "B2": 2, "B3": "=SUM(B1:B2)", "B4": "=SUM(B5:B6)", "B5": 4, "B6": 5})
+        self.assertEqual((levels(), self.ws.Outline.SummaryRow), ("22111111", excel.xlSummaryBelow))
+        fresh({"A1": "=SUM(B1:C1)", "B1": 1, "C1": 2, "D1": "=SUM(E1:F1)", "E1": 3, "F1": 4})
+        self.assertEqual((levels(False), self.ws.Outline.SummaryColumn), ("12212211", excel.xlSummaryOnLeft))
+        self.ws.Cells.ClearOutline()
+        self.ws.Cells.Clear()
+        self.put({"B1": "=B2*2", "B2": 1})
+        with self.assertRaises(yc.YcError):
+            self.ws.Range("A1").AutoOutline()
+
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class PivotTailTest(_Live):

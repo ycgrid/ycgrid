@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Auto Outline groups totals above their details (and left of them) as Excel does, setting Summary rows above
+  (columns to the left); the first total in reading order picks the side. `Range.AutoOutline` raises "Cannot create
+  an outline." when nothing can be grouped.
 - Ctrl+Shift+A after a function's name types its argument names without brackets around the optional ones
   (`=SUM(number1,number2,...)`), as Excel does.
 - Hyperlinks follow their cells as in Excel: Delete, an empty entry and Clear Contents take a cell's link away (its

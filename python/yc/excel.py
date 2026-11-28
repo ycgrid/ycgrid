@@ -7878,9 +7878,13 @@ class Range:
 
     def AutoOutline(self):  # noqa: N802
         """Data > Group > Auto Outline: group the rows (columns) that SUM / SUBTOTAL formulas in the range add up.
-        A single cell works on the whole sheet's data. Returns the number of groups made."""
+        A single cell works on the whole sheet's data. Returns the number of groups made; with nothing to group it
+        raises "Cannot create an outline.", as Excel's does (measured)."""
         a = self._a
-        return _rq("outline.auto", sheet=self._sheet, rect=list(a))
+        n = _rq("outline.auto", sheet=self._sheet, rect=list(a))
+        if not n:
+            raise ApplicationDefinedError("Cannot create an outline.")
+        return n
 
     def ClearOutline(self):  # noqa: N802
         """Remove the row and column groups of the range's rows and columns; one cell clears the whole sheet's outline,

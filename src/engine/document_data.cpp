@@ -488,8 +488,11 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
   // its row), with only blank cells between them and it, makes the rows (columns) from the first of them to the one
   // before it a group; a referenced cell that is itself such a total brings its group in (=SUM(A3,A6) over the totals
   // of rows 1-2 and 4-5 groups rows 1-6, nesting the two). One cell (=A3*2) or a value in between makes no group
+  // The summaries are below (right of) their details or above (left of) them, whichever the first such total in
+  // reading order is, and only that side's totals group then; the side becomes the sheet's Summary rows below /
+  // columns to the right (Excel 16, measured 2026-11-28: =SUM(B2:B3) in B1 groups rows 2:3 and sets xlAbove, a total
+  // below it after that one is left out; =SUM(B3:B4) in B1 over a blank B2 groups 2:4)
   std::set<std::pair<uint32_t, uint32_t>> row_groups, col_groups;
-  std::map<std::pair<uint32_t, uint32_t>, uint32_t> row_tops, col_tops;  // a total's (line, place) -> its group's start
   auto blank = [&](uint32_t r, uint32_t c) { return !s->GetFormula(r, c) && s->GetValue(r, c).IsEmpty(); };
   std::vector<formula::ResolvedRef> refs;
   // the formula cells only, in reading order (a total takes in the groups of the totals found before it): asking every
@@ -499,42 +502,76 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
     if (t.formula[idx]) formula_cells.emplace_back(r, c);
   });
   std::sort(formula_cells.begin(), formula_cells.end());
+  // the details a formula adds up along one axis on one side (after: they come after it, above / left summaries):
+  // false when it isn't such a total there; otherwise the first and last line it reads
+  auto details = [&](uint32_t r, uint32_t c, bool by_rows, bool after, uint32_t* first, uint32_t* last) {
+    const formula::CompiledFormula* f = Formula(s->GetFormula(r, c));
+    if (!f) return false;
+    refs.clear();
+    formula::CollectRefs(f->root, core::CellPos{r, c}, &refs);
+    if (refs.empty()) return false;
+    uint64_t cells = 0;
+    *first = UINT32_MAX;
+    *last = 0;
+    for (const auto& ref : refs) {
+      const Rect& x = ref.rect;
+      const bool own = ref.sheet < 0 || ref.sheet == static_cast<int32_t>(sheet);
+      if (!own) return false;
+      if (by_rows ? (x.c0 != c || x.c1 != c || (after ? x.r0 <= r : x.r1 >= r)) : (x.r0 != r || x.r1 != r || (after ? x.c0 <= c : x.c1 >= c))) return false;
+      cells += by_rows ? x.Rows() : x.Cols();
+      *first = std::min(*first, by_rows ? x.r0 : x.c0);
+      *last = std::max(*last, by_rows ? x.r1 : x.c1);
+    }
+    if (cells < 2) return false;
+    const uint32_t at = by_rows ? r : c;
+    const uint32_t from = after ? at + 1 : *last + 1, to = after ? *first : at;  // only blanks between it and them
+    for (uint32_t k = from; k < to; ++k) {
+      if (!(by_rows ? blank(k, c) : blank(r, k))) return false;
+    }
+    return true;
+  };
+  // the side of each axis: the first total in reading order (a formula is a row total before a column total)
+  int side_rows = -1, side_cols = -1;  // 0: below / right, 1: above / left
   for (const auto& [r, c] : formula_cells) {
-    {
-      const formula::CompiledFormula* f = Formula(s->GetFormula(r, c));
-      if (!f) continue;
-      refs.clear();
-      formula::CollectRefs(f->root, core::CellPos{r, c}, &refs);
-      if (refs.empty()) continue;
-      for (const bool by_rows : {true, false}) {
-        uint64_t cells = 0;
-        uint32_t first = UINT32_MAX, last = 0;
-        bool ok = true;
-        for (const auto& ref : refs) {
-          const Rect& x = ref.rect;
-          const bool own = ref.sheet < 0 || ref.sheet == static_cast<int32_t>(sheet);
-          if (!own || (by_rows ? (x.c0 != c || x.c1 != c || x.r1 >= r) : (x.r0 != r || x.r1 != r || x.c1 >= c))) {
-            ok = false;
-            break;
-          }
-          cells += by_rows ? x.Rows() : x.Cols();
-          first = std::min(first, by_rows ? x.r0 : x.c0);
-          last = std::max(last, by_rows ? x.r1 : x.c1);
-        }
-        if (!ok || cells < 2) continue;
-        const uint32_t at = by_rows ? r : c;
-        for (uint32_t k = last + 1; k < at && ok; ++k) ok = by_rows ? blank(k, c) : blank(r, k);
-        if (!ok) continue;
-        auto& tops = by_rows ? row_tops : col_tops;
-        const uint32_t line = by_rows ? c : r;
-        uint32_t top = first;
-        for (auto it = tops.lower_bound({line, first}); it != tops.end() && it->first.first == line && it->first.second <= last; ++it) {
-          top = std::min(top, it->second);
-        }
-        tops[{line, at}] = top;
-        (by_rows ? row_groups : col_groups).insert({top, at - 1});
+    if (side_rows >= 0 && side_cols >= 0) break;
+    uint32_t f0, f1;
+    for (const bool by_rows : {true, false}) {
+      int& side = by_rows ? side_rows : side_cols;
+      bool found = false;
+      for (const bool after : {false, true}) {
+        if (!details(r, c, by_rows, after, &f0, &f1)) continue;
+        if (side < 0) side = after ? 1 : 0;
+        found = true;
         break;
       }
+      if (found) break;
+    }
+  }
+  for (const bool by_rows : {true, false}) {
+    const int side = by_rows ? side_rows : side_cols;
+    if (side < 0) continue;
+    const bool after = side == 1;
+    // a total that reads another total takes in that one's group: the totals below (right) are met in reading order,
+    // those above (left) from the end, so the inner ones are found first
+    std::map<std::pair<uint32_t, uint32_t>, uint32_t> ends;  // a total's (line, place) -> its group's far end
+    auto& groups = by_rows ? row_groups : col_groups;
+    auto visit = [&](uint32_t r, uint32_t c) {
+      uint32_t first, last;
+      // a formula that is a row total isn't a column total too
+      if (!by_rows && (details(r, c, true, false, &first, &last) || details(r, c, true, true, &first, &last))) return;
+      if (!details(r, c, by_rows, after, &first, &last)) return;
+      const uint32_t at = by_rows ? r : c, line = by_rows ? c : r;
+      uint32_t end = after ? last : first;
+      for (auto it = ends.lower_bound({line, first}); it != ends.end() && it->first.first == line && it->first.second <= last; ++it) {
+        end = after ? std::max(end, it->second) : std::min(end, it->second);
+      }
+      ends[{line, at}] = end;
+      groups.insert(after ? std::make_pair(at + 1, end) : std::make_pair(end, at - 1));
+    };
+    if (after) {
+      for (auto it = formula_cells.rbegin(); it != formula_cells.rend(); ++it) visit(it->first, it->second);
+    } else {
+      for (const auto& [r, c] : formula_cells) visit(r, c);
     }
   }
   if (row_groups.empty() && col_groups.empty()) return 0;
@@ -542,6 +579,10 @@ int Document::AutoOutline(uint32_t sheet, const Rect& area_in) {
   ClearOutline(sheet, false);
   for (const auto& [a, b] : row_groups) GroupOutline(sheet, true, a, b, true);
   for (const auto& [a, b] : col_groups) GroupOutline(sheet, false, a, b, true);
+  if (const Sheet* now = S(sheet)) {
+    SetOutlineSettings(sheet, row_groups.empty() ? now->outline_below : side_rows == 0, col_groups.empty() ? now->outline_right : side_cols == 0,
+                       now->outline_styles);
+  }
   return static_cast<int>(row_groups.size() + col_groups.size());
 }
 

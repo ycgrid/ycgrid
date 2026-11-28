@@ -212,6 +212,39 @@ TEST_CASE("round8 data tail: Text to Columns makes a field that is a formula one
   CHECK(u.T("A1") == "=1+1");
 }
 
+TEST_CASE("round8 data tail: Auto Outline takes the side of the first total, as Excel's") {
+  // Excel 16, measured 2026-11-28: summaries above their details group the rows after them and set Summary rows above;
+  // the first total in reading order picks the side, and a total on the other side is left out
+  {
+    yctest::Doc t;
+    Column(t, {"=SUM(A2,A5)", "=SUM(A3:A4)", "1", "2", "=SUM(A6:A7)", "3", "4"});
+    CHECK(t.d.AutoOutline(t.sheet(), R("A1:A10")) == 3);
+    CHECK(RowLevels(t, 8) == std::vector<int>{0, 1, 2, 2, 1, 2, 2, 0});
+    CHECK_FALSE(t.d.wb().sheets[0]->outline_below);
+  }
+  {
+    yctest::Doc t;  // blanks between the total and its details are in the group
+    Column(t, {"=SUM(A3:A4)", "", "1", "2"});
+    t.d.AutoOutline(t.sheet(), R("A1:A10"));
+    CHECK(RowLevels(t, 5) == std::vector<int>{0, 1, 1, 1, 0});
+  }
+  {
+    yctest::Doc t;  // a total below after the first one above is left out
+    Column(t, {"=SUM(A2:A3)", "1", "2", "4", "5", "=SUM(A4:A5)"});
+    CHECK(t.d.AutoOutline(t.sheet(), R("A1:A10")) == 1);
+    CHECK(RowLevels(t, 6) == std::vector<int>{0, 1, 1, 0, 0, 0});
+  }
+  {
+    yctest::Doc t;  // totals left of their columns
+    t.Set("A1", "=SUM(B1:C1)");
+    t.Set("B1", "1");
+    t.Set("C1", "2");
+    CHECK(t.d.AutoOutline(t.sheet(), R("A1:F1")) == 1);
+    CHECK_FALSE(t.d.wb().sheets[0]->outline_right);
+    CHECK(t.d.wb().sheets[0]->outline_below);
+  }
+}
+
 TEST_CASE("round8 data tail: Auto Outline nests a total of totals and groups any formula over the cells above") {
   {
     yctest::Doc t;
