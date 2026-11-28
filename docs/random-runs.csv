@@ -13665,3 +13665,7 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4805,3,ok,
 2026-11-28,formula_fuzz,5786,0,ok,
 2026-11-28,screen_walk,r181,600,found,"Increase and Decrease Indent on General, text, Right, Center, Justify and Fill cells, one at a time and several at once, with mixed levels, IndentLevel and InsertIndent, measured in Excel through ExecuteMso and COM"
+2026-11-28,gaps_fuzz,700466,90,ok,
+2026-11-28,chaos,8053,361,ok,
+2026-11-28,basics,5093,162,ok,
+2026-11-28,screen_walk,r182,400,found,"Increase and Decrease Font Size from 22 sizes (1 to 409, sizes off the list) and over two cells of different sizes, measured in Excel through ExecuteMso"

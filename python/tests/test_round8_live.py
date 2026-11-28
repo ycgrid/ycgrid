@@ -700,6 +700,17 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_font_size_buttons_step_through_excels_sizes_and_stop_at_72(self):
+        # Excel 16, measured 2026-11-28 through ExecuteMso: 6 then the Font Size list; past 72 and under 6 nothing changes
+        ws = self.ws
+        ws.Range("A1").Value = "x"
+        for start, cmd, want in ((72, "FontSizeIncrease", 72), (80, "FontSizeIncrease", 80), (1, "FontSizeIncrease", 6),
+                                 (8, "FontSizeDecrease", 6), (5, "FontSizeDecrease", 5), (100, "FontSizeDecrease", 72),
+                                 (13, "FontSizeIncrease", 14)):
+            ws.Range("A1").Font.Size = start
+            self.keys(f"m:2,2|g:A1|w:2|x:{cmd}|w:4")
+            self.assertEqual(ws.Range("A1").Font.Size, want, (start, cmd))
+
     def test_indent_buttons_act_on_several_cells_as_a_block(self):
         # Excel 16, measured 2026-11-28 through ExecuteMso: one Right-aligned cell keeps Right when indented, several
         # cells all become Left; Decrease over several changes nothing while one of them is at 0

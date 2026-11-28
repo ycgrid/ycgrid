@@ -205,18 +205,21 @@ void SetFontSize(AppState& s, float pt) {
   });
 }
 
+// Increase / Decrease Font Size go to the next size of Excel's steps, 6 then the Font Size list; past 72 (under 6) they
+// change nothing (Excel 16, measured 2026-11-28 through ExecuteMso: 1 grows to 6, 8 shrinks to 6, 72 and 80 stay, 100
+// shrinks to 72, 5 stays)
 float StepFontSize(float pt, int dir) {
-  static const float kSizes[] = {8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
+  static const float kSizes[] = {6, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
   if (dir > 0) {
     for (float s : kSizes) {
       if (s > pt + 0.01f) return s;
     }
-    return pt + 10;
+    return pt;
   }
   for (int i = static_cast<int>(std::size(kSizes)) - 1; i >= 0; --i) {
     if (kSizes[i] < pt - 0.01f) return kSizes[i];
   }
-  return std::max(1.0f, pt - 1);
+  return pt;
 }
 
 const model::Style* ActiveStyle(AppState& s) {

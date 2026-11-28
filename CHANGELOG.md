@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Increase and Decrease Font Size step through Excel's sizes (6, then the Font Size list) and change nothing past 72 or under 6, where they went on by 10 or 1.
 - Increase Indent over several cells makes every one left-aligned (Right ones too), and Decrease Indent over
   several cells changes nothing while one of them is at 0, as in Excel; `Range.IndentLevel` and `InsertIndent` on
   several cells do the same.
