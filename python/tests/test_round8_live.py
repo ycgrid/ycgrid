@@ -700,6 +700,20 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_autofit_columns_leaves_wrapped_and_multi_line_text_at_its_width(self):
+        # Excel 16, measured 2026-11-28: AutoFit fits one line of 26 letters, but text with a line break or wrapped
+        # text keeps its column near the standard width (its widest line as laid out now)
+        ws = self.ws
+        std = ws.Columns(9).ColumnWidth
+        ws.Range("A1").Value = "ab\ncdefghijklmnopqrstuvwxyz"
+        ws.Range("B1").Value = "abcdefghijklmnopqrstuvwxyz"
+        ws.Range("C1").Value = "abcdefghijklmnopqrstuvwxyz"
+        ws.Range("C1").WrapText = True
+        self.keys("m:2,2|g:A1:C1|w:2|x:AutoFitColumns|w:5")
+        self.assertLessEqual(ws.Columns(1).ColumnWidth, std + 0.01)
+        self.assertGreater(ws.Columns(2).ColumnWidth, 2 * std)
+        self.assertLessEqual(ws.Columns(3).ColumnWidth, std + 0.01)
+
     def test_a_row_that_sizes_itself_shrinks_back_when_its_lines_are_cleared(self):
         # Excel 16, measured 2026-11-28 by keys and COM: two lines typed with Alt+Enter, then Delete: the standard
         # height again; Ctrl+Z brings the two lines' height back; a 28 pt cell cleared keeps its height; a height set

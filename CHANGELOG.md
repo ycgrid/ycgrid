@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- AutoFit Column Width leaves wrapped text and text with line breaks at the width it is laid out in, as Excel does,
+  instead of widening the column to its longest line.
 - A row that sizes itself shrinks back when its text is cleared (Delete, Clear Contents, Clear All,
   `Range.ClearContents`) or a script writes a shorter value (`Range.Value`), as in Excel: two lines typed with
   Alt+Enter left the row two lines high after Delete.

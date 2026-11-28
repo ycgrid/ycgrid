@@ -2723,7 +2723,12 @@ int32_t MeasureColumn(AppState& s, const model::Sheet& sh, uint32_t c, const std
     const std::string text = render::FormatCellText(*s.snap, st, v, -1, nullptr, nullptr, nullptr);
     ImFont* font = ui::CellFont(s.snap->wb.styles->FontName(st), st.bold, st.italic);
     const float px = s.snap->wb.styles->FontSize(st) * (96.0f / 72.0f);
-    float w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, text.c_str()).x;
+    // wrapped text, or text with line breaks, fits its widest line as it is laid out in the column now: AutoFit never
+    // widens a column for it (Excel 16, measured 2026-11-28: "ab" and a 24-letter line wrapped, or not wrapped but on
+    // two lines, leave the column near its standard width, where one line of 26 letters widens it to 26)
+    const bool lines = !v.IsNumeric() && (st.wrap || text.find('\n') != std::string::npos);
+    const float wrap_w = lines ? std::max(1.0f, static_cast<float>(sh.cols->Size(col)) - 8.0f) : 0.0f;
+    float w = font->CalcTextSizeA(px, FLT_MAX, wrap_w, text.c_str()).x;
     // AutoFilter header cells also hold the 17 px drop-down button (rules_ui.cpp), keep the text clear of it
     const auto& af = *sh.autofilter;
     if (af.on && row == af.range.r0 && col >= af.range.c0 && col <= af.range.c1) w += 19.0f;
