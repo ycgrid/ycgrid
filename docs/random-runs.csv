@@ -13204,3 +13204,9 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400402,125,ok,
 
 2026-11-28,screen_walk,r151,600,found,"Tab, Shift+Tab and Enter around a table's totals row: its last data cell, its own last and first cells, measured in Excel by keys"
+2026-11-28,calc_fuzz,4736,3,ok,
+2026-11-28,formula_fuzz,5717,0,ok,
+2026-11-28,chaos,7982,361,ok,
+2026-11-28,gaps_fuzz,700397,95,ok,
+
+2026-11-28,screen_walk,r152,600,clean,"The table code's unmeasured claims checked against Excel: another formula typed in a calculated column, a value in it, Resize over a row, ShowTotals' defaults"
