@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Ctrl+Shift+A after a function's name types its argument names without brackets around the optional ones
+  (`=SUM(number1,number2,...)`), as Excel does.
 - Hyperlinks follow their cells as in Excel: Delete, an empty entry and Clear Contents take a cell's link away (its
   formats stay); a copy, Fill Down, the fill handle, a sort and Remove Duplicates bring the links with the cells, and
   a plain cell pasted over a link removes it. `Hyperlinks.Add` and Insert Hyperlink give the cell the Hyperlink

@@ -13493,3 +13493,22 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400446,52,fail,doc_fuzz_2400446.txt
 2026-11-28,calc_fuzz,4779,17,ok,
 2026-11-28,formula_fuzz,5760,0,ok,
+2026-11-28,gaps_fuzz,700440,90,ok,
+2026-11-28,chaos,8026,362,ok,
+2026-11-28,basics,5067,167,ok,
+2026-11-28,doc_fuzz,2400447,87,ok,
+2026-11-28,calc_fuzz,4780,30,ok,
+2026-11-28,formula_fuzz,5761,0,ok,
+2026-11-28,screen_walk,r168,400,clean,"F8 (Extend Selection) with arrows, Ctrl+Down, End, PgDn, Home, Ctrl+Home, Enter, Tab, Shift+Down, Ctrl+A, Shift+Space, a click, F8 again and Escape, measured in Excel by keys"
+2026-11-28,screen_walk,r169,400,clean,"Home, Ctrl+Home, Ctrl+Shift+Home, Shift+Home, Ctrl+End, PgUp and Ctrl+Up with panes frozen at C4, from cells inside and outside the frozen part, measured in Excel by keys"
+2026-11-28,gaps_fuzz,700441,95,ok,
+2026-11-28,chaos,8027,361,ok,
+2026-11-28,basics,5068,167,ok,
+2026-11-28,doc_fuzz,2400448,94,ok,
+2026-11-28,calc_fuzz,4781,3,ok,
+2026-11-28,formula_fuzz,5762,0,ok,
+2026-11-28,basics,5069,164,ok,
+2026-11-28,doc_fuzz,2400449,6,fail,doc_fuzz_2400449.txt
+2026-11-28,gaps_fuzz,700442,86,ok,
+2026-11-28,chaos,8028,361,ok,
+2026-11-28,screen_walk,r170,500,found,"Ctrl+Shift+A after =VLOOKUP, =SUM, =IF, =NOW, =ROUND( and =ROUND(A1, and F9 over a whole formula in the cell editor, measured in Excel by keys"

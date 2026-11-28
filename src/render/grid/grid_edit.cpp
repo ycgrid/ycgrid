@@ -754,7 +754,8 @@ bool EditField(EditState& e, const char* id, const ImVec2& size, GridActions& ac
       }
     }
     // Ctrl+A right after a function's name (=SUM or =SUM( ): Function Arguments; Ctrl+Shift+A types the argument names
-    // (=SUM(number1,[number2],...)), as in Excel. Elsewhere Ctrl+A selects all of the text, as before.
+    // without the brackets of the optional ones (=SUM(number1,number2,...), =IF(logical_test,value_if_true,
+    // value_if_false): Excel 16, measured by keys), as in Excel. Elsewhere Ctrl+A selects all of the text, as before.
     if (io.KeyCtrl && !io.KeyAlt && formula::LooksLikeFormula(e.text) && e.caret > 0 && e.caret <= static_cast<int>(e.text.size())) {
       int end = e.caret;
       const bool paren = e.text[static_cast<size_t>(end) - 1] == '(';
@@ -767,7 +768,7 @@ bool EditField(EditState& e, const char* id, const ImVec2& size, GridActions& ac
           act.fn_args = true;
         } else {
           std::string names = fh->args;
-          names.erase(std::remove(names.begin(), names.end(), ' '), names.end());
+          names.erase(std::remove_if(names.begin(), names.end(), [](char ch) { return ch == ' ' || ch == '[' || ch == ']'; }), names.end());
           std::string next = e.text;
           const std::string ins = (paren ? "" : "(") + names + ")";
           next.insert(static_cast<size_t>(e.caret), ins);
