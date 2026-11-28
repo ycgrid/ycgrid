@@ -675,6 +675,16 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(self.ws.Range("D7").NumberFormat, "$#,##0.00")
         self.assertEqual(self.ws.Range("D7").Text, "$22.50")
 
+    def test_word_keys_in_the_cell_editor(self):
+        # Excel 16, measured by keys after F2: Ctrl+Left / Ctrl+Right go by words (punctuation is one), Ctrl+Delete
+        # deletes to the end, and Ctrl+Backspace deletes nothing (YCGrid deleted a word)
+        for text, keys, want in (("abc def ghi", "k:c-LeftArrow|w:2|k:c-LeftArrow", "abc xdef ghi"),
+                                 ("abc.def/ghi", "k:c-LeftArrow|w:2|k:c-LeftArrow", "abc.defx/ghi"),
+                                 ("abc def ghi", "k:c-Backspace", "abc def ghix")):
+            self.ws.Range("B2").ClearContents()
+            self.keys(f"m:2,2|g:B2|w:3|t:{text}|w:2|k:F2|w:2|{keys}|w:2|t:x|w:2|k:Enter|w:4")
+            self.assertEqual(self.ws.Range("B2").Value, want, keys)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

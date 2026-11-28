@@ -13315,3 +13315,18 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5732,0,ok,
 
 2026-11-28,screen_walk,r160,300,found,"A totals row with Average chosen and =MAX typed in, turned off and on again, measured in Excel through COM"
+2026-11-28,chaos,7998,361,ok,
+2026-11-28,gaps_fuzz,700412,90,ok,
+2026-11-28,basics,5039,169,ok,
+2026-11-28,doc_fuzz,2400419,90,ok,
+2026-11-28,calc_fuzz,4752,16,ok,
+2026-11-28,formula_fuzz,5733,0,ok,
+2026-11-28,gaps_fuzz,700413,98,ok,
+2026-11-28,basics,5040,164,ok,
+2026-11-28,chaos,7999,361,ok,
+2026-11-28,chaos,8000,361,ok,
+2026-11-28,basics,5041,167,ok,
+2026-11-28,formula_fuzz,5734,0,ok,
+2026-11-28,calc_fuzz,4753,31,ok,
+
+2026-11-28,screen_walk,r161,600,found,"Word keys in the cell editor after F2 (Ctrl+Left / Right, Ctrl+Delete, Shift+Home, Ctrl+Backspace) over spaces and punctuation, measured in Excel by keys"
