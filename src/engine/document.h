@@ -1547,5 +1547,8 @@ class Document : public formula::SheetResolver {
 // a name's Refers To as Excel shows it: a union kept as ((A,B)) (Document::DefineName) loses the two pairs again
 // (=A,B); any other text, with or without its leading =, comes back as it is
 std::string ShownNameUnion(const std::string& refers_to, const formula::SheetResolver* sheets);
+// Go To Special > Data validation > Same: the ranges of every rule with the settings of the one at (r, c), its formulas
+// read through sheets
+std::vector<Rect> SameValidationAreas(const model::Sheet& s, uint32_t r, uint32_t c, const formula::SheetResolver* sheets);
 
 }  // namespace yc::engine

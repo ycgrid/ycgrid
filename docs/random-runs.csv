@@ -13606,3 +13606,14 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4796,3,ok,
 2026-11-28,formula_fuzz,5777,0,ok,
 2026-11-28,screen_walk,r176,400,found,"Find and FindNext looking in values and formulas, part and whole, with case, wildcards, a number format, a formula text, over a hidden row and a hidden column, measured in Excel through COM"
+2026-11-28,chaos,8044,361,ok,
+2026-11-28,gaps_fuzz,700457,90,ok,
+2026-11-28,basics,5084,163,ok,
+2026-11-28,doc_fuzz,2400465,88,ok,
+2026-11-28,calc_fuzz,4797,15,ok,
+2026-11-28,formula_fuzz,5778,0,ok,
+2026-11-28,chaos,8045,370,ok,
+2026-11-28,basics,5085,178,ok,
+2026-11-28,gaps_fuzz,700458,179,ok,
+2026-11-28,doc_fuzz,2400466,161,ok,
+2026-11-28,screen_walk,r177,700,found,"Go To Special conditional formats and data validation (all, same), DirectPrecedents, Precedents, DirectDependents, Dependents and SpecialCells over chains of formulas, measured in Excel through COM; the areas come in another order (not a difference people see)"

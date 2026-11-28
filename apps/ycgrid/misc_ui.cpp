@@ -1680,7 +1680,8 @@ void DrawMiscDialogs(AppState& s) {
         if (m.gs_kind == 7) {
           for (const auto& rule : *sh.cond_formats) take(rule.ranges);
         } else {
-          for (const auto& rule : *sh.validations) take(rule.ranges);
+          engine::SnapshotEvalHost host(s.snap->wb);
+          take(engine::SameValidationAreas(sh, ar, ac, &host));
         }
         std::sort(areas.begin(), areas.end(), [](const Rect& x, const Rect& y) { return x.r0 != y.r0 ? x.r0 < y.r0 : x.c0 < y.c0; });
         areas.erase(std::unique(areas.begin(), areas.end()), areas.end());

@@ -236,6 +236,24 @@ class SortOrderTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class GoToSpecialTailTest(_Live):
+    def test_same_validation_takes_every_rule_with_the_same_settings(self):
+        # Excel 16, measured 2026-11-28: the same list added to G1:G3 and G8 is one rule; another input message or
+        # "a, b" isn't; =A6>0 in J6 is J1's =A1>0
+        ws = self.ws
+        ws.Range("G1:G3").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G6").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G6").Validation.InputMessage = "pick"
+        ws.Range("G8").Validation.Add(3, 1, 1, "a,b")
+        ws.Range("G10").Validation.Add(3, 1, 1, "a, b")
+        ws.Range("J1:J3").Validation.Add(7, 1, 1, "=A1>0")
+        ws.Range("J6").Validation.Add(7, 1, 1, "=A6>0")
+        ws.Range("J8").Validation.Add(7, 1, 1, "=A1>0")
+        self.assertEqual(ws.Range("G2").SpecialCells(-4175).Address(False, False), "G1:G3,G8")
+        self.assertEqual(ws.Range("J2").SpecialCells(-4175).Address(False, False), "J1:J3,J6")
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class PivotTailTest(_Live):
     ROWS = [["Region", "Product", "Sales", "Num"], ["East", "P1", 10, 5], ["West", "P2", 20, 15], ["East", "P2", 30, 25],
             ["North", "P1", 40, 35], ["West", "P1", 50, 45], ["North", "P2", 60, 55], ["East", "P1", 70, 65], ["West", "P2", 80, 75]]

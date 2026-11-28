@@ -725,6 +725,45 @@ model::CfRule Document::RebasedRule(model::CfRule x, core::CellPos from, core::C
   return x;
 }
 
+// Go To Special > Data validation > Same: the cells whose rule has every setting of the one at (r, c), messages too,
+// its formulas the same relative to each rule's first cell (Excel 16, measured 2026-11-28: a list "a,b" added to G1:G3
+// and to G8 is one rule, "a, b" or another input message isn't; =A6>0 in J6 is J1's =A1>0)
+std::vector<Rect> SameValidationAreas(const model::Sheet& sh, uint32_t r, uint32_t c, const formula::SheetResolver* sheets) {
+  const model::Sheet* s = &sh;
+  const model::DvRule* own = nullptr;
+  for (const auto& v : *s->validations) {
+    for (const Rect& q : v.ranges) {
+      if (q.Contains(r, c)) own = &v;
+    }
+  }
+  if (!own || own->ranges.empty()) return {};
+  auto moved = [&](const std::string& f, core::CellPos from, core::CellPos to) -> std::string {
+    if (f.empty() || from == to) return f;
+    std::string_view t = f;
+    const bool eq = t[0] == '=';
+    if (!eq) return f;  // a list typed into the rule, a number
+    formula::ParseResult pr = formula::Parse(t.substr(1), from, sheets);
+    return pr.ok ? "=" + formula::ToA1(pr.root, to, sheets) : f;
+  };
+  model::DvRule mine = *own;
+  mine.ranges.clear();
+  const core::CellPos at{own->ranges.front().r0, own->ranges.front().c0};
+  std::vector<Rect> out;
+  for (const auto& v : *s->validations) {
+    if (v.ranges.empty()) continue;
+    if (&v != own) {
+      model::DvRule x = v;
+      x.ranges.clear();
+      const core::CellPos base{v.ranges.front().r0, v.ranges.front().c0};
+      x.formula1 = moved(x.formula1, base, at);
+      x.formula2 = moved(x.formula2, base, at);
+      if (!(x == mine)) continue;
+    }
+    out.insert(out.end(), v.ranges.begin(), v.ranges.end());
+  }
+  return out;
+}
+
 void Document::FillEdge(uint32_t sheet, const Rect& rect_in, int dir, bool whole_target) {
   if (RefuseReadOnly(sheet)) return;  // once, not once per row (and no Change event for the first row)
   const Sheet* s0 = S(sheet);
