@@ -93,6 +93,33 @@ TEST_CASE("Text that ends with (no case), errors and no errors") {
   CHECK(Filled(n, 2, 4) == std::vector<bool>{false, true, true, true});  // blank cells have no error
 }
 
+TEST_CASE("A color scale's colors are Excel's to the unit (Excel 16, measured through DisplayFormat)") {
+  // red to green (Excel's colors are BGR: 0x0000FF red) over -20..100: each channel steps toward the end color by the
+  // share, cut toward zero
+  yctest::Doc t;
+  const char* vals[] = {"0", "25", "50", "75", "100", "x", "", "10", "90", "-20"};
+  for (int i = 0; i < 10; ++i) {
+    if (*vals[i]) t.Set(("A" + std::to_string(i + 1)).c_str(), vals[i]);
+  }
+  CfRule r;
+  r.type = CfType::ColorScale;
+  r.ranges = {Rect{0, 0, 9, 0}};
+  r.points = 2;
+  r.colors[0] = yc::model::Rgb(255, 0, 0);
+  r.colors[2] = yc::model::Rgb(0, 255, 0);
+  t.d.AddCondFormat(t.sheet(), r);
+  yc::engine::CondFormatEval ev(t.d.wb(), t.sheet());
+  auto fill = [&](uint32_t row) {
+    yc::engine::CfVisual v;
+    REQUIRE(ev.Eval(row, 0, &v));
+    return v.fill & 0xFFFFFF;
+  };
+  CHECK(fill(0) == (yc::model::Rgb(213, 42, 0) & 0xFFFFFF));   // Excel 002AD5
+  CHECK(fill(1) == (yc::model::Rgb(160, 95, 0) & 0xFFFFFF));   // 005FA0
+  CHECK(fill(2) == (yc::model::Rgb(107, 148, 0) & 0xFFFFFF));  // 00946B
+  CHECK(fill(8) == (yc::model::Rgb(22, 233, 0) & 0xFFFFFF));   // 00E916
+}
+
 TEST_CASE("Does Not Contain takes errors; a standard deviation rule over an error takes nothing (Excel 16, measured)") {
   yctest::Doc t;
   t.Set("B1", "apple pie");

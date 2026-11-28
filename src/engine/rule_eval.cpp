@@ -202,12 +202,15 @@ bool CompareOp(CmpOp op, const Value& v, const Value& a, const Value& b) {
   return false;
 }
 
+// a color scale's color between two points: each channel moves from a's toward b's by the share t, the step cut
+// toward zero (Excel 16, measured 2026-11-28: red to green at 0.375 is 160, 95, 0, where rounding gave 159, 96)
 uint32_t Lerp(uint32_t a, uint32_t b, double t) {
   t = std::clamp(t, 0.0, 1.0);
   uint32_t out = 0xFF000000u;
   for (int sh = 0; sh < 24; sh += 8) {
-    const double x = ((a >> sh) & 0xFF) * (1 - t) + ((b >> sh) & 0xFF) * t;
-    out |= static_cast<uint32_t>(std::lround(x)) << sh;
+    const int ca = static_cast<int>((a >> sh) & 0xFF), cb = static_cast<int>((b >> sh) & 0xFF);
+    const int x = ca + static_cast<int>(std::trunc((cb - ca) * t));
+    out |= static_cast<uint32_t>(std::clamp(x, 0, 255)) << sh;
   }
   return out;
 }

@@ -13957,3 +13957,13 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,8100,361,ok,
 2026-11-28,basics,5138,162,ok,
 2026-11-28,screen_walk,r196,600,found,"Twenty conditional format types over text, a blank, an error, numbers and dates made from TODAY(): text contains, does not, begins, ends, blanks, errors, five date periods, average, standard deviation, top and bottom N and percent, measured in Excel through DisplayFormat"
+2026-11-28,doc_fuzz,2400521,85,ok,
+2026-11-28,calc_fuzz,4851,17,ok,
+2026-11-28,formula_fuzz,5832,0,ok,
+2026-11-28,basics,5139,161,ok,
+2026-11-28,gaps_fuzz,700512,94,ok,
+2026-11-28,chaos,8101,361,ok,
+2026-11-28,doc_fuzz,2400522,97,ok,
+2026-11-28,calc_fuzz,4852,30,ok,
+2026-11-28,formula_fuzz,5833,0,ok,
+2026-11-28,screen_walk,r197,500,found,"Two and three color scales, number, percentile and percent points, over text, a blank and an error, read through DisplayFormat and measured in Excel"
