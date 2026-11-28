@@ -886,6 +886,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   them (a fill of blanks, a cut from another sheet), inside the step so Undo takes it back. Each path that kept a rule
   of its own let a header hold a number, a formula or an array's value (doc_fuzz seeds 10280369, 10290940, 10312766,
   10320462).
+- A write under a table is measured by its kind: a value grows the data, a formula (any, typed, Alt+= or
+  `Range.Formula`) makes the row the totals row (Excel 16). Taken as data, Alt+='s `=SUM(C3:C6)` grew into the circular
+  `=SUM(C3:C7)`, and a unit test written from a random case's value write had claimed the formula's growth as measured.
+  The grown row takes a column's format only when every data row shares it (measured), not the row above's.
 - What Excel does by itself after an entry is an Undo step of its own, measured by Ctrl+Z after the entry: a table's
   growth (Table AutoExpansion) and a calculated column's fill come back one Ctrl+Z each, before the typing (Excel 16;
   Ctrl+D takes its growth back with the fill). YCGrid made them in the typing's step, so the first Ctrl+Z took the
