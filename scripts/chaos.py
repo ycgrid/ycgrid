@@ -575,6 +575,12 @@ class Chaos:
             # and not over itself, docked beside the sheets or in a group floating over them: dropped back on its own place
             # it docks there again (seed 7828 inside its floating group, 7839 on its node left of the sheets)
             floating = [x["rect"] for x in over] + ([w["rect"]] if w.get("rect") else [])
+            # and away from the docking targets of the space the sheets fill once it is out: the sheets take its place
+            # at once, and their node's targets lie in the middle of both together (seed 8074: docked left of the
+            # sheets, dropped 60 px into them, which was the middle of the two, and it docked on the other side)
+            wr2 = w.get("rect") or g
+            both = (min(g[0], wr2[0]), min(g[1], wr2[1]), max(g[2], wr2[2]), max(g[3], wr2[3]))
+            mid = ((both[0] + both[2]) / 2, (both[1] + both[3]) / 2)
             dy = min(max(g[1] + 60, ty + 150), g[3] - 60, 860)
             for px, py in [(g[0] + min(60, (g[2] - g[0]) / 5), dy), (g[2] - min(60, (g[2] - g[0]) / 5), dy),
                            (g[0] + min(60, (g[2] - g[0]) / 5), g[3] - 60), (g[2] - min(60, (g[2] - g[0]) / 5), g[3] - 60)]:
@@ -582,6 +588,8 @@ class Chaos:
                     break
                 # (and 100 px clear of the window's sides: ImGui docks a window dropped there at that side of the whole
                 # dock space, seed 7839 dropped it 50 px from the left and it docked on the left again)
+                if abs(px - mid[0]) < 150 and abs(py - mid[1]) < 150:
+                    continue
                 if g[0] <= px <= g[2] and 100 <= px <= WINDOW[0] - 100 and g[1] + 60 <= py <= g[3] - 60 and not any(r[0] <= px <= r[2] and r[1] <= py <= r[3] for r in floating):
                     drop = (px, py)
                     break
