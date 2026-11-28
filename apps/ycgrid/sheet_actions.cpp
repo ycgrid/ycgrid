@@ -112,7 +112,8 @@ float TextBlockHeight(ImFont* font, float px, float wrap_w, const std::string& t
 // (typed_r, typed_c). Returns the rows whose height changes, with their new heights.
 std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                     const std::function<void(model::Style&)>* restyle, const std::string* typed = nullptr,
-                                                    uint32_t typed_r = 0, uint32_t typed_c = 0, const std::string* new_font = nullptr) {
+                                                    uint32_t typed_r = 0, uint32_t typed_c = 0, const std::string* new_font = nullptr,
+                                                    bool cleared = false, bool cleared_formats = false) {
   std::vector<std::pair<uint32_t, int32_t>> out;
   const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr;
   // a protected sheet keeps its row heights unless it lets the user format rows
@@ -144,6 +145,12 @@ std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet,
         }
         // the typed text is measured below (a formula's result isn't known yet: the old one stands in)
         if (after && typed && row == typed_r && col == typed_c && !formula::LooksLikeFormula(*typed)) return true;
+        // cells being cleared (cleared: areas are what Delete or Clear empties) keep one line of their font, or of
+        // the standard one when their formats go too (Excel 16: a 28 pt cell cleared keeps its row's 39 points)
+        if (after && cleared && in_areas(row, col)) {
+          cell(col, cleared_formats ? styles.Get(0) : styles.Get(sh->GetStyle(row, col)), "x", false);
+          return ++cells < 200000;
+        }
         const model::Style& st = styles.Get(sh->GetStyle(row, col));
         cell(col, st, render::FormatCellText(*s.snap, st, v, -1, nullptr, nullptr, nullptr), v.IsNumeric());
         return ++cells < 200000;
@@ -197,6 +204,12 @@ void ApplyStyle(AppState& s, const std::string& label, std::function<void(model:
 std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                           const std::function<void(model::Style&)>& restyle, const std::string* font) {
   return RowsToFit(s, sheet, areas, &restyle, nullptr, 0, 0, font);
+}
+
+// a row that sizes itself fits what is left once areas are cleared (Excel 16, measured 2026-11-28: two lines typed
+// with Alt+Enter, then Delete, and the row is back at the standard height; ClearContents alike)
+std::vector<std::pair<uint32_t, int32_t>> FitRowsAfterClear(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, bool formats) {
+  return RowsToFit(s, sheet, areas, nullptr, nullptr, 0, 0, nullptr, true, formats);
 }
 
 namespace {
@@ -1583,6 +1596,7 @@ void ClearSelection(AppState& s, int what) {
   // a filtered list: only the rows it shows are cleared (Excel)
   if (const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr) areas = engine::FilterShownRuns(*sh, areas);
   const std::vector<uint32_t> group = GroupTargets(s, sheet);  // grouped sheets are cleared too (Excel)
+  const auto fit = what == 1 ? std::vector<std::pair<uint32_t, int32_t>>{} : FitRowsAfterClear(s, sheet, areas, what == 2);
   s.engine->PostUser(what == 0 ? TR("Clear Contents") : (what == 1 ? TR("Clear Formats") : TR("Clear All")), [=](Document& d) {
     for (const uint32_t g : group) {
       for (const Rect& a : areas) {
@@ -1592,6 +1606,7 @@ void ClearSelection(AppState& s, int what) {
         else d.ClearAll(g, a, engine::kSrcUser, /*everything=*/true);
       }
     }
+    for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
   });
 }
 

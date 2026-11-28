@@ -2958,6 +2958,15 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     }
     const int what = static_cast<int>(p.GetInt("what"));
     const bool events = p.GetBool("events", true);
+    // rows that size themselves fit what is left, as after Delete (Excel 16's ClearContents, measured): measured on
+    // the UI thread, which has the fonts
+    std::vector<std::pair<uint32_t, int32_t>> fit;
+    if (what != 1) {
+      OnUi([&](AppState& s) {
+        fit = FitRowsAfterClear(s, sheet, areas, what == 2);
+        return MV();
+      });
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       struct SrcBits {  // restored even when the write throws: later changes must raise their events again
@@ -2974,6 +2983,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         else if (what == 1) d.ClearFormats(sheet, r);
         else d.ClearAll(sheet, r, engine::kSrcPython, /*everything=*/true);
       }
+      for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
       if (!events) d.RecalcWithoutEvents();  // (as range.set)
       d.extra_src_bits = 0;
     });

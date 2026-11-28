@@ -700,6 +700,32 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_a_row_that_sizes_itself_shrinks_back_when_its_lines_are_cleared(self):
+        # Excel 16, measured 2026-11-28 by keys and COM: two lines typed with Alt+Enter, then Delete: the standard
+        # height again; Ctrl+Z brings the two lines' height back; a 28 pt cell cleared keeps its height; a height set
+        # by hand stays
+        ws = self.ws
+        std = ws.Rows(1).RowHeight
+        self.keys("m:2,2|g:A1|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        two = ws.Rows(1).RowHeight
+        self.assertGreater(two, std)
+        self.keys("g:A1|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, std)
+        self.keys("k:c-Z|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, two)
+        ws.Range("A1").ClearContents()
+        self.assertEqual(ws.Rows(1).RowHeight, std)
+        ws.Range("A3").Value = "x"
+        ws.Range("A3").Font.Size = 28
+        tall = ws.Rows(3).RowHeight
+        self.keys("g:A3|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(3).RowHeight, tall)
+        self.keys("g:A4|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        ws.Rows(4).RowHeight = 40
+        hand = ws.Rows(4).RowHeight
+        self.keys("g:A4|w:2|k:Delete|w:5")
+        self.assertEqual(ws.Rows(4).RowHeight, hand)
+
     def test_font_size_buttons_step_through_excels_sizes_and_stop_at_72(self):
         # Excel 16, measured 2026-11-28 through ExecuteMso: 6 then the Font Size list; past 72 and under 6 nothing changes
         ws = self.ws
