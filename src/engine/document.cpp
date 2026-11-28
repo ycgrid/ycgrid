@@ -1978,7 +1978,7 @@ void Document::ResolveCycles() {
   }
 }
 
-bool Document::SettleArrayReadingItself(uint64_t key) {
+bool Document::SettleArrayReadingItself(uint64_t key, uint64_t* waits_for) {
   const uint32_t sheet = KeySheet(key), r = KeyRow(key), c = KeyCol(key);
   Sheet* s = M(sheet);
   const model::SpillRange* sp = s ? s->SpillOf(r, c) : nullptr;
@@ -2013,11 +2013,13 @@ bool Document::SettleArrayReadingItself(uint64_t key) {
   const bool blocked = cycle_block_.erase(key) > 0;
   const bool was_pending = IsPending(key);
   if (was_pending) ErasePending(key);
+  uint64_t need = ~0ull;
   auto evaluate = [&](Value* v, std::shared_ptr<formula::Array>* arr) {
     try {
       *v = EvaluateFormulaCell(key, arr);
       return true;
-    } catch (const formula::NeedCell&) {  // it reads a cell still waiting (another cycle's)
+    } catch (const formula::NeedCell& n) {  // it reads a cell still waiting (another cycle's, or one not calculated yet)
+      need = Key(static_cast<uint32_t>(n.sheet), n.row, n.col);
       return false;
     } catch (const std::exception&) {
       return false;
@@ -2068,6 +2070,7 @@ bool Document::SettleArrayReadingItself(uint64_t key) {
   if (!ok) {
     if (blocked) cycle_block_.insert(key);
     if (was_pending) AddPending(key);
+    if (waits_for) *waits_for = need;
     return false;
   }
   StoreResult(key, std::move(v), std::move(arr));
@@ -2413,11 +2416,21 @@ void Document::EvaluatePendingSerial(int64_t only_sheet) {
             host_->soft_self = false;
             host_->ResetSelf();
             in_progress_.erase(top);
-            if (SettleArrayReadingItself(top)) {
+            uint64_t need = ~0ull;
+            if (SettleArrayReadingItself(top, &need)) {
               stack.pop_back();
               continue;
             }
             in_progress_.insert(top);
+            // its values read a cell not calculated yet (the read of its own cell stopped the formula before it got
+            // there): that cell is calculated first and the array settled again, as any formula waits for what it
+            // reads. Taken for a cycle, B1 {=A1:B2*2} met B2 still waiting at every pass, B1 was reported circular
+            // or set aside what read it, and =TRANSPOSE(A1:B2) in B4 showed 0 unspilled (doc_fuzz --xlsx seed 2400534)
+            if (need != ~0ull && need != top && IsPending(need) && !in_progress_.count(need)) {
+              stack.push_back(need);
+              in_progress_.insert(need);
+              continue;
+            }
           }
           AbortStack(stack, top);
           continue;

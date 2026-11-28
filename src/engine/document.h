@@ -1480,7 +1480,8 @@ class Document : public formula::SheetResolver {
   void ResolveCycles();  // after a pass: the cycles it met (iterated, or reported)
   // an array entered with Ctrl+Shift+Enter that met itself as a cycle by reading its own cells: calculated when no
   // value of it reads itself (true), as in Excel; else its cells are as they were (false)
-  bool SettleArrayReadingItself(uint64_t anchor);
+  // *waits_for: the cell not calculated yet that it read, when that is why it didn't settle
+  bool SettleArrayReadingItself(uint64_t anchor, uint64_t* waits_for = nullptr);
   // several arrays entered with Ctrl+Shift+Enter that read each other's cells (and nothing else of the cycle): their
   // values settled together, each read of the others' cells waiting until that value is set (doc_fuzz --xlsx seed
   // 24002581569: B3 {=A1:B3*2} and A2:A4 {=A1:B3*2} met as a cycle in one order of calculation, not in another)

@@ -1132,7 +1132,12 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   cycles written for single cells gets its array case measured. Two such arrays that read each other's cells
   (B3 {=A1:B3*2} beside A2:A4 {=A1:B3*2}) are settled together (`SettleArraysTogether`): one at a time, each waited for
   the other, the pair was taken for a cycle in one order of calculation and not in another, and C4 reading A4 kept a
-  value from before (doc_fuzz --xlsx seed 24002581569; a full calculation gave the right one).
+  value from before (doc_fuzz --xlsx seed 24002581569; a full calculation gave the right one). The read of its own cell
+  stops the formula there, so a cell it reads after it (B2 for B1 {=A1:B2*2}) isn't calculated first: when the
+  settling meets it waiting, the pass calculates it and settles the array again. Taken for a cycle, the array met B2
+  waiting at every pass, set aside what read it, and B4 =TRANSPOSE(A1:B2) showed 0 unspilled (doc_fuzz --xlsx seed
+  2400534). Something that only might read a cell (a lookup stopped at its error) is no cycle in Excel either: measure
+  before calling one.
 - `formula::NeedCell` (a read of a cell still waiting) isn't a `std::exception`: code that evaluates a formula outside
   the calculation's own loop catches it by name, or the read of a cell a cycle blocks ends the process (doc_fuzz
   --gaps seed 26, the array settling added that day).

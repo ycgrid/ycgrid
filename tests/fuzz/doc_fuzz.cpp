@@ -716,6 +716,13 @@ struct Fuzz {
       const std::string after = io::ContentDump(d.wb());
       if (g_verbose) {
         std::printf("  %s\n", log.back().c_str());
+        // the circular references the step leaves: a value check is skipped while there are any, so a cycle lost on
+        // the way is a step whose checks ran over cells a cycle still kept uncalculated
+        if (!d.circular_cells.empty()) {
+          std::string cyc;
+          for (const uint64_t k : d.circular_cells) cyc += " " + std::to_string(engine::KeySheet(k)) + ":" + yc::core::CellA1(engine::KeyRow(k), engine::KeyCol(k));
+          std::printf("    circular:%s\n", cyc.c_str());
+        }
         std::fflush(stdout);  // the step a stuck run is in, when it is stopped
       }
       // the checks after a step hold several dumps of the workbook and, every sixth step, a saved and reopened copy:

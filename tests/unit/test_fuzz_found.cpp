@@ -1804,3 +1804,38 @@ TEST_CASE("doc_fuzz --xlsx seed 24004181633: a formula under a table doesn't mak
   CHECK_FALSE(t.d.TableById(t.sheet(), first)->totals);
   CHECK(t.d.TableById(t.sheet(), second)->range == Rect{2, 0, 3, 0});
 }
+
+
+TEST_CASE("doc_fuzz --xlsx seed 2400534: an array reads a lookup that never reads the cells it spills over") {
+  // B1 {=A1:B2*2} reads its own cell but its value doesn't (A1*2): settled, no cycle. B4 =TRANSPOSE(A1:B2) reads B1
+  // and B2 =VLOOKUP(#REF!,A1:C7,2,FALSE), whose table holds B4's spill, but VLOOKUP stops at its error before it reads
+  // the table: no cycle, B4 spills (Excel 16, measured 2026-11-28). Each pass met B1 unsettled, set B4 aside, and the
+  // next pass marked B1 again through B2: B4 showed 0 unspilled until Undo of the next step calculated it again.
+  // (A sort made the two formulas; header or not, they land one row apart.)
+  for (const bool header : {true, false}) {
+    yctest::Doc t;
+    const uint32_t sh = t.sheet();
+    std::string err;
+    CheckStep(t, [&] { REQUIRE(t.d.SetArrayFormula(sh, yctest::Doc::Range("B2"), "A1:B3*2", &err)); });
+    CheckStep(t, [&] { t.d.SetInput(sh, 3, 1, "=VLOOKUP(A1,A1:C9,2,FALSE)"); });
+    CheckStep(t, [&] { t.d.Sort(sh, yctest::Doc::Range("B1:B4"), {yc::engine::SortKey{1}}, header); });
+    CheckStep(t, [&] { t.d.SetInput(sh, 3, 1, "=TRANSPOSE(A1:B2)"); });
+    std::string cyc;
+    for (const uint64_t k : t.d.circular_cells) cyc += yc::core::CellA1(yc::engine::KeyRow(k), yc::engine::KeyCol(k)) + " ";
+    INFO("circular: " << cyc << "\n" << Dump(t));
+    CHECK(t.d.circular_cells.empty());
+    const model::SpillRange* sp = t.d.S(sh)->SpillOf(3, 1);
+    REQUIRE(sp);
+    CHECK(yc::core::RectA1(sp->rect) == "B4:C5");
+    CHECK(t.T("C5") == (header ? "0" : "#REF!"));
+  }
+  // =SUM(A1:C7) there reads the spill: a cycle, and B4 shows 0 without spilling (measured)
+  yctest::Doc u;
+  u.Set("A1", "1");
+  u.Set("B2", "=SUM(A1:C7)");
+  u.Set("B4", "=TRANSPOSE(A1:B2)");
+  u.d.Recalc();
+  CHECK_FALSE(u.d.circular_cells.empty());
+  CHECK(u.N("B4") == 0);
+  CHECK(u.T("C4").empty());
+}
