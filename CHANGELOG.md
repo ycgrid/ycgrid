@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Properties Excel can set are set from Python too: `PivotCache.SourceData`, `SparklineGroup.SourceData` and
+  `Location`, `Scenario.Name` and `Comment`, `HPageBreak.Location` and `Type` raised. `scripts/check_excel_parity.py`
+  fails on a property Excel sets that YCGrid only reads, unless `[read_only]` gives the reason.
 - Flash Fill reads initials as the words' first letters (J.S. gives M.J. for Mary Jones, not M.S.) and takes what follows a separator (the domain after @), as Excel does.
 - A multi-area `Range.Select` (and `SpecialCells(...).Select`) makes the first area's first cell active, and
   `Selection.Address` after it, after Go To Special or Ctrl+Shift+O lists the areas in Excel's order: the last

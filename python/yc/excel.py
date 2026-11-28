@@ -5475,6 +5475,15 @@ class _PivotCacheObj:
     def SourceData(self):  # noqa: N802
         return _source_r1c1(self._pt._get()["source"] if self._pt else self._source)
 
+    @SourceData.setter
+    def SourceData(self, v):  # noqa: N802
+        """Point the cache at another source (a range, its address or a table's name), as Excel's PivotCache.SourceData =
+        does: the report using it reads the new source at its next refresh."""
+        if self._pt is None:
+            self._source = v.Address(External=True) if isinstance(v, Range) else str(v)
+            return
+        self._pt.SourceData = v
+
     @property
     def MissingItemsLimit(self):  # noqa: N802
         """xlMissingItemsNone (0): YCGrid lists only the items the source has now (a filter's list drops an item the
@@ -6325,9 +6334,29 @@ class _PageBreak:
             return Range._from(self._sheet, [(self._index, 0, self._index, MAX_COLS - 1)])
         return Range._from(self._sheet, [(0, self._index, ROW_END, self._index)])
 
+    @Location.setter
+    def Location(self, v):  # noqa: N802
+        """Move the break before another row (column): a manual break there, the old one taken away when it was manual."""
+        a = (v if isinstance(v, Range) else _make_range(self._sheet, str(v)))._a
+        idx = int(a[0] if self._rows else a[1])
+        if self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, remove=self._index)
+        _rq("page.breaks", sheet=self._sheet, rows=self._rows, add=idx)
+        self._index, self._manual = idx, True
+
     @property
     def Type(self):  # noqa: N802
         return xlPageBreakManual if self._manual else xlPageBreakAutomatic
+
+    @Type.setter
+    def Type(self, v):  # noqa: N802
+        """xlPageBreakManual makes an automatic break a manual one where it is, xlPageBreakAutomatic takes a manual one away."""
+        manual = int(v) == xlPageBreakManual
+        if manual and not self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, add=self._index)
+        elif not manual and self._manual:
+            _rq("page.breaks", sheet=self._sheet, rows=self._rows, remove=self._index)
+        self._manual = manual
 
     @property
     def Extent(self):  # noqa: N802
@@ -6588,10 +6617,18 @@ class SparklineGroup:
         r1, c1 = max(a[2] for a in cells), max(a[3] for a in cells)
         return Range._from(self._sheet, [(r0, c0, r1, c1)])
 
+    @Location.setter
+    def Location(self, v):  # noqa: N802
+        self.ModifyLocation(v)
+
     @property
     def SourceData(self):  # noqa: N802
         items = self._get()["items"]
         return ",".join(it["source"] for it in items)
+
+    @SourceData.setter
+    def SourceData(self, v):  # noqa: N802
+        self.ModifySourceData(v)
 
     @property
     def SeriesColor(self):  # noqa: N802
@@ -12371,9 +12408,27 @@ class Scenario:
     def Name(self):  # noqa: N802
         return self._get()["name"]
 
+    @Name.setter
+    def Name(self, v):  # noqa: N802
+        """Rename the scenario (Scenario Manager > Edit > Scenario name)."""
+        new = str(v)
+        old = self._get()["name"]
+        if new == old:
+            return
+        if new.lower() != old.lower() and any(x["name"].lower() == new.lower() for x in _rq("scenario.list", sheet=self._sheet)):
+            raise ApplicationDefinedError(f"A scenario named {new} already exists")
+        self._set(name=new)
+        if new.lower() != old.lower():
+            _rq("scenario.delete", sheet=self._sheet, name=old)
+        self._name = new
+
     @property
     def Comment(self):  # noqa: N802
         return self._get()["comment"]
+
+    @Comment.setter
+    def Comment(self, v):  # noqa: N802
+        self._set(comment=str(v))
 
     @property
     def Locked(self):  # noqa: N802

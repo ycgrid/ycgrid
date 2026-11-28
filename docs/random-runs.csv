@@ -13831,3 +13831,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700491,98,ok,
 2026-11-28,chaos,8079,361,ok,
 2026-11-28,screen_walk,r192,500,found,"Flash Fill of first and last names, initials, an upper-case name, two columns combined, digits, an e-mail domain, two examples and a code suffix, measured in Excel through Range.FlashFill"
+2026-11-28,chaos,8080,361,ok,
+2026-11-28,basics,5119,171,ok,
+2026-11-28,formula_fuzz,5812,0,ok,
+2026-11-28,calc_fuzz,4831,31,ok,
+2026-11-28,gaps_fuzz,700492,96,ok,
+2026-11-28,doc_fuzz,2400501,104,ok,
+2026-11-28,screen_walk,r193,500,found,"Every property Excel's type library lists as settable against YCGrid's Python classes; the seven read-only ones given setters and tried on a sheet"

@@ -268,6 +268,37 @@ class ExcelArgumentsTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class WritablePropertiesTailTest(_Live):
+    def test_properties_excel_sets_are_set(self):
+        # each property Excel's type library lists with put has a setter (scripts/check_excel_parity.py checks); these
+        # had none and a macro setting them raised
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:C2").Value = [[1, 2, 3], [4, 5, 6]]
+        ws.Range("E1:F2").Value = [[3, 2], [1, 9]]
+        g = ws.Range("D1:D2").SparklineGroups.Add(1, f"{ws.Name}!A1:C2")
+        g.SourceData = f"{ws.Name}!E1:F2"
+        self.assertIn("E1:F1", g.SourceData)
+        g.Location = ws.Range("H1:H2")
+        self.assertEqual(g.Location.Address(False, False), "H1:H2")
+        ws.Scenarios().Add("Base", ws.Range("A1"), [1], "first")
+        sc = ws.Scenarios("Base")
+        sc.Comment = "edited"
+        sc.Name = "Bull"
+        self.assertEqual((ws.Scenarios(1).Name, ws.Scenarios(1).Comment, ws.Scenarios().Count), ("Bull", "edited", 1))
+        ws.HPageBreaks.Add(ws.Range("A10"))
+        pb = ws.HPageBreaks(1)
+        pb.Location = ws.Range("A15")
+        self.assertEqual([b.Location.Row for b in ws.HPageBreaks if b.Type == excel.xlPageBreakManual], [15])
+        ws.Range("J1:K4").Value = [["Side", "Qty"], ["Buy", 1], ["Sell", 2], ["Buy", 3]]
+        pc = excel.ActiveWorkbook.PivotCaches().Create(excel.xlDatabase, f"{ws.Name}!J1:K3")
+        pt = pc.CreatePivotTable(f"{ws.Name}!M1", f"PT{ws.Name}")
+        pt.PivotCache().SourceData = f"{ws.Name}!J1:K4"
+        self.assertIn("R4C11", pt.SourceData)
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class GoToSpecialTailTest(_Live):
     def test_a_multi_area_select_makes_the_first_area_active(self):
         # Excel 16, measured 2026-11-28: Range("B2,D5").Select is "$B$2,$D$5" with B2 active, D5:E6,A1:B2 keeps its

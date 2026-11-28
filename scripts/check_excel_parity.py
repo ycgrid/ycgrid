@@ -116,6 +116,30 @@ def signature_problems(schema) -> list:
     return out
 
 
+def read_only_problems(schema, excel) -> list:
+    """A property Excel can set (its type library lists put) that YCGrid only reads makes a macro that sets it raise:
+    each such property has a setter, or a line in schema/excel_parity.toml's [read_only] with the reason."""
+    allowed = schema.get("read_only", {})
+    sys.path.insert(0, os.path.join(ROOT, "python"))
+    out, seen = [], set()
+    for obj, spec in schema["objects"].items():
+        for qual in spec["yc"]:
+            mod, cname = qual.split(".")
+            cls = getattr(importlib.import_module("yc." + mod), cname, None)
+            for name, kinds in (excel.get(obj) or {}).items():
+                if "put" not in kinds:
+                    continue
+                f = inspect.getattr_static(cls, name, None)
+                key = f"{obj}.{name}"
+                if isinstance(f, property) and f.fset is None:
+                    seen.add(key)
+                    if key not in allowed:
+                        out.append(f"{key}: Excel sets it and YCGrid only reads it; add a setter, or a line to [read_only] "
+                                   f"in schema/excel_parity.toml with the reason")
+    out += [f"{k}: listed in [read_only], but YCGrid sets it now (take it off)" for k in allowed if k not in seen]
+    return out
+
+
 def classify():
     """{object: {member: ("yc" | "not_planned" | "high" | "medium" | "low" | None, group)}}, problems."""
     schema, excel = _load()
@@ -159,6 +183,7 @@ def classify():
         if m not in used and obj != "*":
             problems.append(f"{m}: listed in schema/excel_parity.toml, but Excel's {obj} has no such member")
     problems += signature_problems(schema)
+    problems += read_only_problems(schema, excel)
     return result, problems, schema
 
 
