@@ -13281,3 +13281,19 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400413,105,ok,
 
 2026-11-28,screen_walk,r157,600,found,"Structured references in a validation list, a validation through INDIRECT, conditional formats and a defined name, measured in Excel through COM"
+2026-11-28,calc_fuzz,4747,31,ok,
+2026-11-28,formula_fuzz,5728,0,ok,
+
+2026-11-28,screen_walk,r158,300,clean,"Remove Duplicates' My data has headers on the 13 layouts, read through UI Automation in Excel: the same guess as Sort and Create Table, which YCGrid now makes"
+2026-11-28,chaos,7993,361,ok,
+2026-11-28,gaps_fuzz,700408,94,ok,
+2026-11-28,basics,5035,170,ok,
+2026-11-28,doc_fuzz,2400414,97,ok,
+2026-11-28,calc_fuzz,4748,3,ok,
+2026-11-28,formula_fuzz,5729,0,ok,
+2026-11-28,gaps_fuzz,700409,98,ok,
+2026-11-28,chaos,7994,361,ok,
+2026-11-28,basics,5036,160,ok,
+2026-11-28,doc_fuzz,2400415,86,ok,
+2026-11-28,chaos,7995,362,ok,
+2026-11-28,chaos,7996,361,ok,
