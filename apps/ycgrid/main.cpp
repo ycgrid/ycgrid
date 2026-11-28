@@ -3052,7 +3052,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     c.show_chart_tip_names = c.show_chart_tip_values = c.calculate_before_save = true;
     // no question over a large paste or fill: tests and agents send keys over whole sheets (a test of the alert turns it on)
     c.large_operation_alert = false;
-    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = c.generate_table_refs = c.autoformat_hyperlinks = true;
+    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = c.generate_table_refs = c.autoformat_hyperlinks = c.extend_list = true;
     c.large_operation_thousands = 33554;
     c.calc_thread_count = 0;
   }

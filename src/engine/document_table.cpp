@@ -760,6 +760,68 @@ bool Document::SetTableTotal(uint32_t sheet, uint32_t id, uint32_t column, int f
 
 // typing next to a table makes it bigger (Excel's AutoCorrect "include new rows and columns in table"); a block
 // written below or right of it (a paste, Python's Range.Value) grows it once to take the whole block
+void Document::ExtendList(uint32_t sheet, uint32_t r, uint32_t c) {
+  const Sheet* s = S(sheet);
+  if (!s || r < 2 || s->IsEmptyCell(r, c) || TableAt(sheet, r, c)) return;  // a table has rules of its own
+  // the list: the columns the row above and the new row fill around the typed cell, and the rows above up to a blank
+  // one, five at most. Only these rows are read: a CurrentRegion under a million-row list walked all of it per Enter
+  auto filled = [&](uint32_t rr, uint32_t cc) { return !s->IsEmptyCell(rr, cc); };
+  uint32_t c0 = c, c1 = c;
+  while (c0 > 0 && c - c0 < 255 && (filled(r - 1, c0 - 1) || filled(r, c0 - 1))) --c0;
+  while (c1 + 1 < core::kMaxCols && c1 - c < 255 && (filled(r - 1, c1 + 1) || filled(r, c1 + 1))) ++c1;
+  auto row_empty = [&](uint32_t rr) {
+    for (uint32_t cc = c0; cc <= c1; ++cc) {
+      if (filled(rr, cc)) return false;
+    }
+    return true;
+  };
+  if (row_empty(r - 1)) return;  // nothing right above: not the row under a list
+  if (r + 1 < s->row_limit && !row_empty(r + 1)) return;  // typed inside a list: nothing extends
+  uint32_t top = r - 1;
+  while (top > 0 && r - top < 5 && !row_empty(top - 1)) --top;  // the five rows above, up to a blank one
+  const Rect reg{top, c0, r, c1};
+  // the typed cell's format: a run of three or more rows above that share one (A2:A4 bold over A5, A6: bold), the
+  // nearest one; rows that differ in between break a run (A2, A4, A6 bold: none)
+  if (s->GetOwnStyle(r, c) == 0) {
+    int64_t run = 0, run_end = -1;
+    uint32_t style = 0;
+    for (int64_t rr = int64_t{r} - 1; rr >= int64_t{top}; --rr) {
+      const uint32_t st = s->GetStyle(static_cast<uint32_t>(rr), c);
+      if (run > 0 && st == style) {
+        ++run;
+      } else {
+        if (run >= 3) break;
+        run = 1, style = st, run_end = rr;
+      }
+    }
+    if (run >= 3 && style != 0) Paste(sheet, r, c, Copy(sheet, Rect::Cell(static_cast<uint32_t>(run_end), c)), PasteMode::Formats);
+  }
+  // the formulas of the row above, into the row's empty cells
+  for (uint32_t k = reg.c0; k <= reg.c1; ++k) {
+    s = S(sheet);
+    if (k == c || !s->IsEmptyCell(r, k)) continue;
+    const uint32_t fid = s->GetFormula(r - 1, k);
+    if (!fid) continue;
+    uint32_t same = 0;
+    for (uint32_t rr = top; rr < r; ++rr) same += s->GetFormula(rr, k) == fid ? 1 : 0;
+    if (same < 4) continue;
+    const formula::CompiledFormula* f = Formula(fid);
+    if (!f) continue;
+    // every cell of the new row it reads holds something (=B6*C6 waits for C6; $F$1 and other rows don't count)
+    bool ready = true;
+    formula::Node probe = f->root;
+    formula::ForEachRef(probe, [&](formula::RefSpec& ref) {
+      if (!ready || !ref.HasCells() || ref.sheet >= 0 || ref.whole_cols || ref.whole_rows || ref.r0.abs || ref.r0.v != 0) return;
+      if (ref.is_range && (ref.r1.abs || ref.r1.v != 0)) return;
+      const int64_t a = ref.c0.Resolve(k), b = ref.is_range ? ref.c1.Resolve(k) : a;
+      for (int64_t cc = std::min(a, b); cc <= std::max(a, b) && ready; ++cc) {
+        if (cc < 0 || cc >= static_cast<int64_t>(core::kMaxCols) || s->IsEmptyCell(r, static_cast<uint32_t>(cc))) ready = false;
+      }
+    });
+    if (ready) Paste(sheet, r, k, Copy(sheet, Rect::Cell(r - 1, k)), PasteMode::Formulas);
+  }
+}
+
 void Document::GrowDeferredTables() {
   defer_table_growth = false;
   const std::vector<std::pair<uint32_t, core::CellPos>> calc = std::move(deferred_calc_);

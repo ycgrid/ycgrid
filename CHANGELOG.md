@@ -32,6 +32,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - AutoFormat As You Type: a web or e-mail address typed into a cell (`http://`, `https://`, `ftp://`, `www.`, `a@b.com`)
   becomes a link with the Hyperlink style, as in Excel; the first Ctrl+Z takes back the link and keeps the text.
   File > Options > Proofing turns it off (`Application.AutoFormatAsYouTypeReplaceHyperlinks`).
+- Extend data range formats and formulas: a row typed under a list takes the format the rows above share and, once
+  the cells it reads are typed, their formula (`=B6*C6` under four rows of `=B*C`), as in Excel. File > Options >
+  Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and

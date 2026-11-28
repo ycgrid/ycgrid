@@ -679,6 +679,8 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   // AutoFormat As You Type: a web or e-mail address typed into one cell becomes a link with the Hyperlink style, in
   // a step of its own after the typing (Excel 16: the first Ctrl+Z takes back the link and keeps the text, measured)
   const std::string link_to = !array && Config().autoformat_hyperlinks ? engine::AutoLinkAddress(text) : std::string();
+  // Extend data range formats and formulas: a value typed in the row under a list (Excel's, in the typing's step)
+  const bool extend = !array && Config().extend_list && !formula::LooksLikeFormula(text);
   auto work = [=](Document& d, std::string* error) {
     d.defer_table_growth = defer_growth;
     d.Begin(label);
@@ -686,6 +688,7 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
     const uint32_t fmt_before = d.S(sheet) ? d.wb().styles->Get(d.S(sheet)->GetStyle(r, c)).numfmt : 0;
     const bool r_ok = d.SetInput(sheet, r, c, text, error, engine::kSrcUser, r1c1);
     d.param_commit = false;
+    if (r_ok && extend) d.ExtendList(sheet, r, c);
     for (const uint32_t g : group) {
       if (!r_ok) break;
       std::string ignored;

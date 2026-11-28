@@ -1257,6 +1257,15 @@ class Document : public formula::SheetResolver {
   void GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_last, uint32_t new_last, uint32_t c0, uint32_t c1);
   // fill: also fill the column (a calculated column); without it only the formula's own table loses its name
   void FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c, bool fill = true);
+
+ public:
+  // Extend data range formats and formulas (Application.ExtendList), after a value typed at (r, c) in the row under a
+  // list (Excel 16, measured by keys on 30 layouts): the typed cell takes the format of a run of three or more rows
+  // that share it among the five above; an empty cell of the row takes the formula of the row above when four of the
+  // five rows above (the row above among them) hold it and every cell of the new row it reads holds something
+  void ExtendList(uint32_t sheet, uint32_t r, uint32_t c);
+
+ private:
   bool syncing_tables_ = false;
   std::vector<std::pair<uint32_t, Rect>> deferred_growth_;  // defer_table_growth's writes beside a table
   std::vector<std::pair<uint32_t, core::CellPos>> deferred_calc_;  // and its formulas that may fill a table column

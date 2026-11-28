@@ -1152,6 +1152,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       if (ui::Combo(TR("Direction"), &cfg.move_after_return_dir, dirs, 4)) changed = true;
       ImGui::EndDisabled();
       if (ImGui::Checkbox(TR("Allow editing directly in cells"), &cfg.edit_directly_in_cell)) changed = true;
+      if (ImGui::Checkbox(TR("Extend data range formats and formulas"), &cfg.extend_list)) changed = true;
       if (ImGui::Checkbox(TR("Enable AutoComplete for cell values"), &cfg.enable_autocomplete)) changed = true;
       if (ImGui::Checkbox(TR("Automatically Flash Fill"), &cfg.auto_flash_fill)) changed = true;
       if (ImGui::Checkbox(TR("Alert the user when a potentially time consuming operation occurs"), &cfg.large_operation_alert)) changed = true;
@@ -1267,7 +1268,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         YC_OPT(r1c1) YC_OPT(formula_autocomplete) YC_OPT(error_checking) YC_OPT(err_evaluate_to_error) YC_OPT(err_number_as_text)
         YC_OPT(err_inconsistent_formula) YC_OPT(err_text_date) YC_OPT(err_omitted_cells) YC_OPT(err_unlocked_formula) YC_OPT(err_empty_cell_reference)
         YC_OPT(err_list_data_validation) YC_OPT(err_inconsistent_list_formula) YC_OPT(cell_drag_and_drop) YC_OPT(move_after_return)
-        YC_OPT(move_after_return_dir) YC_OPT(edit_directly_in_cell) YC_OPT(enable_autocomplete) YC_OPT(auto_flash_fill) YC_OPT(pivot_auto_group_dates)
+        YC_OPT(move_after_return_dir) YC_OPT(edit_directly_in_cell) YC_OPT(extend_list) YC_OPT(enable_autocomplete) YC_OPT(auto_flash_fill) YC_OPT(pivot_auto_group_dates)
         YC_OPT(autorecover) YC_OPT(autorecover_minutes) YC_OPT(publish_interval_ms) YC_OPT(projects_folder) YC_OPT(vscode_path)
         YC_OPT(show_gridlines) YC_OPT(show_headings) YC_OPT(show_formula_bar)
         YC_OPT(large_operation_alert) YC_OPT(large_operation_thousands) YC_OPT(show_chart_tip_names) YC_OPT(show_chart_tip_values)

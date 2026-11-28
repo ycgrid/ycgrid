@@ -481,6 +481,39 @@ class UiOpsRound8Test(unittest.TestCase):
         finally:
             excel.Application.AutoFormatAsYouTypeReplaceHyperlinks = True
 
+    def test_a_row_typed_under_a_list_takes_its_formats_and_formulas(self):
+        from yc import excel
+
+        # Excel 16, measured by keys (Extend data range formats and formulas): four rows of a trade list with a bold
+        # symbol, a 0.00 price and =B*C; the row typed under it takes the bold, the 0.00 and, once B and C are
+        # typed, the formula. Two rows are too few. YCGrid extended nothing.
+        def make(last):
+            self.ws.Cells.Clear()
+            self.ws.Range("A1:D1").Value = [["Sym", "Qty", "Px", "Amt"]]
+            for r in range(2, last + 1):
+                self.ws.Range(f"A{r}:C{r}").Value = [[f"s{r}", r, r * 10]]
+                self.ws.Range(f"D{r}").Formula = f"=B{r}*C{r}"
+                self.ws.Range(f"C{r}").NumberFormat = "0.00"
+                self.ws.Range(f"A{r}").Font.Bold = True
+
+        make(5)
+        self.keys("m:2,2|g:A6|w:2|t:x|k:Tab|w:3|t:7|k:Tab|w:3|t:3|k:Tab|w:5")
+        self.assertTrue(self.ws.Range("A6").Font.Bold)
+        self.assertEqual(self.ws.Range("C6").NumberFormat, "0.00")
+        self.assertEqual(self.ws.Range("D6").Formula, "=B6*C6")
+        self.assertEqual(self.ws.Range("D6").Value, 21)
+        make(3)
+        self.keys("g:A4|w:2|t:x|k:Tab|w:3|t:7|k:Tab|w:3|t:3|k:Tab|w:5")
+        self.assertFalse(self.ws.Range("A4").Font.Bold)
+        self.assertIsNone(self.ws.Range("D4").Formula or None)
+        excel.Application.ExtendList = False
+        try:
+            make(5)
+            self.keys("g:A6|w:2|t:x|k:Enter|w:5")
+            self.assertFalse(self.ws.Range("A6").Font.Bold)
+        finally:
+            excel.Application.ExtendList = True
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

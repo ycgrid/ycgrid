@@ -202,6 +202,7 @@ void LoadSettings() {
   g_settings.move_after_return_dir = std::clamp(g_settings.move_after_return_dir, 0, 3);
   Read(j, "editing", "edit_directly_in_cell", &g_settings.edit_directly_in_cell);
   Read(j, "editing", "enable_autocomplete", &g_settings.enable_autocomplete);
+  Read(j, "editing", "extend_list", &g_settings.extend_list);
   Read(j, "editing", "auto_flash_fill", &g_settings.auto_flash_fill);
   Read(j, "live_data", "publish_interval_ms", &g_settings.publish_interval_ms);
   g_settings.publish_interval_ms = std::clamp(g_settings.publish_interval_ms, 0, 5000);
@@ -380,6 +381,7 @@ bool SaveSettings() {
   section("editing")["move_after_return_direction"] = g_settings.move_after_return_dir;
   section("editing")["edit_directly_in_cell"] = g_settings.edit_directly_in_cell;
   section("editing")["enable_autocomplete"] = g_settings.enable_autocomplete;
+  section("editing")["extend_list"] = g_settings.extend_list;
   section("editing")["auto_flash_fill"] = g_settings.auto_flash_fill;
   section("live_data")["publish_interval_ms"] = g_settings.publish_interval_ms;
   section("projects")["folder"] = ToUtf8(g_settings.projects_folder);

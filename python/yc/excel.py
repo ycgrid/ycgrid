@@ -1331,6 +1331,17 @@ class _Application:
         self._edit_options(enable_autocomplete=bool(v))
 
     @property
+    def ExtendList(self):  # noqa: N802
+        """File > Options > Advanced > Extend data range formats and formulas: a value typed in the row under a list
+        takes the format three or more rows above share, and the row's empty cells take the formula four of the five
+        rows above hold, once every cell of the row it reads holds something (as Excel's). Typing only."""
+        return bool(self._edit_options()["extend_list"])
+
+    @ExtendList.setter
+    def ExtendList(self, v):  # noqa: N802
+        self._edit_options(extend_list=bool(v))
+
+    @property
     def FlashFill(self):  # noqa: N802
         """File > Options > Advanced > Automatically Flash Fill: grey suggestions down the column while typing."""
         return bool(self._edit_options()["auto_flash_fill"])

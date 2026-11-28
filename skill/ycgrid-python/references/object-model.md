@@ -268,6 +268,7 @@ reads it), see events-and-controls.md.
 | `EnableLargeOperationAlert`, `LargeOperationCellThousandCount` | the question before a person's paste or Fill Down / Right over more than that many thousand cells (33554, Excel's default; scripts are never asked; off in a hidden instance) |
 | `ShowChartTipNames`, `ShowChartTipValues` | the tip over a chart: the element's name, a point's value |
 | `GenerateGetPivotData` | pointing at a PivotTable value while typing a formula writes `GETPIVOTDATA(...)` |
+| `ExtendList` | a value typed under a list takes the rows' format and formulas (Excel's Extend data range formats and formulas; on by default; typing only) |
 | `AutoFormatAsYouTypeReplaceHyperlinks` | a web or e-mail address typed into a cell becomes a link with the Hyperlink style, in an Undo step of its own (on by default; typing only) |
 | `GenerateTableRefs` | pointing at a table's column, row or header while typing a formula writes `Table1[Px]`, `Table1[@Qty]` (1, `xlGenerateTableRefsStruct`; 0 for plain cells) |
 | `International(Index)` | the separators and orders YCGrid reads and writes (US Excel's: `"."`, `","`, month first), by Excel's `xlApplicationInternational` indexes 1 to 45 |

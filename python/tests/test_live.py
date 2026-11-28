@@ -1386,7 +1386,7 @@ class UserFlowTest(unittest.TestCase):
         self.assertEqual(ui.state()["dialog"], dlg, "the same dialog is back")
         self.keys("k:Enter|w:8")                              # OK: the table covers the cells picked
         self.assertEqual(self.ws.ListObjects.Count, 1)
-        self.assertEqual(self.ws.ListObjects(1).Range.Address.replace("$", ""), "A1:B2")
+        self.assertEqual(self.ws.ListObjects(1).Range.Address.replace("$", ""), "A1:B3")  # all numbers: a header row is added (Excel's guess)
 
     def test_file_dialogs_in_a_hidden_window(self):
         from yc import ui

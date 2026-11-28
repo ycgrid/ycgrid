@@ -4624,6 +4624,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       flag("move_after_return", &c.move_after_return);
       flag("edit_directly_in_cell", &c.edit_directly_in_cell);
       flag("enable_autocomplete", &c.enable_autocomplete);
+      flag("extend_list", &c.extend_list);
       flag("auto_flash_fill", &c.auto_flash_fill);
       flag("show_quick_analysis", &c.show_quick_analysis);
       flag("alert_before_overwriting", &c.alert_before_overwriting);
@@ -4657,6 +4658,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       x.Set("direction", MV::Int(c.move_after_return_dir));
       x.Set("edit_directly_in_cell", MV::Bool(c.edit_directly_in_cell));
       x.Set("enable_autocomplete", MV::Bool(c.enable_autocomplete));
+      x.Set("extend_list", MV::Bool(c.extend_list));
       x.Set("auto_flash_fill", MV::Bool(c.auto_flash_fill));
       x.Set("show_quick_analysis", MV::Bool(c.show_quick_analysis));
       x.Set("alert_before_overwriting", MV::Bool(c.alert_before_overwriting));

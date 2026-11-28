@@ -11,6 +11,7 @@
 #include "engine/navigate.h"
 #include "io/content_dump.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -804,4 +805,94 @@ TEST_CASE("AutoFormat As You Type knows a typed address as Excel does", "[hyperl
   CHECK(AutoLinkAddress("http:/x").empty());
   CHECK(AutoLinkAddress("buy 2 @ 150").empty());  // a space: not an address
   CHECK(AutoLinkAddress("").empty());
+}
+
+TEST_CASE("A row typed under a list takes its formats and formulas as Excel's", "[extendlist][round8]") {
+  // Excel 16, measured by keys (Extend data range formats and formulas, its default): a header in row 1, the list in
+  // rows 2..last, then a value typed in the next row
+  auto list = [](yctest::Doc& t, int last, const char* formula, std::initializer_list<int> without) {
+    t.Set("A1", "Sym");
+    t.Set("B1", "Qty");
+    t.Set("C1", "Px");
+    t.Set("D1", "Amt");
+    for (int r = 2; r <= last; ++r) {
+      const std::string n = std::to_string(r);
+      t.Set(("A" + n).c_str(), "s" + n);
+      t.Set(("B" + n).c_str(), n);
+      t.Set(("C" + n).c_str(), std::to_string(r * 10));
+      if (std::find(without.begin(), without.end(), r) == without.end()) t.Set(("D" + n).c_str(), std::string(formula) + n + (formula[1] == 'L' ? ")" : ""));
+    }
+    t.d.Recalc();
+  };
+  auto type = [](yctest::Doc& t, const char* a, const char* text) {
+    const yc::core::CellPos p = yctest::Doc::P(a);
+    REQUIRE(t.d.SetInput(t.sheet(), p.row, p.col, text));
+    t.d.ExtendList(t.sheet(), p.row, p.col);
+  };
+  {
+    yctest::Doc t;  // =LEN(A) in 5 of 5 rows: A7 typed fills D7
+    list(t, 6, "=LEN(A", {});
+    type(t, "A7", "x");
+    CHECK(t.F("D7") == "=LEN(A7)");
+  }
+  {
+    yctest::Doc t;  // 4 of 5, the row above among them: filled
+    list(t, 6, "=LEN(A", {3});
+    type(t, "A7", "x");
+    CHECK(t.F("D7") == "=LEN(A7)");
+  }
+  {
+    yctest::Doc t;  // 4 of 5 but not the row above: no
+    list(t, 6, "=LEN(A", {6});
+    type(t, "A7", "x");
+    CHECK(t.F("D7").empty());
+  }
+  {
+    yctest::Doc t;  // 3 of 5: no
+    list(t, 6, "=LEN(A", {3, 5});
+    type(t, "A7", "x");
+    CHECK(t.F("D7").empty());
+  }
+  {
+    yctest::Doc t;  // three rows only: no; four rows: yes
+    list(t, 4, "=LEN(A", {});
+    type(t, "A5", "x");
+    CHECK(t.F("D5").empty());
+    yctest::Doc u;
+    list(u, 5, "=LEN(A", {});
+    type(u, "A6", "x");
+    CHECK(u.F("D6") == "=LEN(A6)");
+  }
+  {
+    yctest::Doc t;  // =B*C waits for both B and C of the new row
+    list(t, 5, "=B", {});
+    for (int r = 2; r <= 5; ++r) t.Set(("D" + std::to_string(r)).c_str(), "=B" + std::to_string(r) + "*C" + std::to_string(r));
+    type(t, "B6", "7");
+    CHECK(t.F("D6").empty());
+    type(t, "C6", "3");
+    CHECK(t.F("D6") == "=B6*C6");
+  }
+  {
+    yctest::Doc t;  // a gap row under the list: no
+    list(t, 6, "=LEN(A", {});
+    type(t, "A8", "x");
+    CHECK(t.F("D8").empty());
+  }
+  // formats: a run of three or more rows above that share one
+  auto bold = [](yctest::Doc& t, std::initializer_list<int> rows) {
+    for (int r : rows) t.d.ModifyStyle(t.sheet(), Rect{static_cast<uint32_t>(r - 1), 0, static_cast<uint32_t>(r - 1), 0}, [](yc::model::Style& x) { x.bold = true; });
+  };
+  auto is_bold = [](yctest::Doc& t, const char* a) {
+    const yc::core::CellPos p = yctest::Doc::P(a);
+    return t.d.wb().styles->Get(t.d.S(t.sheet())->GetStyle(p.row, p.col)).bold;
+  };
+  for (const auto& [rows, want] : std::vector<std::pair<std::vector<int>, bool>>{
+           {{2, 3, 4, 5, 6}, true}, {{2, 3, 4, 5}, true}, {{4, 5, 6}, true}, {{2, 4, 6}, false}, {{4, 6}, false}}) {
+    yctest::Doc t;
+    list(t, 6, "=LEN(A", {});
+    for (int r : rows) bold(t, {r});
+    type(t, "A7", "x");
+    INFO(rows.size());
+    CHECK(is_bold(t, "A7") == want);
+  }
 }

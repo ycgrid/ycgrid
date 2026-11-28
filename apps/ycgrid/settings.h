@@ -106,6 +106,9 @@ struct Settings {
   int move_after_return_dir = 0;
   bool edit_directly_in_cell = true;
   bool enable_autocomplete = true;
+  // Advanced > Extend data range formats and formulas (Application.ExtendList): a row typed under a list takes the
+  // formats and formulas of the rows above
+  bool extend_list = true;
   bool auto_flash_fill = true;  // Advanced > Automatically Flash Fill (Application.FlashFill): grey suggestions while typing
   // editing: the user's custom lists for AutoFill and Sort (File > Options > Edit Custom Lists)
   std::vector<std::vector<std::string>> custom_lists;
