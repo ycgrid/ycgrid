@@ -113,7 +113,8 @@ float TextBlockHeight(ImFont* font, float px, float wrap_w, const std::string& t
 std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                     const std::function<void(model::Style&)>* restyle, const std::string* typed = nullptr,
                                                     uint32_t typed_r = 0, uint32_t typed_c = 0, const std::string* new_font = nullptr,
-                                                    bool cleared = false, bool cleared_formats = false) {
+                                                    bool cleared = false, bool cleared_formats = false,
+                                                    const std::map<uint64_t, std::string>* writes = nullptr) {
   std::vector<std::pair<uint32_t, int32_t>> out;
   const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr;
   // a protected sheet keeps its row heights unless it lets the user format rows
@@ -145,6 +146,7 @@ std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet,
         }
         // the typed text is measured below (a formula's result isn't known yet: the old one stands in)
         if (after && typed && row == typed_r && col == typed_c && !formula::LooksLikeFormula(*typed)) return true;
+        if (after && writes && writes->count((uint64_t{row} << 16) | col)) return true;  // (below too)
         // cells being cleared (cleared: areas are what Delete or Clear empties) keep one line of their font, or of
         // the standard one when their formats go too (Excel 16: a 28 pt cell cleared keeps its row's 39 points)
         if (after && cleared && in_areas(row, col)) {
@@ -161,13 +163,19 @@ std::vector<std::pair<uint32_t, int32_t>> RowsToFit(AppState& s, uint32_t sheet,
       if (typed->find('\n') != std::string::npos) st.wrap = true;  // CommitEdit turns Wrap Text on for line breaks
       cell(typed_c, st, *typed, false);
     }
+    if (after && writes) {  // what a script writes into the row: each value's text (an empty cell keeps one line)
+      for (auto it = writes->lower_bound(uint64_t{row} << 16); it != writes->end() && (it->first >> 16) == row; ++it) {
+        const uint32_t col = static_cast<uint32_t>(it->first & 0xFFFF);
+        cell(col, styles.Get(sh->GetStyle(row, col)), it->second.empty() ? std::string("x") : it->second, false);
+      }
+    }
     const int32_t def = sh->rows->default_size();
     return best > 0 ? std::max(def, static_cast<int32_t>(std::ceil(best)) + 2) : def;
   };
   int budget = 2000;  // rows measured (a whole-column selection fits the used rows only)
   for (const Rect& a : areas) {
     uint32_t r0 = a.r0, r1 = a.r1;
-    if (!typed) {
+    if (!typed && !writes) {
       if (!sh->has_used) break;
       r0 = std::max(r0, sh->used.r0);
       r1 = std::min(r1, sh->used.r1);
@@ -210,6 +218,12 @@ std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t 
 // with Alt+Enter, then Delete, and the row is back at the standard height; ClearContents alike)
 std::vector<std::pair<uint32_t, int32_t>> FitRowsAfterClear(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, bool formats) {
   return RowsToFit(s, sheet, areas, nullptr, nullptr, 0, 0, nullptr, true, formats);
+}
+
+// a row that sizes itself fits the values a script writes (Excel 16's Range.Value, measured 2026-11-28: two lines
+// replaced by "c" put the row back at the standard height)
+std::vector<std::pair<uint32_t, int32_t>> FitRowsForWrite(AppState& s, uint32_t sheet, const Rect& rect, const std::map<uint64_t, std::string>& texts) {
+  return RowsToFit(s, sheet, {rect}, nullptr, nullptr, 0, 0, nullptr, false, false, &texts);
 }
 
 namespace {

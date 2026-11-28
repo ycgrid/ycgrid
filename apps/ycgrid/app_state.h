@@ -573,6 +573,8 @@ std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t 
                                                           const std::function<void(model::Style&)>& restyle, const std::string* font = nullptr);
 // the rows of areas that size themselves and fit another height once areas are cleared (formats: Clear All)
 std::vector<std::pair<uint32_t, int32_t>> FitRowsAfterClear(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, bool formats);
+// the rows of rect that size themselves and fit another height with texts written (key: row << 16 | col)
+std::vector<std::pair<uint32_t, int32_t>> FitRowsForWrite(AppState& s, uint32_t sheet, const Rect& rect, const std::map<uint64_t, std::string>& texts);
 void StartEdit(AppState& s, bool replace, std::string initial, bool in_formula_bar = false);
 void CommitEdit(AppState& s, bool array, int move, bool cse = false);  // cse: Ctrl+Shift+Enter array formula
 // the array formula (Ctrl+Shift+Enter) that (r,c) belongs to, or nullptr

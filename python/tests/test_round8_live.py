@@ -715,6 +715,10 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(ws.Rows(1).RowHeight, two)
         ws.Range("A1").ClearContents()
         self.assertEqual(ws.Rows(1).RowHeight, std)
+        self.keys("g:A1|w:2|t:a|k:a-Enter|t:b|k:Enter|w:5")
+        self.assertEqual(ws.Rows(1).RowHeight, two)
+        ws.Range("A1").Value = "c"  # a script's shorter value: the standard height again (Excel's Range.Value)
+        self.assertEqual(ws.Rows(1).RowHeight, std)
         ws.Range("A3").Value = "x"
         ws.Range("A3").Font.Size = 28
         tall = ws.Rows(3).RowHeight

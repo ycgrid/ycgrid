@@ -2767,6 +2767,55 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     const bool events = p.GetBool("events", true);
     const MV* vals = p.Get("values");
     std::string err_code, err;
+    // rows that size themselves fit what is written, as Excel 16's Range.Value does (measured 2026-11-28: two lines
+    // replaced by "c" put the row back at the standard height). Asked of the UI only when the write may change a
+    // height: a text with a line break, or a row of the range that isn't at the standard height; a script streaming
+    // numbers into standard rows waits for nothing
+    std::vector<std::pair<uint32_t, int32_t>> fit;
+    if (kind != "formula" && req.r1 != kRowEnd && req.r1 >= req.r0 && req.c1 >= req.c0 && req.Rows() <= 2000 && req.Count() <= 20000) {
+      const bool scalar0 = !vals || vals->t != MV::T::Array;
+      auto at = [&](uint32_t i, uint32_t j) -> const MV* {
+        if (scalar0) return vals;
+        if (i >= vals->a.size()) return nullptr;
+        const MV& row = vals->a[i];
+        if (row.t != MV::T::Array) return j == 0 ? &row : nullptr;
+        return j < row.a.size() ? &row.a[j] : nullptr;
+      };
+      bool may = false;
+      for (uint32_t i = 0; i < req.Rows() && !may; ++i) {
+        for (uint32_t j = 0; j < req.Cols() && !may; ++j) {
+          const MV* v = at(i, j);
+          may = v && v->t == MV::T::Str && v->s.find('\n') != std::string::npos;
+        }
+      }
+      if (!may) {
+        // a taller row may shrink: when a cell written over holds lines or wraps (the snapshot is enough to tell)
+        eng.Sync();
+        const auto snap = eng.Current();
+        if (const model::Sheet* s0 = snap ? snap->Sheet(sheet) : nullptr) {
+          for (uint32_t r = req.r0; r <= req.r1 && !may; ++r) {
+            if (s0->rows->Size(r) == s0->rows->default_size()) continue;
+            for (uint32_t cc = req.c0; cc <= req.c1 && !may; ++cc) {
+              const core::Value& old = s0->GetValue(r, cc);
+              may = (old.IsString() && old.str().find('\n') != std::string_view::npos) || snap->wb.styles->Get(s0->GetStyle(r, cc)).wrap;
+            }
+          }
+        }
+      }
+      if (may) {
+        std::map<uint64_t, std::string> texts;
+        for (uint32_t i = 0; i < req.Rows(); ++i) {
+          for (uint32_t j = 0; j < req.Cols(); ++j) {
+            const MV* v = at(i, j);
+            texts[(uint64_t{req.r0 + i} << 16) | (req.c0 + j)] = v && v->t == MV::T::Str ? v->s : (v && v->t != MV::T::Nil ? std::string("0") : std::string());
+          }
+        }
+        OnUi([&](AppState& s) {
+          fit = FitRowsForWrite(s, sheet, req, texts);
+          return MV();
+        });
+      }
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       const model::Sheet* s = d.S(sheet);
@@ -2924,6 +2973,9 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
             }
           }
         }
+      }
+      if (err_code.empty()) {
+        for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
       }
       // Application.EnableEvents = False: the recalculation this write causes fires no Calculate either (Excel
       // calculates during the write, while events are off)
