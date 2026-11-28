@@ -91,6 +91,13 @@ def _st_protected(ws):
     ws.Protect()
 
 
+def _st_protected_select_unlocked(ws):
+    # Protect Sheet without "Select locked cells": the keys walk the unlocked cells only (Excel 16, measured)
+    ws.Range("F1:H20").Locked = False
+    ws.Protect()
+    ws.EnableSelection = 1  # xlUnlockedCells
+
+
 def _st_grouped(ws):
     other = excel.Worksheets.Add(After=ws)
     other.Name = ws.Name + "g"
@@ -205,6 +212,7 @@ STATES = {
     "frozen": (None, "g:B2|x:FreezePanes|g:C4"),
     "protected": (_st_protected, "g:B3"),
     "protected_unlocked": (_st_protected, "g:G3"),
+    "protected_select_unlocked": (_st_protected_select_unlocked, "g:G3"),
     "read_only": (None, "g:B3|x:OperatorMode"),
     "read_only_typing": (None, "g:F3|t:12|x:OperatorMode"),
     "read_only_f2": (None, "g:A3|k:F2|x:OperatorMode"),

@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- On a sheet protected without "Select locked cells", the keys walk the unlocked cells as in Excel: Right and Left
+  in reading order, Down, Up and Enter in column order, all the way round, Home to the first; Home, Ctrl+Home, Page
+  Down and Shift with an arrow no longer select locked cells.
 - Outlines remember which groups a person closed, as Excel does: closing and opening a grand total's group no longer
   leaves its subtotals' groups closed when they were open, and a subtotal closed by its own button (or the level 2
   button) stays closed. The state is saved in the workbook.

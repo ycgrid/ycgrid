@@ -700,6 +700,30 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_keys_walk_the_unlocked_cells_of_a_protected_sheet(self):
+        # Excel 16, measured 2026-11-28 by keys: locked cells not selectable, the keys go round the unlocked ones:
+        # Right / Left in reading order, Down / Up and Enter in column order, Home the first; the other moves stay
+        from yc import excel
+
+        ws = self.ws
+        ws.Range("A1:F10").Value = 1
+        for a in ("B2", "D2", "B4", "C5", "E7"):
+            ws.Range(a).Locked = False
+        cases = [("B2", "k:RightArrow|w:2|k:RightArrow", "B4"), ("B2", "k:LeftArrow", "E7"), ("D2", "k:DownArrow", "E7"),
+                 ("E7", "k:UpArrow", "D2"), ("B4", "k:s-Enter", "B2"), ("C5", "k:Home", "B2"), ("C5", "k:c-Home", "C5"),
+                 ("B2", "k:End|w:2|k:RightArrow", "B2"), ("E7", "k:PageDown", "E7"), ("B2", "k:s-RightArrow", "B2"),
+                 ("B2", "k:c-A", "B2"), ("B2", "k:s-Space", "B2")]
+        try:
+            for start, keys, want in cases:
+                ws.Unprotect()
+                ws.Range(start).Select()
+                ws.Protect()
+                ws.EnableSelection = excel.xlUnlockedCells
+                self.keys(f"m:2,2|w:2|{keys}|w:3")
+                self.assertEqual((excel.Selection.Address(False, False), excel.ActiveCell.Address(False, False)), (want, want), (start, keys))
+        finally:
+            ws.Unprotect()
+
     def test_a_cell_emptied_loses_its_hyperlink_and_a_copy_brings_one(self):
         # Excel 16, measured 2026-11-28: Delete, Backspace and Enter and ClearContents take the link and keep the
         # formats; typing over keeps it; Copy, FillDown and a cut bring it, a plain cell copied over removes it;
