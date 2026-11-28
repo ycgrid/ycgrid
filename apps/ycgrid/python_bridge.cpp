@@ -2320,6 +2320,57 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     });
   }
   // Range.MergeCells of a range: 0 no cell merged, 1 every cell in a merged area, 2 some (Excel's Null)
+  if (m == "range.next_unlocked") {
+    // Range.Next / Previous on a protected sheet (Excel 16, measured 2026-11-28): one cell goes to the next (previous)
+    // unlocked cell in reading order over the used range and the cell, wrapping, as Tab does; a range of several cells
+    // walks its own cells, area after area, and stays on its first cell when none is unlocked
+    std::vector<Rect> areas;
+    if (const MV* a = p.Get("areas")) {
+      for (const MV& x : a->a) areas.push_back(RectOf(x));
+    }
+    const bool back = p.GetBool("back", false);
+    return eng.Call([&](Document& d) -> MV {
+      const model::Sheet* s = d.S(sheet);
+      if (!s || areas.empty()) return MV();
+      std::function<bool(uint32_t, uint32_t)> unlocked, selectable;
+      ProtectionCellRules(*s, &d.wb().styles.get(), &unlocked, &selectable);
+      auto cell = [](uint32_t r, uint32_t c) {
+        MV x = MV::Array();
+        x.Push(MV::Int(r));
+        x.Push(MV::Int(c));
+        return x;
+      };
+      for (Rect& a : areas) a = Rect{a.r0, a.c0, std::min(a.r1, s->row_limit - 1), std::min(a.c1, core::kMaxCols - 1)};
+      const Rect& first = areas[0];
+      if (!unlocked) return cell(first.r0, first.c0);
+      if (areas.size() == 1 && first.IsCell()) {
+        uint32_t nr = first.r0, nc = first.c0;
+        int64_t add_row = -1;
+        render::TabTarget(*s, first.r0, first.c0, back, unlocked, nullptr, &nr, &nc, &add_row);
+        return cell(nr, nc);
+      }
+      // the range's own cells in reading order, area after area, from its first cell (bounded: a whole column with no
+      // unlocked cell is a million steps)
+      uint64_t total = 0;
+      for (const Rect& a : areas) total += a.Count();
+      size_t ai = 0;
+      uint32_t r = first.r0, c = first.c0;
+      for (uint64_t k = 0; k < total && k < 4000000; ++k) {
+        const Rect& a = areas[ai];
+        if (!back) {
+          if (c < a.c1) ++c;
+          else if (r < a.r1) c = a.c0, ++r;
+          else ai = (ai + 1) % areas.size(), r = areas[ai].r0, c = areas[ai].c0;
+        } else {
+          if (c > a.c0) --c;
+          else if (r > a.r0) c = a.c1, --r;
+          else ai = (ai + areas.size() - 1) % areas.size(), r = areas[ai].r1, c = areas[ai].c1;
+        }
+        if (unlocked(r, c)) return cell(r, c);
+      }
+      return cell(first.r0, first.c0);
+    });
+  }
   if (m == "range.cuts_merge") {  // a merged cell the range holds part of
     const Rect want = RectOf(*p.Get("rect"));
     return MV::Bool(eng.Call([&](Document& d) {

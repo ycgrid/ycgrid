@@ -23,17 +23,23 @@ bool ValidateName(std::string_view name, std::string* error) {
   const unsigned char c0 = static_cast<unsigned char>(name[0]);
   if (!(std::isalpha(c0) || c0 == '_' || c0 == '\\' || c0 >= 0x80)) return fail(TR("A name must start with a letter, a CJK character, an underscore or a backslash."));
   core::CellPos p;
+  // a cell past row 1,048,576 too (Z9999999): Excel takes it as a name, YCGrid's rows go on (docs/excel-parity-backlog.md)
   if (core::ParseCellA1(name, &p)) return fail(TR("A name can't be the same as a cell reference (e.g. A1, XFD100)."));
   std::string up(name);
   for (char& ch : up) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
   if (up == "R" || up == "C") return fail(TR("A name can't be R or C."));
   // and, as Excel refuses them: the logical values, Excel's future-function prefix, a backslash and one character
-  if (up == "TRUE" || up == "FALSE" || up.rfind("_XLFN.", 0) == 0 || (up.size() == 2 && up[0] == '\\')) {
+  if (up == "TRUE" || up == "FALSE" || up == "_XLFN" || up.rfind("_XLFN.", 0) == 0 || (up.size() == 2 && up[0] == '\\')) {
     return fail(TR("That name isn't valid."));
   }
   // R1C1 forms are not allowed either, nor what starts like one (R2, C3, R2C3, R2D2, C3PO: Excel's Names.Add refuses
   // them, measured), or formulas couldn't use the name
   if (formula::IsR1C1LikeName(name)) return fail(TR("A name can't be the same as an R1C1 reference."));
+  // nor a space of any width: the ideographic space (U+3000) a Chinese IME types is refused as the ASCII one is
+  // (Excel 16, measured 2026-11-28)
+  if (name.find("\xE3\x80\x80") != std::string_view::npos) {
+    return fail(TR("Names can only contain letters, digits, CJK characters, underscores, periods and backslashes (no spaces or operators)."));
+  }
   for (char ch : name) {
     const unsigned char u = static_cast<unsigned char>(ch);
     if (u < 0x80 && !(std::isalnum(u) || ch == '_' || ch == '.' || ch == '\\' || ch == '?')) return fail(TR("Names can only contain letters, digits, CJK characters, underscores, periods and backslashes (no spaces or operators)."));

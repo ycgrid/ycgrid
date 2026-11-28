@@ -8198,13 +8198,23 @@ class Range:
         """The cell right of the range's first cell, as Tab goes (Excel 16, measured 2026-11-20: B2:C4's is C2, rows 2:3's B2);
         the whole range moved was given."""
         a = self._a
+        if self.Worksheet.ProtectContents:
+            return self._next_unlocked(False)
         return Range._from(self._sheet, [(a[0], a[1], a[0], a[1])]).Offset(0, 1)
 
     @property
     def Previous(self):  # noqa: N802
         """The cell left of the range's first cell, as Shift+Tab goes."""
         a = self._a
+        if self.Worksheet.ProtectContents:
+            return self._next_unlocked(True)
         return Range._from(self._sheet, [(a[0], a[1], a[0], a[1])]).Offset(0, -1)
+
+    def _next_unlocked(self, back):
+        # a protected sheet: the next (previous) unlocked cell, as Tab goes there, or within the range's own cells
+        # (Excel 16, measured 2026-11-28: E6's Next is B1 with B:D unlocked over A1:E6, C2:C9's is C3)
+        r, c = _rq("range.next_unlocked", sheet=self._sheet, areas=[list(x) for x in self._areas], back=back)
+        return Range._from(self._sheet, [(r, c, r, c)])
 
     @property
     def PrefixCharacter(self):  # noqa: N802
@@ -8617,6 +8627,19 @@ class Range:
         if raw:
             st = _rq("range.style_get", sheet=self._sheet, row=a[0], col=a[1], raw=True)
             st.pop("mixed", None)
+            return st
+        if len(self._areas) > 1:
+            # every area's, as Excel reads several areas: what they don't share is None (Excel 16, measured 2026-11-28:
+            # B2,D4 with B2 bold reads Bold, Locked, NumberFormat, Size Null; the first area alone was read)
+            st = None
+            for x in self._areas:
+                o = Range._from(self._sheet, [x])._style_get()
+                if st is None:
+                    st = dict(o)
+                    continue
+                for k in set(st) | set(o):
+                    if st.get(k) != o.get(k):
+                        st[k] = None
             return st
         if a[0] == a[2] and a[1] == a[3]:
             st = _rq("range.style_get", sheet=self._sheet, row=a[0], col=a[1])
@@ -10400,7 +10423,7 @@ class Interior(_StyleObj):
     def Color(self):  # noqa: N802
         c = self._g()["fill_color"]
         if c is None:
-            return None
+            return 0  # cells with different fills: Excel 16 reads 0, not Null (measured 2026-11-28; ColorIndex is Null)
         return _argb_to_bgr(c) if c else 16777215
 
     @Color.setter

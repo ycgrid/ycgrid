@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python: `Range.Next` and `Previous` on a protected sheet go to the unlocked cells, as Tab does; formats read over
+  several areas are None where the areas differ (the first area was read), and a mixed fill's `Interior.Color`
+  reads 0, as Excel's. A defined name can't be `_xlfn` or hold an ideographic space.
 - Python: `SpecialCells` over several areas takes a single cell among them as that cell (it searched the whole sheet),
   and `Locked` and `FormulaHidden` raise over part of a merged cell and change nothing, as Excel's do.
 - Python: `Validation.Add` and `Modify` raise for a formula that gives an error at the range's first cell, as Excel's

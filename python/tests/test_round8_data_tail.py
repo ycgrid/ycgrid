@@ -347,6 +347,32 @@ class ExcelDiffTailTest(_Live):
         ws.Range("H3:I4").Locked = False
         self.assertFalse(ws.Range("H3").Locked)
 
+    def test_next_on_a_protected_sheet_and_formats_over_areas(self):
+        # Excel 16 (2026-11-28): Next / Previous on a protected sheet go to the unlocked cells, as Tab does over the
+        # used range (one cell) or within the range's own cells; formats read over areas that differ are Null, and a
+        # mixed fill's Color reads 0
+        ws = self.ws
+        ws.Range("A1:E6").Value2 = 1
+        ws.Range("B2").Font.Bold = True
+        ws.Range("B2").Interior.Color = 255
+        self.assertIsNone(ws.Range("B2,D4").Font.Bold)
+        self.assertIsNone(ws.Range("B2,D4").Interior.ColorIndex)
+        self.assertEqual(ws.Range("B2,D4").Interior.Color, 0)
+        self.assertEqual(ws.Range("B2:D4").Interior.Color, 0)
+        self.assertTrue(ws.Range("B2,B2").Font.Bold)
+        self.assertEqual(ws.Range("B2:C4").Next.Address(False, False), "C2")  # unprotected: right of the first cell
+        ws.Range("B:D").Locked = False
+        ws.Protect()
+        try:
+            self.assertIsNone(ws.Range("B2:C3,E5").Locked)
+            cases = {"A1": ("B1", "D6"), "D1": ("B2", "C1"), "E6": ("B1", "D6"), "A6": ("B6", "D5"), "D7": ("B1", "C7"),
+                     "Z100": ("B1", "D100"), "A100": ("B100", "D99"), "B2:C4": ("C2", "C4"), "C2:C9": ("C3", "C9"),
+                     "A:A": ("A1", "A1"), "2:6": ("B2", "D6"), "B2,D4": ("D4", "D4")}
+            got = {k: (ws.Range(k).Next.Address(False, False), ws.Range(k).Previous.Address(False, False)) for k in cases}
+            self.assertEqual(got, cases)
+        finally:
+            ws.Unprotect()
+
     def test_validation_refuses_a_formula_that_gives_an_error(self):
         # Excel 16 (2026-11-28): Validation.Add and Modify refuse a formula that gives an error at the range's first
         # cell, of any type; a list takes a reference whatever its cell holds, but not through a name

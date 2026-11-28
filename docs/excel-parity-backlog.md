@@ -118,6 +118,8 @@ These are not differences to fix; they stay:
 - `Range.Formula` is `Formula2` (dynamic arrays): `B3.Formula = "=A1:A5"` spills, where Excel's legacy `Formula`
   writes `=@A1:A5`. Scripts written for YCGrid get one meaning; `Formula2` is there for Excel's own scripts.
 - A dynamic array spilling past row 1,048,576 grows the sheet (rows grow on demand); Excel shows #SPILL!.
+- A defined name that reads as a cell past row 1,048,576 (`Z9999999`, `XFD1048577`) is refused: Excel takes it, as
+  no cell has that row, where a YCGrid sheet's rows go on and `=Z9999999` is a cell (measured 2026-11-28).
 - A whole row or column in a dynamic array formula is cut to the used area: `=2:2` in E1 spills row 2's filled cells,
   where Excel's 16,384 columns don't fit from column E and show #SPILL! (measured 2026-11-11). A whole column is a
   million cells; formulas that take one (`=SUM(B:B)`, `=B:B*2` beside the data) stay fast.
