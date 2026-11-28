@@ -1784,3 +1784,23 @@ TEST_CASE("doc_fuzz --xlsx seed 24002581569: a formula filled beside an array fo
   CHECK(t.N("C4") == 0);
 }
 
+
+TEST_CASE("doc_fuzz --xlsx seed 24004181633: a formula under a table doesn't make a totals row over another table") {
+  // a formula in the row under a table makes that row its totals row (Excel 16, measured), but the row was the next
+  // table's header: the first table took it and the two overlapped
+  yctest::Doc t;
+  t.Set("A1", "Qty");
+  t.Set("A2", "5");
+  t.Set("A3", "Px");
+  t.Set("A4", "7");
+  std::string err;
+  const uint32_t first = t.d.AddTable(t.sheet(), Rect{0, 0, 1, 0}, true, "", &err);
+  const uint32_t second = t.d.AddTable(t.sheet(), Rect{2, 0, 3, 0}, true, "", &err);
+  REQUIRE(first);
+  REQUIRE(second);
+  t.Set("A3", "=1+1");
+  t.d.Recalc();
+  CHECK(t.d.TableById(t.sheet(), first)->range == Rect{0, 0, 1, 0});
+  CHECK_FALSE(t.d.TableById(t.sheet(), first)->totals);
+  CHECK(t.d.TableById(t.sheet(), second)->range == Rect{2, 0, 3, 0});
+}

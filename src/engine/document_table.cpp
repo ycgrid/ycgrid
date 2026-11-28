@@ -874,6 +874,13 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w, bool formula) {
     for (const Table& t : *s->tables) {
       if (t.totals || w.r0 != t.range.r1 + 1 || w.c0 < t.range.c0 || w.c1 > t.range.c1) continue;
       if (!t.header && t.range.r0 == t.range.r1) continue;  // a table of one row keeps it as data
+      // never over what a table can't hold: another table's header in that row made two tables overlap
+      // (doc_fuzz --xlsx seed 24004181633), as the growth as data asks too
+      if (!TableCantHold(sheet, Rect{t.range.r0, t.range.c0, w.r0, t.range.c1}, t.id).empty()) return;
+      // nor over a row that holds something besides the formula, as a growth as data doesn't (measured for data)
+      bool other = false;
+      for (uint32_t cc = t.range.c0; cc <= t.range.c1 && !other; ++cc) other = !w.Contains(w.r0, cc) && !s->IsEmptyCell(w.r0, cc);
+      if (other) break;
       const Rect old = t.range;
       NoteStructural();
       Table* mt = MutTable(sheet, t.id);

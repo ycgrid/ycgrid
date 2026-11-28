@@ -13330,3 +13330,9 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4753,31,ok,
 
 2026-11-28,screen_walk,r161,600,found,"Word keys in the cell editor after F2 (Ctrl+Left / Right, Ctrl+Delete, Shift+Home, Ctrl+Backspace) over spaces and punctuation, measured in Excel by keys"
+2026-11-28,doc_fuzz,2400421,40,fail,doc_fuzz_2400421.txt
+2026-11-28,gaps_fuzz,700414,88,ok,
+2026-11-28,doc_fuzz,2400420,358,ok,
+2026-11-28,calc_fuzz,4754,3,ok,
+2026-11-28,formula_fuzz,5735,1,ok,
+2026-11-28,chaos,8001,361,ok,
