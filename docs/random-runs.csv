@@ -13297,3 +13297,15 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400415,86,ok,
 2026-11-28,chaos,7995,362,ok,
 2026-11-28,chaos,7996,361,ok,
+2026-11-28,calc_fuzz,4749,26,ok,
+2026-11-28,formula_fuzz,5730,1,ok,
+2026-11-28,gaps_fuzz,700410,110,ok,
+2026-11-28,basics,5037,171,ok,
+2026-11-28,doc_fuzz,2400417,98,ok,
+2026-11-28,doc_fuzz,2400416,327,ok,
+2026-11-28,calc_fuzz,4750,31,ok,
+2026-11-28,formula_fuzz,5731,1,ok,
+2026-11-28,chaos,7997,381,ok,
+2026-11-28,basics,5038,173,ok,
+
+2026-11-28,screen_walk,r159,600,found,"A totals row under columns of 0.00, $#,##0.00 and 0%, and SUBTOTAL / AGGREGATE typed in a General cell, measured in Excel through COM"

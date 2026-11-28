@@ -663,6 +663,18 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(self.ws.Range("F3").Validation.Type, 3)
         excel.ActiveWorkbook.Names.Add("QtyCol", "=Trades[Qty]")
 
+    def test_the_totals_row_shows_the_columns_number_format(self):
+        # Excel 16, measured through ShowTotals: the totals cell under a column of 0.00, $#,##0.00 or 0% takes that
+        # format (22.50, $22.50, 2250%); YCGrid showed General (22.5)
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.25]]
+        self.ws.Range("D3:D6").NumberFormat = "$#,##0.00"
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        lo.ShowTotals = True
+        self.assertEqual(self.ws.Range("D7").NumberFormat, "$#,##0.00")
+        self.assertEqual(self.ws.Range("D7").Text, "$22.50")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

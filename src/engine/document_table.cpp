@@ -743,6 +743,16 @@ void Document::WriteTotalsRow(uint32_t sheet, uint32_t id) {
       }
       // the table's own column, without its name, as Excel writes it: =SUBTOTAL(109,[Price])
       SetFormula(sheet, r, c, "SUBTOTAL(" + std::to_string(col.totals_func) + ",[" + esc + "])", nullptr, kSrcCalc);
+      // shown in the column's number format, the one its data rows share (Excel 16, measured: under 0.00, $#,##0.00 or
+      // 0% the totals cell takes it; a SUBTOTAL typed there infers none, so it is the totals row's own)
+      const Rect d = copy.Data();
+      const Sheet* ss = S(sheet);
+      if (d.r0 <= d.r1 && ss && !wb_.styles->Get(ss->GetStyle(r, c)).numfmt) {
+        const uint32_t fmt = wb_.styles->Get(ss->GetStyle(d.r0, c)).numfmt;
+        bool shared = fmt != 0;
+        for (uint32_t rr = d.r0 + 1; rr <= d.r1 && shared; ++rr) shared = wb_.styles->Get(ss->GetStyle(rr, c)).numfmt == fmt;
+        if (shared) ModifyStyle(sheet, Rect::Cell(r, c), [fmt](model::Style& st) { st.numfmt = fmt; });
+      }
     } else if (!col.totals_label.empty()) {
       SetValue(sheet, r, c, Value::String(col.totals_label), kSrcCalc);
     } else {
