@@ -9094,8 +9094,14 @@ class Range:
             if edge:
                 raise ApplicationDefinedError(f"{('FillDown', 'FillRight', 'FillUp', 'FillLeft')[d]} method of Range class failed: "
                                               "there is no row or column beside the range to fill it from")
-            _rq("range.fill", sheet=self._sheet, rect=a, dir=d)
+            _rq("range.fill", sheet=self._sheet, rect=a, dir=d, orig=list(self._a))
             return
+        # a filtered list: the fill acts on the cells the filter shows, as areas of their own (Excel 16, measured
+        # 2026-11-28: B2:C3,E5 with row 2 filtered out changes nothing, C2:C3,C5:C6 fills C5:C6 from C3)
+        if self.Worksheet.AutoFilterMode or any(lo.ShowAutoFilter for lo in self.Worksheet.ListObjects):
+            runs = [tuple(x) for a in self._areas for x in _rq("range.shown_runs", sheet=self._sheet, rect=list(a))]
+            if runs and runs != [tuple(a) for a in self._areas]:
+                return Range._from(self._sheet, runs)._fill(d)
         vertical = d in (0, 2)
         lo_end = d in (0, 1)  # the source is at the low end (top, left)
         ar = [tuple(a) for a in self._areas]

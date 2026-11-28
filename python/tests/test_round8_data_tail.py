@@ -357,6 +357,67 @@ class ExcelDiffTailTest(_Live):
         self.assertEqual(r.Validation.Formula1, "1")
 
 
+# FillDown measured in Excel 16 (2026-11-28) over A1:E6 with D2:D6 =B*C: R filters B > 15 (row 2 hidden), F filters
+# B <> 30 (row 4 hidden), P has no filter, H hides row 3 by hand; rows 2 to 9 of A:E, as Formula reads them
+MEASURED_FILLS = [
+    ('R', 'B2:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,10,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,20,2.25,=B5*C5,45003', 'AMZN,20,2.25,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C9', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,2.25,,', ',,2.25,,', ',,2.25,,']),
+    ('R', 'B3:C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,20,2.25,=B4*C4,45002', 'NVDA,20,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B1:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,Qty,Price,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', '2:3', ['AAPL,10,1.5,=B2*C2,45000', 'AAPL,10,1.5,=B3*C3,45000', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', '2:6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'MSFT,20,2.25,=B4*C4,45001', 'MSFT,20,2.25,=B5*C5,45001', 'MSFT,20,2.25,=B6*C6,45001', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:C3,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'B2:B3,C2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C3,C5:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('R', 'C2:C7', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,2.25,=B6*C6,45004', ',,2.25,,', ',,,,', ',,,,']),
+    ('R', 'C5:C8', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,4.75,=B6*C6,45004', ',,4.75,,', ',,4.75,,', ',,,,']),
+    ('F', 'C2:C9', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,1.5,,', ',,1.5,,', ',,1.5,,']),
+    ('F', 'C3:C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C2:C4', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C4:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,4.75,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('F', '3:6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'MSFT,20,2.25,=B5*C5,45001', 'MSFT,20,2.25,=B6*C6,45001', ',,,,', ',,,,', ',,,,']),
+    ('F', 'C2:C3,C5:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'B3:C3,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3,C5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,2.25,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3:C4,E5', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,2.25,=B3*C3,45001', 'TSMC,30,2.25,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('P', 'C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('H', 'C2:C6', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,1.5,=B4*C4,45002', 'NVDA,40,1.5,=B5*C5,45003', 'AMZN,50,1.5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+    ('H', 'C2:C3', ['AAPL,10,1.5,=B2*C2,45000', 'MSFT,20,1.5,=B3*C3,45001', 'TSMC,30,3,=B4*C4,45002', 'NVDA,40,4.75,=B5*C5,45003', 'AMZN,50,5,=B6*C6,45004', ',,,,', ',,,,', ',,,,']),
+]
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class FilteredFillTest(_Live):
+    def test_fill_down_over_a_filter_acts_on_the_cells_it_shows(self):
+        # a filtered list fills the cells it shows as areas of their own: one run of one row takes the row above,
+        # several runs take the first row shown, areas follow the per-column rule; rows hidden by hand get it all
+        ws = self.ws
+        data = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000], ["MSFT", 20, 2.25, None, 45001],
+                ["TSMC", 30, 3, None, 45002], ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        bad = []
+        for mode, rg, rows in MEASURED_FILLS:
+            if ws.AutoFilterMode:
+                ws.AutoFilterMode = False
+            ws.Rows.Hidden = False
+            ws.Cells.Clear()
+            ws.Range("A1:E6").Value = data
+            for r in range(2, 7):
+                ws.Range(f"D{r}").Formula = f"=B{r}*C{r}"
+            if mode == "R":
+                ws.Range("A1:E6").AutoFilter(2, ">15")
+            elif mode == "F":
+                ws.Range("A1:E6").AutoFilter(2, "<>30")
+            elif mode == "H":
+                ws.Rows(3).Hidden = True
+            ws.Range(rg).FillDown()
+            got = [",".join(str(ws.Cells(r, c).Formula or "") for c in range(1, 6)) for r in range(2, 10)]
+            if got != rows:
+                bad.append((mode, rg, [(i + 2, g, e) for i, (g, e) in enumerate(zip(got, rows)) if g != e]))
+        self.assertEqual(bad, [])
+
+
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class FreshReadsTailTest(_Live):
     def test_reads_right_after_a_formula_is_written_see_its_value(self):

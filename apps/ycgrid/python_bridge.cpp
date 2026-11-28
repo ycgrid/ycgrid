@@ -3856,9 +3856,27 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       return x;
     });
   }
+  if (m == "range.shown_runs") {  // the parts of a range a filter shows (FilterShownRuns): Python's fills over areas
+    const Rect r = RectOf(*p.Get("rect"));
+    return eng.Call([&](Document& d) {
+      MV out = MV::Array();
+      const model::Sheet* s = d.S(sheet);
+      if (!s) return out;
+      const Rect in{r.r0, r.c0, std::min(r.r1, s->row_limit - 1), r.c1};
+      for (const Rect& run : engine::FilterShownRuns(*s, {in})) {
+        MV x = MV::Array();  // a run to the range's end keeps its end (a whole column's end marker)
+        for (const uint32_t v : {run.r0, run.c0, run.r1 == in.r1 ? r.r1 : run.r1, run.c1}) x.Push(MV::Int(static_cast<int64_t>(v)));
+        out.Push(std::move(x));
+      }
+      return out;
+    });
+  }
   if (m == "range.fill") {
     const Rect r = RectOf(*p.Get("rect"));
     const int dir = static_cast<int>(p.GetInt("dir"));
+    // the range the script gave, before a line beside it was taken in (FillDown on B3 fills B2:B3): what a filter
+    // shows of it decides the fill
+    const Rect orig = p.Get("orig") ? RectOf(*p.Get("orig")) : r;
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       // a fill over a merged cell does nothing, as Excel 16's FillDown (measured: B2:B5 through B2:C3), and so does one
@@ -3871,11 +3889,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
       }
       // a filtered list: the rows it shows (Excel 16, measured: FillDown and FillUp)
-      if ((dir == 0 || dir == 2) && d.FillDownShown(sheet, r, dir == 2)) return;
+      if ((dir == 0 || dir == 2) && d.FillDownShown(sheet, orig, dir == 2)) return;
       if (dir == 1 || dir == 3) {  // right / left: each run of rows it shows (Excel 16's FillRight, measured)
         const model::Sheet* s = d.S(sheet);
         std::vector<Rect> runs = s && r.r1 < s->row_limit ? engine::FilterShownRuns(*s, {r}) : std::vector<Rect>{r};
         if (runs.empty()) runs = {r};  // rows the filter all hides: the cells themselves (Excel 16 fills A2:C2 left, measured)
+        // one column the filter cuts into several runs is several areas one column wide: nothing to fill from (Excel
+        // 16, measured 2026-11-28: FillLeft over A:A of a filtered list changes nothing; it copied column B in)
+        if (orig.c0 == orig.c1 && runs.size() > 1) return;
         for (const Rect& run : runs) d.FillEdge(sheet, run, dir);
         return;
       }
