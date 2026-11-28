@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- `Range.DisplayFormat`, `yc.data.read_range` / `read_table`, the Analysis ToolPak's input and a chart's linked texts read right after a script writes a formula see its value; they read it uncalculated (empty, and the conditional format not applied).
 - Properties Excel can set are set from Python too: `PivotCache.SourceData`, `SparklineGroup.SourceData` and
   `Location`, `Scenario.Name` and `Comment`, `HPageBreak.Location` and `Type` raised. `scripts/check_excel_parity.py`
   fails on a property Excel sets that YCGrid only reads, unless `[read_only]` gives the reason.

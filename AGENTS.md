@@ -1029,8 +1029,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   once it is read (`SetStartupOpen`; it says `"opening": true` until then, and `yc.launch(path)` waits for that),
   and a failure is noted there (`NoteOpenFailed`): Python matched the window by its file before the read failed and
   worked with its blank Book1, and a launch that returned before the read made the file look unopened.
-- A request that reads what cells show (Go To Special's kinds, a sort's order) calls `Settle(d)` first (python_bridge
-  .cpp): a formula written by the same connection just before has no value until it is calculated, and was skipped.
+- A request that reads what cells show (Go To Special's kinds, a sort's order, `DisplayFormat`, a DataFrame read, an
+  analysis tool's input, a chart's linked texts) calls `d.SettleForRead()` first: a formula written by the same
+  connection just before has no value until it is calculated, and was skipped (`read_range` read it as empty).
 - Every text that names cells outside a cell formula is walked through `model/ref_texts.h` (`EditObjectRefTexts`,
   `EditRuleRefTexts`, `EditWorkbookRefTexts`, `ForEachCfRefText`, `ForEachDvRefText`), never kind by kind: five
   operations kept lists of their own and each missed a different kind (a copied sheet's Solver model, an icon set's

@@ -13937,3 +13937,9 @@ date,tool,seed,seconds,result,note
 2026-11-28,doc_fuzz,2400517,89,ok,
 2026-11-28,chaos,8097,361,ok,
 2026-11-28,chaos,8098,361,ok,
+2026-11-28,calc_fuzz,4848,29,ok,
+2026-11-28,formula_fuzz,5829,1,ok,
+2026-11-28,basics,5136,205,ok,
+2026-11-28,gaps_fuzz,700509,210,ok,
+2026-11-28,doc_fuzz,2400518,280,ok,
+2026-11-28,screen_walk,r194,400,found,"Duplicate and unique values rules over text in two cases, numbers as text and numbers, a blank, a date and its serial, a formula, read through DisplayFormat right after the writes, measured in Excel through COM"

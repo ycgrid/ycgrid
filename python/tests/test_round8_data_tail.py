@@ -268,6 +268,25 @@ class ExcelArgumentsTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class FreshReadsTailTest(_Live):
+    def test_reads_right_after_a_formula_is_written_see_its_value(self):
+        # Excel's object model calculates after each write: DisplayFormat and a DataFrame read right after a formula is
+        # written see its value (they read it uncalculated: empty, and the rule not applied)
+        import yc.data as data
+
+        ws = self.ws
+        ws.Range("A1:B1").Value = [["x", "y"]]
+        for i in range(5):
+            ws.Range("A2").Value = i
+            ws.Range("B2").Formula = "=A2*10"
+            self.assertEqual(data.read_range(ws.Range("A1:B2"), pandas=False)["y"][0], i * 10)
+            ws.Range("C1").Formula = f"=A2+{i}"
+            ws.Range("C1").FormatConditions.Delete()
+            ws.Range("C1").FormatConditions.Add(1, 3, f"={2 * i}").Interior.Color = 255
+            self.assertEqual(ws.Range("C1").DisplayFormat.Interior.Color, 255)
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class WritablePropertiesTailTest(_Live):
     def test_properties_excel_sets_are_set(self):
         # each property Excel's type library lists with put has a setter (scripts/check_excel_parity.py checks); these

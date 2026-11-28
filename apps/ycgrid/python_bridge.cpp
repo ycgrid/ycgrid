@@ -101,10 +101,7 @@ std::vector<Rect> AreasOf(const MV& p) {
 
 // before a request reads what cells show (Go To Special's kinds, a sort's order): formulas just written by this
 // connection have their values (with manual calculation, the entered ones, as Excel shows them)
-void Settle(Document& d) {
-  if (d.auto_calc) d.Recalc();
-  else d.CalcEntered();
-}
+void Settle(Document& d) { d.SettleForRead(); }
 
 // clamp entire columns (r1 = ROW_END) to the sheet's current row count
 Rect Clamp(const model::Sheet& s, Rect r) {
@@ -2113,6 +2110,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     // Range.DisplayFormat: the first cell's format as the sheet shows it, its conditional formats applied (the font's
     // color and style, the fill and its pattern, the number format)
     return eng.Call([&](Document& d) {
+      d.SettleForRead();  // a formula written just before has its value, and the rules read it (Settle)
       const model::Sheet* s = d.S(sheet);
       if (!s) return MV();
       const auto& t = *d.wb().styles;

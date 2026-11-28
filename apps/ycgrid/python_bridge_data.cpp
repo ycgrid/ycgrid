@@ -816,7 +816,10 @@ MV PythonBridge::DispatchData(Conn& c, const std::string& m, const MV& p, std::s
     std::string e;
     uint32_t osheet = 0;
     core::Rect orect{};
-    const bool ok = eng.Call([&](Document& d) { return d.RunAnalysis(req, &osheet, &orect, &e); });
+    const bool ok = eng.Call([&](Document& d) {
+      d.SettleForRead();  // the input a script just wrote as formulas has its values
+      return d.RunAnalysis(req, &osheet, &orect, &e);
+    });
     if (!ok) return err("E_ARG", e);
     MV r = MV::Map();
     r.Set("sheet", MV::Int(osheet));
@@ -892,6 +895,7 @@ MV PythonBridge::DispatchData(Conn& c, const std::string& m, const MV& p, std::s
     std::string e;
     std::vector<bool> dates;
     const bool ok = eng.Call([&](engine::Document& d) {
+      d.SettleForRead();  // a formula written just before has its value (a frame read it as empty)
       if (m == "range.read") {
         const uint32_t sid = static_cast<uint32_t>(p.GetInt("sheet", 0));
         const model::Sheet* sh = d.S(sid);

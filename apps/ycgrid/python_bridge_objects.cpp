@@ -2236,6 +2236,7 @@ MV PythonBridge::DispatchObjects(const std::string& m, const MV& p, std::string*
     const std::string name = p.GetStr("name");
     std::string err, err_code = "E_NOT_FOUND";
     MV r = eng.Call([&](Document& d) {
+      if (m == "chart.get" || m == "chart.series_data") d.SettleForRead();  // titles and values linked to fresh formulas
       const model::Sheet* s = d.S(sheet);
       const ChartObj* c = s ? FindChart(*s, name) : nullptr;
       if (!c) {

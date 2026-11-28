@@ -883,6 +883,12 @@ class Document : public formula::SheetResolver {
   // in Excel (which calculates during the write). Only when nothing else was waiting to be calculated.
   void RecalcWithoutEvents();
   void CalcEntered();  // manual calculation: just the formulas entered since the last call (Excel computes those)
+  // before a request reads what the cells show (values, the formats rules give them): the formulas just written have
+  // their values, as Excel's object model calculates after each write (manual calculation: the ones entered)
+  void SettleForRead() {
+    if (auto_calc) Recalc();
+    else CalcEntered();
+  }
   void RecalcAll();  // every formula (Ctrl+Alt+F9)
   // F9 (Calculate Now): what waits and the volatile formulas, and the data tables also when they are left out of
   // automatic calculation (Automatic except for data tables)
