@@ -96,7 +96,7 @@ TEST_CASE("totals row, rows inserted inside, saved, converted to a range") {
   // convert to range: the formulas keep working with ordinary references
   REQUIRE(t.d.DeleteTable(t.sheet(), id, true));
   t.d.Recalc();
-  CHECK(t.F("C6") == "=SUBTOTAL(109,$C$2:$C$5)");
+  CHECK(t.F("C6") == "=SUBTOTAL(109," + t.d.S(t.sheet())->name + "!$C$2:$C$5)");  // named with its sheet (Excel 16, measured)
   CHECK(t.d.wb().sheets[0]->tables->empty());
 }
 

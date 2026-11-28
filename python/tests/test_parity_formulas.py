@@ -451,8 +451,9 @@ class FormulaParityTest(unittest.TestCase):
         self.assertGreater(blue, 0)
 
     def test_ctrl_slash_selects_the_current_array(self):
-        # L7: no Ctrl+/
-        self.ws.Range("A1").Formula = "=SEQUENCE(3)"
+        # L7: no Ctrl+/. It selects an array entered with Ctrl+Shift+Enter; a dynamic array's spill finds no cells
+        # (Excel 16, measured by keys)
+        self.ws.Range("A1:A3").FormulaArray = "=ROW(A1:A3)"
         self.keys("g:A2|w:2|k:c-Slash|w:3")
         self.assertEqual(self.state()["selection"], "A1:A3")
 

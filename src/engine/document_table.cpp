@@ -549,7 +549,8 @@ bool Document::DeleteTable(uint32_t sheet, uint32_t id, bool keep_look) {
           auto absolute = [&](uint32_t ts, const Rect& rr, bool this_row) {
             formula::Node ref;
             ref.kind = formula::NK::Ref;
-            ref.ref.sheet = ts == sh.id ? -1 : static_cast<int32_t>(ts);
+            // named with its sheet, its own too, as Excel 16 writes it (measured: [@Qty] becomes Sheet1!$C3)
+            ref.ref.sheet = static_cast<int32_t>(ts);
             ref.ref.r0 = this_row ? formula::RefCoord{0, false} : formula::RefCoord{rr.r0, true};
             ref.ref.r1 = this_row ? formula::RefCoord{0, false} : formula::RefCoord{rr.r1, true};
             ref.ref.c0 = formula::RefCoord{rr.c0, true};

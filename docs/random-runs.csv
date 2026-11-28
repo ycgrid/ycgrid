@@ -13172,3 +13172,23 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5712,1,ok,
 
 2026-11-28,screen_walk,r149,2400,found,"AutoSum (Alt+=) under a table, over the row under it, over its data and under its totals row; formulas and values typed and written through Range.Formula / Value2 under it; Banded Rows over a typed total, measured in Excel by keys and COM"
+2026-11-28,chaos,7977,363,ok,
+2026-11-28,basics,5019,163,ok,
+2026-11-28,gaps_fuzz,700392,99,ok,
+2026-11-28,doc_fuzz,2400398,104,ok,
+2026-11-28,calc_fuzz,4732,32,ok,
+2026-11-28,formula_fuzz,5713,1,ok,
+2026-11-28,chaos,7978,361,ok,
+2026-11-28,basics,5020,172,ok,
+2026-11-28,gaps_fuzz,700393,92,ok,
+2026-11-28,doc_fuzz,2400399,93,ok,
+2026-11-28,calc_fuzz,4733,3,ok,
+2026-11-28,formula_fuzz,5714,1,ok,
+2026-11-28,chaos,7979,361,ok,
+2026-11-28,gaps_fuzz,700394,91,ok,
+2026-11-28,basics,5021,165,ok,
+2026-11-28,doc_fuzz,2400400,111,ok,
+2026-11-28,calc_fuzz,4734,15,ok,
+2026-11-28,formula_fuzz,5715,0,ok,
+
+2026-11-28,screen_walk,r150,600,found,"Convert to Range (Table Design and ListObject.Unlist) over a table read by [@Qty], Trades[Qty], [#All], [[#Data],[#Totals],[Qty]], the table's name and its totals row, measured in Excel through COM"

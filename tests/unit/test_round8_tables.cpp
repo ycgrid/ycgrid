@@ -259,9 +259,18 @@ TEST_CASE("Round8 tables: references to a deleted column or table are #REF!") {
   c.Set("E2", "=ROWS(Table1)");
   REQUIRE(c.d.DeleteTable(c.sheet(), cid, true));
   c.d.Recalc();
-  CHECK(c.F("E1") == "=SUM($B$2:$B$4)");
-  CHECK(c.F("E2") == "=ROWS($A$2:$C$4)");  // #NAME?
+  // named with their sheet, as Excel 16 writes them (measured: Trades[Qty] is Sheet1!$C$3:$C$6, [@Qty] Sheet1!$C3)
+  const std::string sn = c.d.S(c.sheet())->name;
+  CHECK(c.F("E1") == "=SUM(" + sn + "!$B$2:$B$4)");
+  CHECK(c.F("E2") == "=ROWS(" + sn + "!$A$2:$C$4)");  // #NAME?
   CHECK(c.N("E2") == 3);
+  yctest::Doc a;
+  const uint32_t aid = SalesTable(a);
+  a.Set("C2", "=[@Qty]*2");
+  REQUIRE(a.d.DeleteTable(a.sheet(), aid, true));
+  a.d.Recalc();
+  CHECK(a.F("C2") == "=" + a.d.S(a.sheet())->name + "!$B2*2");
+  CHECK(a.N("C2") == 2);
 }
 
 TEST_CASE("Round8 tables: Resize moves the totals row and continues calculated columns") {
