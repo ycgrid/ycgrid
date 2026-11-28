@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Top 10 Percent filters show the whole part of the share (25% of 11 numbers shows 2, not 3), at least one, as Excel does.
 - Sorting by a custom list: descending puts the values not in the list first, as Excel does, and Case sensitive
   takes only the list's items as they are written.
 - On a sheet protected without "Select locked cells", the keys walk the unlocked cells as in Excel: Right and Left

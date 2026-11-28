@@ -13589,3 +13589,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,8041,361,ok,
 2026-11-28,basics,5081,163,ok,
 2026-11-28,screen_walk,r174,500,found,"Sort by a custom order (Low,Mid,High) ascending, descending and case sensitive, by cell color on top and bottom, two colors, with blanks and values not in the list, measured in Excel through COM"
+2026-11-28,doc_fuzz,2400462,101,ok,
+2026-11-28,calc_fuzz,4794,15,ok,
+2026-11-28,formula_fuzz,5775,0,ok,
+2026-11-28,basics,5082,167,ok,
+2026-11-28,gaps_fuzz,700455,92,ok,
+2026-11-28,chaos,8042,362,ok,
+2026-11-28,screen_walk,r175,600,found,"AutoFilter by cell color and font color, Top / Bottom N items and percent (15 percentages), above and below average, blanks, a values list, Or and And criteria, measured in Excel through COM"

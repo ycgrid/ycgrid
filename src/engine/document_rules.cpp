@@ -702,7 +702,9 @@ FilterTester::FilterTester(const model::Workbook& wb, const model::Sheet& s, con
       if (v.IsNumeric()) nums.push_back(v.AsDouble());
     }
     if (nums.empty()) continue;
-    size_t n = fc.percent ? static_cast<size_t>(std::ceil(nums.size() * std::clamp(fc.count, 0, 100) / 100.0)) : static_cast<size_t>(std::max(0, fc.count));
+    // Top 10 Percent shows the whole part of that share of the numbers, at least one, and the ties of the last one
+    // (Excel 16, measured 2026-11-28: 25% of 11 numbers shows 2, 9% shows 1, 55% shows 6)
+    size_t n = fc.percent ? nums.size() * static_cast<size_t>(std::clamp(fc.count, 0, 100)) / 100 : static_cast<size_t>(std::max(0, fc.count));
     n = std::clamp<size_t>(n, 1, nums.size());
     std::sort(nums.begin(), nums.end());
     thresholds_[i] = fc.top ? nums[nums.size() - n] : nums[n - 1];
