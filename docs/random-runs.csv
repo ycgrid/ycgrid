@@ -13309,3 +13309,9 @@ date,tool,seed,seconds,result,note
 2026-11-28,basics,5038,173,ok,
 
 2026-11-28,screen_walk,r159,600,found,"A totals row under columns of 0.00, $#,##0.00 and 0%, and SUBTOTAL / AGGREGATE typed in a General cell, measured in Excel through COM"
+2026-11-28,doc_fuzz,2400418,45,fail,doc_fuzz_2400418.txt
+2026-11-28,gaps_fuzz,700411,98,ok,
+2026-11-28,calc_fuzz,4751,3,ok,
+2026-11-28,formula_fuzz,5732,0,ok,
+
+2026-11-28,screen_walk,r160,300,found,"A totals row with Average chosen and =MAX typed in, turned off and on again, measured in Excel through COM"
