@@ -2377,6 +2377,19 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       if (p.rect.Min.y == cells.Min.y) {  // top pane: draw the column names
         dl->PushClipRect(ImVec2(p.rect.Min.x, rect.Min.y), ImVec2(p.rect.Max.x, cells.Min.y), true);
         dl->AddRectFilled(ImVec2(p.rect.Min.x, rect.Min.y), ImVec2(p.rect.Max.x, cells.Min.y), t.header_bg);
+        // the active cell in a table whose header row is above the rows shown: the headings over its columns show its
+        // column names instead of the letters (Excel's, as Microsoft documents it), so the names stay in sight
+        const model::Table* head_tb = nullptr;
+        if (!opt.r1c1 && !sheet.tables->empty() && !p.rows.empty()) {
+          for (const model::Table& tb : *sheet.tables) {
+            if (tb.header && tb.range.Contains(selst.act_r, selst.act_c) && selst.act_r > tb.range.r0 &&
+                p.rows.front().index > static_cast<int64_t>(tb.range.r0) && p.rows.front().index <= static_cast<int64_t>(tb.range.r1)) {
+              head_tb = &tb;
+              break;
+            }
+          }
+        }
+        if (p.rect.Min.y == cells.Min.y || head_tb) view.table_headings = head_tb ? head_tb->id : 0;
         for (const Line& l : p.cols) {
           const bool on = col_selected(l.index);
           const ImVec2 h0(l.pos, rect.Min.y), h1(l.pos + l.size, cells.Min.y);
@@ -2389,9 +2402,18 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             dl->AddRectFilled(ImVec2(h0.x - 1, h0.y), ImVec2(h0.x, h1.y), t.header_text);
             dl->AddRectFilled(ImVec2(h0.x + 1, h0.y), ImVec2(h0.x + 2, h1.y), t.header_text);
           }
-          const std::string name = opt.r1c1 ? std::to_string(l.index + 1) : ColName(l.index);
+          std::string name = opt.r1c1 ? std::to_string(l.index + 1) : ColName(l.index);
+          bool table_name = false;
+          if (head_tb && l.index >= head_tb->range.c0 && l.index <= head_tb->range.c1) {
+            const uint32_t j = static_cast<uint32_t>(l.index) - head_tb->range.c0;
+            if (j < head_tb->columns.size() && !head_tb->columns[j].name.empty()) name = head_tb->columns[j].name, table_name = true;
+          }
           const float tw = ImGui::CalcTextSize(name.c_str()).x;
-          dl->AddText(ImVec2(IM_ROUND(h0.x + (l.size - tw) * 0.5f), IM_ROUND(h0.y + (header_h - hfont) * 0.5f)), on ? t.header_sel_text : t.header_text, name.c_str());
+          // a column name starts at the left and is cut at the column's edge, as a cell's text
+          const float tx = table_name ? h0.x + S(4) : IM_ROUND(h0.x + (l.size - tw) * 0.5f);
+          if (table_name) dl->PushClipRect(h0, ImVec2(h1.x - 1, h1.y), true);
+          dl->AddText(ImVec2(IM_ROUND(tx), IM_ROUND(h0.y + (header_h - hfont) * 0.5f)), on ? t.header_sel_text : t.header_text, name.c_str());
+          if (table_name) dl->PopClipRect();
         }
         dl->AddRectFilled(ImVec2(p.rect.Min.x, cells.Min.y - 1), ImVec2(p.rect.Max.x, cells.Min.y), t.header_border);
         dl->PopClipRect();

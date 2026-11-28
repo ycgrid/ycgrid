@@ -607,6 +607,22 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("k:c-Z|w:6")  # the growth's step: the rules go back with it
         self.assertEqual(sorted(fc.AppliesTo.Address for fc in self.ws.Cells.FormatConditions), ["$C$3:$C$6", "$D$3:$D$5"])
 
+    def test_the_column_headings_show_a_tables_names_when_its_header_scrolls_away(self):
+        from yc import ui
+
+        # Excel shows a table's column names in the column headings while the active cell is in the table and its
+        # header row is out of view (Microsoft documents it); YCGrid kept the letters
+        self.ws.Range("B2:D2").Value = [["Symbol", "Quantity", "Price"]]
+        self.ws.Range("B3:D200").Value = [[f"S{r}", r, r * 1.5] for r in range(3, 201)]
+        self.ws.ListObjects.Add(1, self.ws.Range("B2:D200"), None, 1).Name = "Trades"
+        self.keys("m:2,2|g:C3|w:4")
+        self.assertEqual(ui.state()["table_headings"], "")
+        self.keys("g:C150|w:6")
+        self.assertEqual(ui.state()["table_headings"], "Trades")
+        self.keys("g:G150|w:6")
+        self.assertEqual(ui.state()["table_headings"], "")
+        self.keys("k:c-Home|w:4")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

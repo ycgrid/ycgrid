@@ -442,7 +442,18 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
       }
       o.Set("windows", std::move(wins));  // windows that narrowed by themselves (should stay empty)  // the window with the keyboard: 0 the main one, else New Window's number
       o.Set("status", MV::Str(s.status));
-      o.Set("imgui_asserts", MV::Int(yc_imgui_assert_count));  // ImGui's checks that failed (a debug build stops on one)
+      o.Set("imgui_asserts", MV::Int(yc_imgui_assert_count));
+      // the table whose column names the column headings show (its header row scrolled away), "" for the letters
+      {
+        std::string th;
+        const uint32_t tid = s.FocusView().table_headings;
+        if (const model::Sheet* fs = tid ? s.FocusSheet() : nullptr) {
+          for (const model::Table& tb : *fs->tables) {
+            if (tb.id == tid) th = tb.name;
+          }
+        }
+        o.Set("table_headings", MV::Str(th));
+      }  // ImGui's checks that failed (a debug build stops on one)
       o.Set("status_stats", MV::Str(s.status_stats));
       o.Set("circular_status", MV::Str(CircularStatusText(s)));  // the status bar's "Circular References: B2"
       o.Set("copy_mode", MV::Bool(s.marquee));  // copied cells outlined (Excel's CutCopyMode): Enter or Paste pastes

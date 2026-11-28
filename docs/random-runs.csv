@@ -13225,3 +13225,17 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700399,94,ok,
 
 2026-11-28,screen_walk,r153,600,found,"Conditional formats and validation on a table's columns while rows are typed under it and columns beside it, measured in Excel by keys"
+2026-11-28,screen_walk,r154,300,clean,"A chart on a table's columns while a row is typed under it: its series grow with the table, as Excel's"
+2026-11-28,doc_fuzz,2400405,112,ok,
+2026-11-28,calc_fuzz,4739,3,ok,
+2026-11-28,formula_fuzz,5720,0,ok,
+2026-11-28,chaos,7985,375,ok,
+2026-11-28,basics,5027,179,ok,
+2026-11-28,gaps_fuzz,700400,107,ok,
+2026-11-28,doc_fuzz,2400406,128,ok,
+2026-11-28,calc_fuzz,4740,17,ok,
+2026-11-28,formula_fuzz,5721,0,ok,
+2026-11-28,chaos,7986,361,ok,
+2026-11-28,basics,5028,176,ok,
+
+2026-11-28,screen_walk,r155,600,found,"A 200-row table scrolled down with the active cell in it, out of it, and with its header row frozen: the column headings, by screenshot and ui.state"

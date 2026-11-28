@@ -163,6 +163,9 @@ struct GridView {  // = Excel's Window (one per sheet)
   // Decimal starts from the decimals General shows there, Excel 16, measured), and the frame it was drawn in
   std::string active_shown;
   int active_shown_frame = -1;
+  // the table whose column names the column headings show in the last frame (0: the letters): the active cell in a
+  // table whose header row is scrolled out of view, as Excel shows it
+  uint32_t table_headings = 0;
   ScrollAxis v, h;
   Selection sel;
   float zoom = 1.0f;
