@@ -147,6 +147,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Excel does; `INDIRECT("Trades[Sym]")` and a name on the table still work.
 - A table's totals row shows its totals in the number format the column's data shares ($22.50), as Excel does.
 - Ctrl+Backspace in the cell editor deletes nothing, as in Excel: it deleted the word before the caret.
+- Typing into a data table's result says only "Cannot change part of a data table.", as Excel does: an empty formula
+  error came first.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
 - The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text

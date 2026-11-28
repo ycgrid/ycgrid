@@ -759,7 +759,11 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   }
   const bool ok = s.engine->Call([&](Document& d) { return work(d, &error); });
   if (!ok) {
-    s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + error + TR("\n\nNot trying to type a formula? Start with an apostrophe (') and the cell will be treated as text."));
+    // an entry the engine refused without a reason (a data table's cell) has its refusal's own message (Cannot change
+    // part of a data table.), as Excel shows only that; a formula problem says what it is
+    if (!error.empty()) {
+      s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + error + TR("\n\nNot trying to type a formula? Start with an apostrophe (') and the cell will be treated as text."));
+    }
     e.focus_request = true;
     return;
   }
@@ -779,6 +783,7 @@ void ApplyPendingCommit(AppState& s) {
   if (pc->ok) return;
   s.edit = pc->edit;
   s.edit.focus_request = true;
+  if (pc->error.empty()) return;  // refused: the refusal says why (as above)
   if (!pc->hint) {
     s.ShowError("YCGrid", TR("There's a problem with this formula.\n\n") + pc->error);
     return;

@@ -685,6 +685,21 @@ class UiOpsRound8Test(unittest.TestCase):
             self.keys(f"m:2,2|g:B2|w:3|t:{text}|w:2|k:F2|w:2|{keys}|w:2|t:x|w:2|k:Enter|w:4")
             self.assertEqual(self.ws.Range("B2").Value, want, keys)
 
+    def test_typing_in_a_data_table_says_only_why_it_is_refused(self):
+        # Excel shows "Cannot change part of a data table." alone; YCGrid showed an empty "There's a problem with this
+        # formula" first
+        self.ws.Range("A1").Value = 5
+        self.ws.Range("A2").Value = 2
+        self.ws.Range("B4").Formula = "=A1*A2"
+        self.ws.Range("A5:A7").Value = [[1], [2], [3]]
+        self.ws.Range("A4:B7").Table(None, self.ws.Range("A1"))
+        n = len(yc.ui.errors())
+        self.keys("m:2,2|g:B6|w:3|t:9|k:Enter|w:5|k:Escape|w:3")
+        texts = [str(e.get("text")) for e in yc.ui.errors()[n:]]
+        self.assertEqual(len(texts), 1, texts)
+        self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
+        self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 
