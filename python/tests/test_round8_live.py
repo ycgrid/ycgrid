@@ -700,6 +700,35 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_whole_rows_and_columns_copied_bring_their_sizes(self):
+        # Excel 16, measured 2026-11-28 through COM: Rows(1).Copy Rows(5) gives row 5 row 1's height, Columns(1).Copy
+        # Columns(4) column D column A's width, a cut moves them (the rows left take the standard height), a hidden row
+        # copied is hidden; cells copied bring neither
+        ws = self.ws
+        std_h, std_w = ws.Rows(30).RowHeight, ws.Columns(30).ColumnWidth
+        ws.Range("A1").Value = "x"
+        ws.Rows(1).RowHeight = 30
+        ws.Columns(1).ColumnWidth = 20
+        ws.Rows(1).Copy(ws.Rows(5))
+        self.assertEqual(ws.Rows(5).RowHeight, 30)
+        ws.Range("A1:C1").Copy(ws.Range("A7"))
+        self.assertEqual(ws.Rows(7).RowHeight, std_h)
+        ws.Columns(1).Copy(ws.Columns(4))
+        self.assertAlmostEqual(ws.Columns(4).ColumnWidth, ws.Columns(1).ColumnWidth, delta=0.01)
+        ws.Range("A1:A3").Copy(ws.Range("F1"))
+        self.assertAlmostEqual(ws.Columns(6).ColumnWidth, std_w, delta=0.01)
+        ws.Rows(1).Cut(ws.Rows(9))
+        self.assertEqual((ws.Rows(9).RowHeight, ws.Rows(1).RowHeight), (30, std_h))
+        ws.Rows(9).Copy(ws.Rows("11:12"))
+        self.assertEqual((ws.Rows(11).RowHeight, ws.Rows(12).RowHeight), (30, 30))
+        ws.Rows(9).Hidden = True
+        ws.Rows(9).Copy(ws.Rows(14))
+        self.assertTrue(ws.Rows(14).Hidden)
+        ws.Rows(9).Hidden = False
+        # Ctrl+C on row 9's header, Ctrl+V on row 20's
+        self.keys("m:2,2|g:9:9|w:2|k:c-C|w:3|g:20:20|w:2|k:c-V|w:5|k:Escape|w:2")
+        self.assertEqual(ws.Rows(20).RowHeight, 30)
+
     def test_autofit_columns_leaves_wrapped_and_multi_line_text_at_its_width(self):
         # Excel 16, measured 2026-11-28: AutoFit fits one line of 26 letters, but text with a line break or wrapped
         # text keeps its column near the standard width (its widest line as laid out now)

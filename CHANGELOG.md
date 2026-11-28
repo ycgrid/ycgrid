@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Whole rows and columns copied and pasted bring their heights and widths (hidden ones stay hidden), and a cut of
+  whole rows or columns moves them, as in Excel; only the cells came along.
 - AutoFit Column Width leaves wrapped text and text with line breaks at the width it is laid out in, as Excel does,
   instead of widening the column to its longest line.
 - A row that sizes itself shrinks back when its text is cleared (Delete, Clear Contents, Clear All,

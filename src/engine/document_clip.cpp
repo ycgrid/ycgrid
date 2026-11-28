@@ -172,6 +172,12 @@ ClipData Document::Copy(uint32_t sheet, const Rect& rect_in) const {
     clip.arrays.push_back(ClipData::ArrayPart{Rect{in.r0 - rect.r0, in.c0 - rect.c0, in.r1 - rect.r0, in.c1 - rect.c0}, wb_.formulas->Share(fid)});
   }
   for (uint32_t c = rect.c0; c <= rect.c1; ++c) clip.col_widths.push_back(s->cols->Size(c));
+  if (clip.area.c0 == 0 && clip.area.c1 >= core::kMaxCols - 1 && clip.area.Rows() <= 65536) {
+    for (uint32_t r = clip.area.r0; r <= clip.area.r1; ++r) clip.line_heights.push_back(s->rows->IsHidden(r) ? -1 : s->rows->Size(r));
+  }
+  if (clip.area.r0 == 0 && clip.area.r1 >= core::kMaxRows - 1) {
+    for (uint32_t c = clip.area.c0; c <= clip.area.c1; ++c) clip.line_widths.push_back(s->cols->IsHidden(c) ? -1 : s->cols->Size(c));
+  }
   for (const auto& [k, rt] : *s->rich) {
     const uint32_t rr = static_cast<uint32_t>(k >> 16), cc = static_cast<uint32_t>(k & 0xFFFF);
     if (!rect.Contains(rr, cc)) continue;
@@ -559,6 +565,13 @@ Rect Document::Paste(uint32_t sheet, uint32_t r, uint32_t c, const ClipData& cli
       if (dest.Contains(dr, dc)) put.emplace_back((uint64_t{dr} << 16) | dc, l);
     }
     PutLinks(sheet, put);
+    s = M(sheet);
+  }
+  // whole rows (columns) from the clipboard bring their heights (widths), hidden ones hidden (Excel 16, measured
+  // 2026-11-28: Rows(1).Copy Rows(5), Columns(1).Copy Columns(4), one row over two)
+  if (all_like && clip.carry_notes && !transpose) {
+    if (c == 0 && !clip.line_heights.empty()) PutLineSizes(sheet, true, r, clip.line_heights);
+    if (r == 0 && !clip.line_widths.empty()) PutLineSizes(sheet, false, c, clip.line_widths);
     s = M(sheet);
   }
   if (all_like && !clip.cut && clip.carry_notes) {

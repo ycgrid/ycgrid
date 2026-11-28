@@ -169,6 +169,9 @@ struct ClipData {
   std::vector<ClipCell> cells;  // row-major
   std::vector<Rect> merges;     // relative to the upper-left corner
   std::vector<int32_t> col_widths;
+  // whole rows (columns) copied: each one's height (width) in px, -1 hidden, from the copy area's first one; a paste
+  // with All of the clipboard's copy gives them to the rows (columns) it pastes onto (Excel 16, measured 2026-11-28)
+  std::vector<int32_t> line_heights, line_widths;
   std::vector<std::pair<size_t, model::RichText>> rich;  // index into cells -> its fonts inside the text
   // index into cells -> its hyperlink: pasted with All and by fills, which take the destination's links away (Excel 16,
   // measured 2026-11-28: Copy Destination, FillDown, AutoFill and a cut bring them, a plain or empty cell removes one)
@@ -1216,6 +1219,8 @@ class Document : public formula::SheetResolver {
   void EraseLinksIn(uint32_t sheet, const Rect& rect);  // a cell emptied, pasted or filled over loses its hyperlink (Excel)
   // the links a paste or a fill brings (key: row << 16 | col), up to Excel's 65,530 a worksheet
   void PutLinks(uint32_t sheet, const std::vector<std::pair<uint64_t, model::Hyperlink>>& links);
+  // rows (columns) from `at` take the sizes of a whole-row (whole-column) copy: px, -1 hidden
+  void PutLineSizes(uint32_t sheet, bool rows, uint32_t at, const std::vector<int32_t>& sizes);
   static constexpr size_t kMaxSheetLinks = 65530;
   // the style ids of the cells in rect whose text has fonts of its own (before a format change, for RunsFollowFont)
   std::vector<std::pair<uint64_t, uint32_t>> RichStyleIds(uint32_t sheet, const Rect& rect) const;

@@ -78,6 +78,34 @@ TEST_CASE("Clear Formats takes the conditional formatting; Clear All also notes 
   CHECK(t.d.wb().sheets[0]->links->empty());
 }
 
+TEST_CASE("Whole rows and columns copied or cut bring their sizes (Excel 16, measured)", "[parity_formatting]") {
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  t.Set("A1", "x");
+  t.d.SetRowHeight(sh, 0, 0, 40);
+  t.d.SetColWidth(sh, 0, 0, 150);
+  const int32_t std_h = t.d.S(sh)->rows->default_size();
+  auto rows = [&](uint32_t r0, uint32_t r1) { return Rect{r0, 0, r1, yc::core::kMaxCols - 1}; };
+  // whole rows from the clipboard: the height comes along; cells alone bring none
+  engine::ClipData clip = t.d.Copy(sh, rows(0, 0));
+  clip.carry_notes = true;
+  t.d.Paste(sh, 4, 0, clip);
+  CHECK(t.d.S(sh)->rows->Size(4) == 40);
+  engine::ClipData cells = t.d.Copy(sh, R("A1:C1"));
+  cells.carry_notes = true;
+  t.d.Paste(sh, 6, 0, cells);
+  CHECK(t.d.S(sh)->rows->Size(6) == std_h);
+  // whole columns: the width
+  engine::ClipData col = t.d.Copy(sh, Rect{0, 0, yc::core::kMaxRows - 1, 0});
+  col.carry_notes = true;
+  t.d.Paste(sh, 0, 3, col);
+  CHECK(t.d.S(sh)->cols->Size(3) == 150);
+  // a cut moves the height and leaves the standard one
+  REQUIRE(t.d.MoveCells(sh, rows(0, 0), sh, 8, 0));
+  CHECK(t.d.S(sh)->rows->Size(8) == 40);
+  CHECK(t.d.S(sh)->rows->Size(0) == std_h);
+}
+
 TEST_CASE("A cell emptied loses its hyperlink, a copy and a fill bring one (Excel 16, measured)", "[parity_formatting]") {
   yctest::Doc t;
   model::Hyperlink l;

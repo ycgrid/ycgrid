@@ -1029,6 +1029,14 @@ bool Document::MoveCells(uint32_t src_sheet, const Rect& src_in, uint32_t dst_sh
   const int64_t drow = int64_t{dr} - src.r0, dcol = int64_t{dc} - src.c0;
   if (drow == 0 && dcol == 0 && src_sheet == dst_sheet) return true;
   const Rect dst{dr, dc, static_cast<uint32_t>(dr + src.Rows() - 1), static_cast<uint32_t>(dc + src.Cols() - 1)};
+  // the sizes of whole rows (columns) cut, taken before anything moves (set at the end)
+  std::vector<int32_t> line_sizes[2];
+  if (src_in.c0 == 0 && src_in.c1 >= core::kMaxCols - 1 && src.Rows() <= 65536) {
+    for (uint32_t r = src.r0; r <= src.r1; ++r) line_sizes[0].push_back(S(src_sheet)->rows->IsHidden(r) ? -1 : S(src_sheet)->rows->Size(r));
+  }
+  if (src_in.r0 == 0 && src.r1 >= S(src_sheet)->row_limit - 1) {
+    for (uint32_t c = src.c0; c <= src.c1; ++c) line_sizes[1].push_back(S(src_sheet)->cols->IsHidden(c) ? -1 : S(src_sheet)->cols->Size(c));
+  }
   // an array entered over several cells doesn't land in a table, as it can't be entered there: its value became a
   // header's text, and a calculation on open made it a number again (doc_fuzz seed 99007204). A table cut with it
   // goes along and isn't in the way.
@@ -1474,6 +1482,21 @@ bool Document::MoveCells(uint32_t src_sheet, const Rect& src_in, uint32_t dst_sh
   SyncTableHeaders(dst_sheet);
   if (src_sheet != dst_sheet) SyncTableHeaders(src_sheet);
   for (const std::string& name : merged_away) RewriteTableRefs(name, std::string(), std::string(), std::string());  // #REF!
+  // whole rows (columns) cut move their heights (widths): the rows left take the standard height, those pasted onto
+  // the cut ones' (Excel 16, measured 2026-11-28: Rows(1).Cut Rows(9) gives row 9 row 1's 30 points, row 1 the
+  // standard height)
+  if (!line_sizes[0].empty() || !line_sizes[1].empty()) {
+    for (int k = 0; k < 2; ++k) {
+      const bool rows = k == 0;
+      const auto& sizes = line_sizes[k];
+      if (sizes.empty()) continue;
+      const uint32_t from = rows ? src.r0 : src.c0, to = rows ? dr : dc;
+      const auto& dim = rows ? *S(src_sheet)->rows : *S(src_sheet)->cols;
+      std::vector<int32_t> standard(sizes.size(), dim.default_size());
+      PutLineSizes(src_sheet, rows, from, standard);
+      PutLineSizes(dst_sheet, rows, to, sizes);
+    }
+  }
   changes_.push_back(CellChange{src_sheet, src, kSrcUser});
   changes_.push_back(CellChange{dst_sheet, dst, kSrcUser});
   wb_.dirty = true;

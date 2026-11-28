@@ -336,6 +336,29 @@ void Document::EraseLinksIn(uint32_t sheet, const Rect& rect) {
   if (EraseInRect(M(sheet)->links.mut(), rect)) wb_.dirty = true;
 }
 
+void Document::PutLineSizes(uint32_t sheet, bool rows, uint32_t at, const std::vector<int32_t>& sizes) {
+  const Sheet* s = S(sheet);
+  if (!s) return;
+  const uint64_t limit = rows ? s->row_limit : core::kMaxCols;
+  for (size_t k = 0; k < sizes.size() && at + k < limit; ++k) {
+    const uint32_t i = static_cast<uint32_t>(at + k);
+    const bool hidden = sizes[k] < 0;
+    if (!hidden) {
+      if (rows) {
+        if (S(sheet)->rows->IsHidden(i)) HideRows(sheet, i, i, false);
+        SetRowHeight(sheet, i, i, sizes[k]);
+      } else {
+        if (S(sheet)->cols->IsHidden(i)) HideCols(sheet, i, i, false);
+        SetColWidth(sheet, i, i, sizes[k]);
+      }
+    } else if (rows) {
+      HideRows(sheet, i, i, true);
+    } else {
+      HideCols(sheet, i, i, true);
+    }
+  }
+}
+
 void Document::PutLinks(uint32_t sheet, const std::vector<std::pair<uint64_t, model::Hyperlink>>& links) {
   if (links.empty() || !S(sheet)) return;
   NoteTouched();
