@@ -8656,7 +8656,14 @@ class Range:
     def IndentLevel(self, v):  # noqa: N802
         if v is None:  # Excel's Null (cells that differ) read back: nothing changes
             return
-        self._style(indent=int(v))
+        # several cells (a merged cell is one) are indented as a block: every one becomes Left-aligned, Right ones too
+        block = self.Count > 1
+        if block and len(self._areas) == 1:
+            try:  # one merged cell is one cell
+                block = self.Cells(1, 1).MergeArea.Address != self.Address
+            except Exception:  # noqa: BLE001 (a reply without the area: indent as several cells)
+                pass
+        self._style(indent=int(v), **({"indent_block": True} if block else {}))
 
     def InsertIndent(self, InsertAmount):  # noqa: N802,N803
         """Add InsertAmount (may be negative) to the indent level (0..15)."""

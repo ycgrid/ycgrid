@@ -700,6 +700,33 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_indent_buttons_act_on_several_cells_as_a_block(self):
+        # Excel 16, measured 2026-11-28 through ExecuteMso: one Right-aligned cell keeps Right when indented, several
+        # cells all become Left; Decrease over several changes nothing while one of them is at 0
+        ws = self.ws
+        ws.Range("A1").Value = 5
+        ws.Range("A2").Value = "r"
+        ws.Range("A2").HorizontalAlignment = -4152
+        self.keys("m:2,2|g:A2|w:2|x:IndentIncrease|w:4")
+        self.assertEqual((ws.Range("A2").HorizontalAlignment, ws.Range("A2").IndentLevel), (-4152, 1))
+        ws.Range("A2").IndentLevel = 0
+        self.keys("g:A1:A2|w:2|x:IndentIncrease|w:4")
+        self.assertEqual([(ws.Range(a).HorizontalAlignment, ws.Range(a).IndentLevel) for a in ("A1", "A2")], [(-4131, 1), (-4131, 1)])
+        ws.Range("A2").IndentLevel = 0
+        self.keys("g:A1:A2|w:2|x:IndentDecrease|w:4")
+        self.assertEqual([ws.Range(a).IndentLevel for a in ("A1", "A2")], [1, 0])
+        ws.Range("A2").IndentLevel = 2
+        self.keys("g:A1:A2|w:2|x:IndentDecrease|w:4")
+        self.assertEqual([ws.Range(a).IndentLevel for a in ("A1", "A2")], [0, 1])
+        # the object model alike: one cell keeps Right, several become Left
+        ws.Range("A1:A2").IndentLevel = 0
+        ws.Range("A2").HorizontalAlignment = -4152
+        ws.Range("A2").InsertIndent(1)
+        self.assertEqual((ws.Range("A2").HorizontalAlignment, ws.Range("A2").IndentLevel), (-4152, 1))
+        ws.Range("A2").IndentLevel = 0
+        ws.Range("A1:A2").IndentLevel = 1
+        self.assertEqual(ws.Range("A2").HorizontalAlignment, -4131)
+
     def test_arrows_nudge_a_shape_a_pixel_and_shift_scales_it_about_its_center(self):
         # Excel 16, measured 2026-11-28 by keys: an arrow (with Ctrl too) moves a shape one screen pixel, Shift+Right
         # makes it 10% wider about its center, Shift+Down 10% lower; a shape a script selected takes the keys

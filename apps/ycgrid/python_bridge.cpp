@@ -324,9 +324,13 @@ void ApplyStyleProps(model::Style& x, const MV& pr, uint32_t font_id, bool has_n
   if (pr.Has("shrink")) x.shrink = pr.GetBool("shrink");
   if (pr.Has("indent")) {
     x.indent = static_cast<uint8_t>(std::clamp<int64_t>(pr.GetInt("indent"), 0, 15));
-    // Excel: an indent on a cell aligned otherwise than Left, Right or Distributed makes it Left (General, Center)
+    // Excel: an indent on a cell aligned otherwise than Left, Right or Distributed makes it Left (General, Center);
+    // given to several cells at once (indent_block) it makes every one Left, Right ones too (Excel 16, measured
+    // 2026-11-28: Range("A3:A4").IndentLevel = 1, InsertIndent)
     using H = model::HAlign;
-    if (x.indent && !pr.Has("halign") && x.halign != H::Left && x.halign != H::Right && x.halign != H::Distributed) x.halign = H::Left;
+    if (x.indent && !pr.Has("halign") && x.halign != H::Left &&
+        (pr.GetBool("indent_block") || (x.halign != H::Right && x.halign != H::Distributed)))
+      x.halign = H::Left;
   }
   if (pr.Has("rotation")) x.rotation = static_cast<int16_t>(pr.GetInt("rotation"));
   // a named style's borders (Style.Borders(...).LineStyle / Color)

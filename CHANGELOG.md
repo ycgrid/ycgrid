@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Increase Indent over several cells makes every one left-aligned (Right ones too), and Decrease Indent over
+  several cells changes nothing while one of them is at 0, as in Excel; `Range.IndentLevel` and `InsertIndent` on
+  several cells do the same.
 - Arrow keys move a selected shape, chart or control one screen pixel (Ctrl too), and Shift+arrows make it 10% wider,
   narrower, taller or lower about its center (Ctrl+Shift: 1%), as in Excel; an object a script selected
   (`Shape.Select`) takes the keys before any click.
