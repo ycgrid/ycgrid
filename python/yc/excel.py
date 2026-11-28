@@ -9090,15 +9090,20 @@ class Range:
         return True
 
     def Sort(self, Key1=None, Order1=xlAscending, Key2=None, Type=None, Order2=xlAscending, Key3=None, Order3=xlAscending, Header=2,  # noqa: N802,N803
-             OrderCustom=None, **kw):
+             OrderCustom=None, MatchCase=False, Orientation=None, SortMethod=None, DataOption1=None, DataOption2=None,  # noqa: N803
+             DataOption3=None, **kw):
         """OrderCustom: 1 + the number of a custom list (Application.GetCustomListContents) that orders Key1, as in
         Excel (1 is the normal order; recorded macros write OrderCustom:=1).
         Header: xlNo (the default), xlYes or xlGuess (a first row of text over other values is a header). One cell
-        sorts its current region, as in Excel."""
+        sorts its current region, as in Excel. The arguments come in Excel's order (MatchCase, Orientation,
+        SortMethod and the DataOptions after OrderCustom), so a call written with all of them by position works."""
         _one_area(self)
+        if Orientation is None:
+            Orientation = kw.get("Orientation", xlTopToBottom)
+        MatchCase = bool(MatchCase or kw.get("MatchCase", False))
         if self.Count == 1 and self.CurrentRegion.Count > 1:
-            return self.CurrentRegion.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, **kw)
-        ltr = kw.get("Orientation", xlTopToBottom) == xlLeftToRight
+            return self.CurrentRegion.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, MatchCase, Orientation)
+        ltr = Orientation == xlLeftToRight
         keys = []
         for k, o in ((Key1, Order1), (Key2, Order2), (Key3, Order3)):
             if k is None:
@@ -9110,8 +9115,7 @@ class Range:
         if OrderCustom and int(OrderCustom) > 1:  # Excel 16, measured: OrderCustom n + 1 orders by list n
             keys[0].append(int(OrderCustom) - 2)
         header = Header == xlYes or (Header == xlGuess and not ltr and _guess_header(self._sheet, self._a))
-        _rq("range.sort", sheet=self._sheet, rect=list(self._a), keys=keys, header=header, match_case=bool(kw.get("MatchCase", False)),
-            left_to_right=ltr)
+        _rq("range.sort", sheet=self._sheet, rect=list(self._a), keys=keys, header=header, match_case=MatchCase, left_to_right=ltr)
 
     def Subtotal(self, GroupBy, Function, TotalList, Replace=True, PageBreaks=False, SummaryBelowData=1):  # noqa: N802,N803
         """Data > Subtotal: GroupBy and TotalList are field numbers (1 = the list's first column); Function xlSum,

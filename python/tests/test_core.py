@@ -278,6 +278,9 @@ class RequestShapeTest(unittest.TestCase):
         self.reply = None
         self.replies = {}  # method -> its own reply (the rest get self.reply)
         self._orig = excel._rq
+        # Application.DisplayAlerts lives in the process: a live test run before in the same process left it False,
+        # and the requests that carry it (pivot.refresh's alerts) differed only then
+        excel.Application.DisplayAlerts = True
 
         def fake(method, **params):
             self.sent.append((method, params))

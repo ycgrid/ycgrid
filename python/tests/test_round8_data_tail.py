@@ -234,6 +234,18 @@ class SortOrderTailTest(_Live):
         self.assertEqual(sort(2), [6, 2, 8, 1, 5, 3, 7, 4])
         self.assertEqual(sort(1, True), [3, 1, 5, 8, 2, 7, 6, 4])
 
+    def test_sort_takes_excels_arguments_by_position(self):
+        # Range.Sort(Key1, Order1, Key2, Type, Order2, Key3, Order3, Header, OrderCustom, MatchCase, Orientation), as
+        # a macro written for Excel passes them: left to right by row 2 descending, the first column a header
+        # (Excel 16 measured 2026-11-28 through COM)
+        ws = self.ws
+        ws.Range("A1:F3").Value = [["Sym", "C", "A", "B", None, "A"], ["Px", 3, 1, 2, 9, 0], ["Qty", 30, 10, 20, 90, 5]]
+        ws.Range("A1:F3").Sort(ws.Range("A2"), 2, None, None, 1, None, 1, 1, 1, False, 2)
+        self.assertEqual([ws.Cells(3, c).Value for c in range(1, 7)], ["Qty", 90, 30, 20, 10, 5])
+        ws.Range("A1:F3").Value = [["Sym", "C", "A", "B", None, "A"], ["Px", 3, 1, 2, 9, 0], ["Qty", 30, 10, 20, 90, 5]]
+        ws.Range("B1:F3").Sort(ws.Range("B1"), 1, ws.Range("B3"), None, 2, None, 1, 2, 1, False, 2)
+        self.assertEqual([ws.Cells(3, c).Value for c in range(2, 7)], [10, 5, 20, 30, 90])
+
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class GoToSpecialTailTest(_Live):

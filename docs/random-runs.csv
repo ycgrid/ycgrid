@@ -13752,3 +13752,18 @@ date,tool,seed,seconds,result,note
 2026-11-28,basics,5106,168,ok,
 2026-11-28,gaps_fuzz,700479,94,ok,
 2026-11-28,screen_walk,r185,600,found,"Row heights and column widths through Rows.Copy, Range.Copy of cells, Columns.Copy, Rows.Cut, one row over two, a hidden row copied and Ctrl+C / Ctrl+V on row headers, measured in Excel through COM"
+2026-11-28,basics,5107,164,ok,
+2026-11-28,screen_walk,r186,300,clean,"Rows and columns inserted beside a taller row or a wider column (Rows.Insert, Columns.Insert, Ctrl+Shift+= on a row header): they take the size of the row above / the column to the left, measured in Excel through COM"
+2026-11-28,chaos,8068,360,ok,
+2026-11-28,formula_fuzz,5800,0,ok,
+2026-11-28,calc_fuzz,4819,29,ok,
+2026-11-28,screen_walk,r187,300,clean,"Ctrl+End and Ctrl+Shift+End after the last cell is cleared, its formats cleared, rows deleted, measured in Excel by keys: Excel keeps a stale last cell until UsedRange is read (a quirk left alone), YCGrid shrinks it at once"
+2026-11-28,screen_walk,r188,200,clean,"The status bar's Average, Count and Sum over a filtered list and over a row hidden by hand: only the rows shown count, as Excel"
+2026-11-28,screen_walk,r189,300,clean,"Text to Columns at fixed widths: General, Text, a skipped column, YMD dates, a short line, another destination, measured in Excel through COM"
+2026-11-28,gaps_fuzz,700480,95,ok,
+2026-11-28,doc_fuzz,2400489,100,ok,
+2026-11-28,doc_fuzz,2400488,353,ok,
+2026-11-28,calc_fuzz,4820,3,ok,
+2026-11-28,formula_fuzz,5801,0,ok,
+2026-11-28,chaos,8069,361,ok,
+2026-11-28,screen_walk,r190,400,found,"Sort left to right by a row, with a header column, two keys and a blank, written as a macro for Excel passes the arguments by position, measured in Excel through COM"

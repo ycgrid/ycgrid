@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- `Range.Sort` takes Excel's arguments by position (MatchCase, Orientation, SortMethod and the DataOptions after OrderCustom), so a call written for Excel with all of them no longer raises.
 - Whole rows and columns copied and pasted bring their heights and widths (hidden ones stay hidden), and a cut of
   whole rows or columns moves them, as in Excel; only the cells came along.
 - AutoFit Column Width leaves wrapped text and text with line breaks at the width it is laid out in, as Excel does,
