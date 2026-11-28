@@ -643,7 +643,9 @@ bool Document::FillDownShown(uint32_t sheet, const Rect& a_in, bool up) {
   // the first (Fill Up: last) row shown goes over each run of rows shown at once (Excel 16, measured: FillUp skips the
   // rows a filter hides as FillDown does). A row at a time, a whole filtered column was a million pastes and ran out
   // of memory
-  const uint32_t src = up ? runs.back().r1 : runs.front().r0;
+  // Fill Down's source is the range's first row, shown or not (Excel 16, measured 2026-11-28 through excel_diff:
+  // FillDown over B2:C3 with row 2 filtered out gives B3 B2's value)
+  const uint32_t src = up ? runs.back().r1 : a.r0;
   const ClipData top = Copy(sheet, Rect{src, a.c0, src, a.c1});
   for (Rect run : runs) {
     if (run.r0 == src) ++run.r0;

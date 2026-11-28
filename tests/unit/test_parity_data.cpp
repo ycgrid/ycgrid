@@ -586,4 +586,8 @@ TEST_CASE("A table's own filter: clearing and Fill Down leave the rows it hides,
   CHECK(t.T("C3") == "y");  // hidden: kept
   CHECK(t.T("C4") == "top");
   CHECK(t.T("C5") == "w");
+  // the range's first row hidden: it is still the source (Excel 16, measured 2026-11-28 through excel_diff)
+  t.Set("C3", "hidden first");
+  CHECK(t.d.FillDownShown(sh, Rect{2, 2, 4, 2}));
+  CHECK(t.T("C4") == "hidden first");
 }

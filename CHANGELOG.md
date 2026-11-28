@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Fill Down over a filtered list takes the range's first row as its source even when the filter hides it, as Excel does; the first row shown stood in for it.
 - Python against Excel's object model (`scripts/excel_diff.py`): a value written to whole rows or columns leaves a
   merged cell they cut alone, `Select` takes in the merged cells it cuts, a fill over several areas on a protected
   sheet changes nothing when one target is locked, and `HasArray` over a range an array covers in part is None.

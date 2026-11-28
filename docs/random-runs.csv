@@ -14027,3 +14027,15 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700522,95,ok,
 2026-11-28,basics,5149,161,ok,
 2026-11-28,excel_diff,all states,1800,found,"scripts/excel_diff.py in all seven states (plain, table, filter, merged, protected, arrays, hidden), calls and reads, against a hidden Excel 16"
+2026-11-28,chaos,8112,361,ok,
+2026-11-28,calc_fuzz,4862,3,ok,
+2026-11-28,formula_fuzz,5843,1,ok,
+2026-11-28,basics,5150,190,ok,
+2026-11-28,gaps_fuzz,700523,98,ok,
+2026-11-28,doc_fuzz,2400532,299,ok,
+2026-11-28,doc_fuzz,2400533,98,ok,
+2026-11-28,calc_fuzz,4863,16,ok,
+2026-11-28,formula_fuzz,5844,0,ok,
+2026-11-28,chaos,8113,361,ok,
+2026-11-28,doc_fuzz,2400534,22,fail,doc_fuzz_2400534.txt
+2026-11-28,gaps_fuzz,700524,93,ok,
