@@ -646,6 +646,23 @@ class UiOpsRound8Test(unittest.TestCase):
             self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:3|k:c-A|t:{ref}|k:Enter|w:5")
             self.assertEqual(excel.Selection.Address, addr, ref)
 
+    def test_rules_refuse_structured_references_as_excel(self):
+        from yc import excel
+
+        # Excel 16, measured through COM: Validation.Add with =Trades[Sym] and FormatConditions.Add with [@Qty] raise
+        # (1004); INDIRECT("Trades[Sym]") and a name on the table are taken. YCGrid took them all
+        self.ws.Range("B2:C2").Value = [["Sym", "Qty"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:C{r}").Value = [[f"S{r}", r]]
+        self.ws.ListObjects.Add(1, self.ws.Range("B2:C6"), None, 1).Name = "Trades"
+        with self.assertRaises(Exception):
+            self.ws.Range("F2").Validation.Add(3, 1, 1, "=Trades[Sym]")
+        with self.assertRaises(Exception):
+            self.ws.Range("C3:C6").FormatConditions.Add(2, 0, "=[@Qty]>3")
+        self.ws.Range("F3").Validation.Add(3, 1, 1, '=INDIRECT("Trades[Sym]")')
+        self.assertEqual(self.ws.Range("F3").Validation.Type, 3)
+        excel.ActiveWorkbook.Names.Add("QtyCol", "=Trades[Qty]")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

@@ -13259,3 +13259,25 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,7989,361,ok,
 
 2026-11-28,screen_walk,r156,900,found,"A table's name and structured references (Trades, Trades[Qty], [#All], [#Headers], [#Totals]) through Application.Goto, Range() and the Name Box, measured in Excel through Goto"
+2026-11-28,gaps_fuzz,700404,89,ok,
+2026-11-28,doc_fuzz,2400410,118,ok,
+2026-11-28,calc_fuzz,4744,30,ok,
+2026-11-28,formula_fuzz,5725,0,ok,
+2026-11-28,chaos,7990,361,ok,
+2026-11-28,basics,5032,163,ok,
+2026-11-28,gaps_fuzz,700405,118,ok,
+2026-11-28,doc_fuzz,2400411,125,ok,
+2026-11-28,calc_fuzz,4745,3,ok,
+2026-11-28,formula_fuzz,5726,0,ok,
+2026-11-28,chaos,7991,361,ok,
+2026-11-28,gaps_fuzz,700406,94,ok,
+2026-11-28,basics,5033,160,ok,
+2026-11-28,doc_fuzz,2400412,153,ok,
+2026-11-28,calc_fuzz,4746,16,ok,
+2026-11-28,formula_fuzz,5727,0,ok,
+2026-11-28,chaos,7992,361,ok,
+2026-11-28,basics,5034,176,ok,
+2026-11-28,gaps_fuzz,700407,96,ok,
+2026-11-28,doc_fuzz,2400413,105,ok,
+
+2026-11-28,screen_walk,r157,600,found,"Structured references in a validation list, a validation through INDIRECT, conditional formats and a defined name, measured in Excel through COM"

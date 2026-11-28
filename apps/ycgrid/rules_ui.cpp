@@ -1173,6 +1173,11 @@ bool g_quick_preview_on = false;
 
 void AddRule(AppState& s, model::CfRule rule, const char* label) {
   const uint32_t sheet = s.focus_sheet;
+  // a structured reference in the rule: Excel refuses it (measured through FormatConditions.Add)
+  if (engine::HasStructuredRef(rule.formula1) || engine::HasStructuredRef(rule.formula2)) {
+    s.ShowError("YCGrid", TR("This type of reference can't be used in a conditional formatting formula. Use a cell reference, or a function such as INDIRECT."));
+    return;
+  }
   rule.ranges = SelectionAreasClipped(s);
   s.engine->PostUser(label, [sheet, rule](Document& d) {
     if (!d.RefuseProtectedSheet(sheet)) d.AddCondFormat(sheet, rule);
@@ -2702,7 +2707,11 @@ void DrawRuleDialogs(AppState& s) {
       u.dv_f1[0] = u.dv_f2[0] = u.dv_it[0] = u.dv_im[0] = u.dv_et[0] = u.dv_em[0] = 0;
     }
     ImGui::SameLine(S(270));
-    if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
+    const bool dv_ok = DlgOkButton(TR("OK"), ImVec2(S(80), 0));
+    if (dv_ok && (engine::HasStructuredRef(u.dv_f1) || engine::HasStructuredRef(u.dv_f2))) {
+      // a structured reference: Excel refuses it (measured through Validation.Add)
+      s.ShowError("YCGrid", TR("This type of reference can't be used in a data validation formula. Use a cell reference, or a function such as INDIRECT."));
+    } else if (dv_ok) {
       model::DvRule rule = d;
       rule.formula1 = u.dv_f1;
       rule.formula2 = u.dv_f2;

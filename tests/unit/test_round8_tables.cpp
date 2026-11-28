@@ -935,3 +935,15 @@ TEST_CASE("A row a table grows over takes a column's format only when all its da
     CHECK(t.T("C5") == k.shown);
   }
 }
+
+TEST_CASE("A rule's formula with a structured reference is known for Excel's refusal", "[table][round8]") {
+  // Excel 16 refuses Validation.Add(xlValidateList, ..., "=Trades[Sym]") and FormatConditions.Add(..., "=[@Qty]>3"),
+  // takes INDIRECT("Trades[Sym]") and a name on Trades[Qty] (measured through COM)
+  using yc::engine::HasStructuredRef;
+  CHECK(HasStructuredRef("=Trades[Sym]"));
+  CHECK(HasStructuredRef("=[@Qty]>3"));
+  CHECK(HasStructuredRef("C3>SUM(Trades[Qty])"));
+  CHECK_FALSE(HasStructuredRef("=INDIRECT(\"Trades[Sym]\")"));
+  CHECK_FALSE(HasStructuredRef("=$A$1:$A$5"));
+  CHECK_FALSE(HasStructuredRef("Buy,Sell"));
+}

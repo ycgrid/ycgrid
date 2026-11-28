@@ -2,6 +2,7 @@
 // python_bridge_rules.cpp - YCP: conditional formatting (FormatConditions), data validation (Validation), AutoFilter
 #include "app_state.h"
 
+#include "engine/navigate.h"
 #include "engine/rule_eval.h"
 #include "formula/numfmt.h"
 #include "io/msgvalue.h"
@@ -368,13 +369,23 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
       return a;
     });
   }
+  // a structured reference ([@Qty], Trades[Qty]) in a rule's formula: Excel 16 refuses it in conditional formatting
+  // and in a validation's list or formula (measured through FormatConditions.Add and Validation.Add: error 1004;
+  // INDIRECT("Trades[Qty]") and a name defined on it are taken)
+  auto names_table = [](Document&, const std::string& text, core::CellPos) { return engine::HasStructuredRef(text); };
   if (m == "cf.add") {
     const MV* rule = p.Get("rule");
     if (!rule) return err("E_ARG", "rule is required");
-    return eng.Call([&](Document& d) {
+    bool refused_table_ref = false;
+    MV out = eng.Call([&](Document& d) {
       model::CfRule c;
       ApplyCf(c, *rule);
       if (c.ranges.empty() || d.RefuseProtectedSheet(sheet)) return MV();
+      const core::CellPos at{c.ranges.front().r0, c.ranges.front().c0};
+      if (names_table(d, c.formula1, at) || names_table(d, c.formula2, at)) {
+        refused_table_ref = true;
+        return MV();
+      }
       // "last": after the sheet's other rules, as Excel's FormatConditions.Add (the UI puts a new rule on top)
       if (p.GetBool("last")) c.priority = -1;
       const uint32_t id = d.AddCondFormat(sheet, c);
@@ -384,6 +395,8 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
       }
       return MV();
     });
+    if (refused_table_ref) return err("E_APP", "This type of reference can't be used in a conditional formatting formula: use a cell reference, or a function such as INDIRECT(\"Table1[Qty]\")");
+    return out;
   }
   if (m == "cf.set" || m == "cf.delete") {
     const uint32_t id = static_cast<uint32_t>(p.GetInt("id"));
@@ -439,6 +452,7 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
     const MV* rr = p.Get("rect");
     if (!rr) return err("E_ARG", "rect is required");
     const Rect rect = RectFromMV(*rr);
+    bool refused_table_ref = false;
     eng.Call([&](Document& d) {
       if (m == "dv.clear") {
         d.ClearValidation(sheet, rect);
@@ -450,10 +464,16 @@ MV DispatchRules(engine::Engine& eng, const std::string& m, const MV& p, std::st
           }
         }
         if (const MV* props = p.Get("rule")) ApplyDv(rule, *props);
+        const core::CellPos at{rect.r0, rect.c0};
+        if (names_table(d, rule.formula1, at) || names_table(d, rule.formula2, at)) {
+          refused_table_ref = true;
+          return;
+        }
         d.SetValidation(sheet, rect, rule);
       }
       d.ForeignWrite();
     });
+    if (refused_table_ref) return err("E_APP", "This type of reference can't be used in a data validation formula: use a cell reference, or a function such as INDIRECT");
     return MV::Bool(true);
   }
   if (m == "dv.check") {

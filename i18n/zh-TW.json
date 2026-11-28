@@ -5184,6 +5184,8 @@
  "This screen lets you set field widths (column breaks).": "這個畫面可讓您設定欄位寬度 (分欄線)。",
  "This screen lets you set the delimiters your data contains. You can see how your text is affected in the preview below.": "這個畫面可讓您設定資料所包含的分隔符號。您可以在下方的預覽中看到文字受影響的情形。",
  "This text is long and overflows into the empty cells to the right (Excel behavior)": "這段文字很長，會溢出到右邊的空白儲存格（Excel 行為）",
+ "This type of reference can't be used in a conditional formatting formula. Use a cell reference, or a function such as INDIRECT.": "設定格式化的條件公式中不能使用這種參照。請改用儲存格參照，或 INDIRECT 之類的函數。",
+ "This type of reference can't be used in a data validation formula. Use a cell reference, or a function such as INDIRECT.": "資料驗證公式中不能使用這種參照。請改用儲存格參照，或 INDIRECT 之類的函數。",
  "This value doesn't match the data validation restrictions defined for this cell.": "此值不符合此儲存格定義的資料驗證限制。",
  "This week": "本週",
  "This will change a filtered range on your worksheet. To complete this task, please remove AutoFilters.": "這將變更工作表上的篩選範圍。若要完成這項工作，請移除自動篩選。",

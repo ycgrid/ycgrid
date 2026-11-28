@@ -29,6 +29,10 @@ bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, cons
 // https://, ftp:// followed by a host (a "/" added when there is no path), www. (http:// in front), mailto:, and
 // text with one @ (mailto: in front); nothing with a space or a line break in it
 std::string AutoLinkAddress(std::string_view text);
+// a structured reference ([@Qty], Table1[Qty]) in a formula's text ("=" or not): Excel 16 refuses one in conditional
+// formatting and data validation (measured through FormatConditions.Add and Validation.Add); INDIRECT's text and a
+// name defined on it are taken
+bool HasStructuredRef(std::string_view formula_text);
 
 // Ctrl+End: bottom-right corner of the used range
 core::CellPos LastCell(const model::Sheet& s);

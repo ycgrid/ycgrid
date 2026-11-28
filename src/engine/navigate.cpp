@@ -2,9 +2,11 @@
 #include "engine/navigate.h"
 
 #include "engine/tile_iter.h"
+#include "formula/parser.h"
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <limits>
 #include <map>
 #include <set>
@@ -142,6 +144,20 @@ core::Rect CurrentRegion(const model::Sheet& sh, uint32_t r, uint32_t c) {
     if (!grew) break;
   }
   return a;
+}
+
+bool HasStructuredRef(std::string_view v) {
+  if (v.find('[') == std::string_view::npos) return false;
+  if (!v.empty() && v.front() == '=') v.remove_prefix(1);
+  const formula::ParseResult pr = formula::Parse(v, core::CellPos{0, 0}, nullptr);
+  if (!pr.ok) return false;
+  bool found = false;
+  std::function<void(const formula::Node&)> walk = [&](const formula::Node& n) {
+    if (n.kind == formula::NK::StructRef) found = true;
+    for (const auto& k : n.kids) walk(k);
+  };
+  walk(pr.root);
+  return found;
 }
 
 std::string AutoLinkAddress(std::string_view t) {
