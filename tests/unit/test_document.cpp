@@ -552,6 +552,26 @@ TEST_CASE("尋找與取代") {
   CHECK(t.T("A1") == "pear");
 }
 
+TEST_CASE("Find looking in values passes over hidden rows and columns, looking in formulas finds them") {
+  // Excel 16, measured 2026-11-28: Find("TSMC", LookIn:=xlValues) skips D2 in a hidden column and A4 in a hidden row
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  t.Set("A2", "TSMC");
+  t.Set("A4", "TSMC");
+  t.Set("D2", "TSMC");
+  t.d.HideRows(sh, 3, 3, true);
+  t.d.HideCols(sh, 3, 3, true);
+  auto all = [&](bool formulas) {
+    std::string out;
+    for (const auto& p : t.d.FindAll(sh, Rect{0, 0, 9, 9}, "TSMC", true, false, false, formulas, 20)) {
+      out += yc::core::CellA1(p.row, p.col) + " ";
+    }
+    return out;
+  };
+  CHECK(all(false) == "A2 ");
+  CHECK(all(true) == "A2 D2 A4 ");
+}
+
 TEST_CASE("Iterative calculation of circular references") {
   yctest::Doc t;
   t.Set("A1", "=(A1+10)/2");  // converges to 10

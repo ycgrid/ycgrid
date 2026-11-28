@@ -13596,3 +13596,13 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700455,92,ok,
 2026-11-28,chaos,8042,362,ok,
 2026-11-28,screen_walk,r175,600,found,"AutoFilter by cell color and font color, Top / Bottom N items and percent (15 percentages), above and below average, blanks, a values list, Or and And criteria, measured in Excel through COM"
+2026-11-28,doc_fuzz,2400463,91,ok,
+2026-11-28,calc_fuzz,4795,30,ok,
+2026-11-28,formula_fuzz,5776,0,ok,
+2026-11-28,chaos,8043,361,ok,
+2026-11-28,basics,5083,167,ok,
+2026-11-28,gaps_fuzz,700456,96,ok,
+2026-11-28,doc_fuzz,2400464,101,ok,
+2026-11-28,calc_fuzz,4796,3,ok,
+2026-11-28,formula_fuzz,5777,0,ok,
+2026-11-28,screen_walk,r176,400,found,"Find and FindNext looking in values and formulas, part and whole, with case, wildcards, a number format, a formula text, over a hidden row and a hidden column, measured in Excel through COM"

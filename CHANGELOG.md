@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Find with Look in: Values passes over hidden rows and columns, as Excel does; Look in: Formulas still finds them.
 - Top 10 Percent filters show the whole part of the share (25% of 11 numbers shows 2, not 3), at least one, as Excel does.
 - Sorting by a custom list: descending puts the values not in the list first, as Excel does, and Case sensitive
   takes only the list's items as they are written.

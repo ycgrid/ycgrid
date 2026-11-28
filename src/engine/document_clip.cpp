@@ -2808,6 +2808,9 @@ bool Document::Find(uint32_t sheet, const Rect& within_in, std::string_view what
   };
   auto matches = [&](uint32_t r, uint32_t c) {
     if (filtered(r)) return false;
+    // Look in Values searches what the sheet shows: a hidden row or column is passed over, where Look in Formulas
+    // finds it (Excel 16, measured 2026-11-28: Find("TSMC", LookIn:=xlValues) skips D2 in a hidden column)
+    if (!look_in_formulas && (s->rows->IsHidden(r) || s->cols->IsHidden(c))) return false;
     if (fmt && !FormatMatches(wb_.styles->Get(s->GetStyle(r, c)), *wb_.styles, *fmt)) return false;
     if (what.empty()) return true;  // by format only
     std::string text;
