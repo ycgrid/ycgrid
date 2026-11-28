@@ -574,6 +574,23 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("g:C7|w:2|t:=MAX(C3:C6)|k:Enter|w:5|g:C4|w:2|x:TblBandedRows|w:5")
         self.assertEqual(ws.Range("C7").Formula, "=MAX(C3:C6)")
 
+    def test_tab_in_the_last_cell_adds_a_row_above_the_totals_row(self):
+        # Excel 16, measured by keys: Tab in the last data cell of a table with a totals row adds a data row above it
+        # (the totals move down) and goes to its first cell; YCGrid left the table for the cell beside it
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        lo.ShowTotals = True
+        from yc import excel
+
+        self.keys("m:2,2|g:D6|w:3|k:Tab|w:6")
+        self.assertEqual(excel.ActiveCell.Address, "$B$7")
+        self.assertEqual(lo.Range.Address, "$B$2:$D$8")
+        self.assertEqual(self.ws.Range("B8").Value, "Total")
+        self.keys("g:D8|w:3|k:Tab|w:4")  # the totals row's last cell: the cell beside it
+        self.assertEqual(excel.ActiveCell.Address, "$E$8")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

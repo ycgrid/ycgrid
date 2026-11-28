@@ -1584,7 +1584,8 @@ bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, con
     const Rect body(tb.header ? tb.range.r0 : tb.Data().r0, tb.range.c0, tb.Data().r1, tb.range.c1);
     if (!body.Contains(r, c) || (body.c0 == body.c1 && body.r0 == body.r1)) continue;
     if (!back && c == body.c1 && r == body.r1) {
-      if (tb.totals || body.r1 + 1 >= sheet.row_limit) return false;  // a totals row under it: Tab goes on to it
+      // a totals row under it too: the new row goes in above it, the totals moving down (Excel 16, measured by keys)
+      if (body.r1 + 1 >= sheet.row_limit) return false;
       *add_row = tb.id;
       *nr = body.r1 + 1, *nc = body.c0;
       return true;

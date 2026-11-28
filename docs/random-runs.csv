@@ -13192,3 +13192,15 @@ date,tool,seed,seconds,result,note
 2026-11-28,formula_fuzz,5715,0,ok,
 
 2026-11-28,screen_walk,r150,600,found,"Convert to Range (Table Design and ListObject.Unlist) over a table read by [@Qty], Trades[Qty], [#All], [[#Data],[#Totals],[Qty]], the table's name and its totals row, measured in Excel through COM"
+2026-11-28,basics,5022,167,ok,
+2026-11-28,chaos,7980,361,ok,
+2026-11-28,gaps_fuzz,700395,98,ok,
+2026-11-28,doc_fuzz,2400401,102,ok,
+2026-11-28,calc_fuzz,4735,32,ok,
+2026-11-28,formula_fuzz,5716,0,ok,
+2026-11-28,chaos,7981,362,ok,
+2026-11-28,basics,5023,161,ok,
+2026-11-28,gaps_fuzz,700396,99,ok,
+2026-11-28,doc_fuzz,2400402,125,ok,
+
+2026-11-28,screen_walk,r151,600,found,"Tab, Shift+Tab and Enter around a table's totals row: its last data cell, its own last and first cells, measured in Excel by keys"
