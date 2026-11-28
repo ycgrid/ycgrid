@@ -13336,3 +13336,11 @@ date,tool,seed,seconds,result,note
 2026-11-28,calc_fuzz,4754,3,ok,
 2026-11-28,formula_fuzz,5735,1,ok,
 2026-11-28,chaos,8001,361,ok,
+2026-11-28,basics,5042,169,ok,
+2026-11-28,gaps_fuzz,700415,95,ok,
+2026-11-28,doc_fuzz,2400422,98,fail,doc_fuzz_2400422.txt
+2026-11-28,calc_fuzz,4755,16,ok,
+2026-11-28,formula_fuzz,5736,1,ok,
+2026-11-28,gaps_fuzz,700416,92,ok,
+2026-11-28,chaos,8002,361,ok,
+2026-11-28,basics,5043,158,ok,
