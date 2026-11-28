@@ -1051,6 +1051,29 @@ void Document::GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_
     });
     model::EditObjectRefTexts(sc, [&](std::string& t) { text(t, core::CellPos{0, 0}, own); });
   }
+  // the ranges conditional formats and validation apply to grow too when they end at its last row inside its columns
+  // (Excel 16, measured by keys: a rule on C3:C6 under a growth to row 7 applies to C3:C7, one on C3:C5 stays)
+  if (Sheet* ms = M(sheet)) {
+    auto grow_rects = [&](std::vector<Rect>& v) {
+      bool ch = false;
+      for (Rect& x : v) {
+        if (x.r1 == old_last && x.r0 >= first && x.c0 >= c0 && x.c1 <= c1) x.r1 = new_last, ch = true;
+      }
+      return ch;
+    };
+    if (!ms->cond_formats->empty()) {
+      auto rules = *ms->cond_formats;
+      bool ch = false;
+      for (auto& rule : rules) ch = grow_rects(rule.ranges) || ch;
+      if (ch) ms->cond_formats.mut() = std::move(rules), any = true;
+    }
+    if (!ms->validations->empty()) {
+      auto rules = *ms->validations;
+      bool ch = false;
+      for (auto& rule : rules) ch = grow_rects(rule.ranges) || ch;
+      if (ch) ms->validations.mut() = std::move(rules), any = true;
+    }
+  }
   // the step's Undo takes back what read the old range too, with the whole version (AutoExpandTable rebuilds the index
   // and calculates again after it)
   if (any) NoteTouched();

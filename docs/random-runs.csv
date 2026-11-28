@@ -13210,3 +13210,18 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700397,95,ok,
 
 2026-11-28,screen_walk,r152,600,clean,"The table code's unmeasured claims checked against Excel: another formula typed in a calculated column, a value in it, Resize over a row, ShowTotals' defaults"
+2026-11-28,basics,5024,173,ok,
+2026-11-28,doc_fuzz,2400403,88,ok,
+2026-11-28,calc_fuzz,4737,17,ok,
+2026-11-28,formula_fuzz,5718,0,ok,
+2026-11-28,chaos,7983,361,ok,
+2026-11-28,basics,5025,171,ok,
+2026-11-28,gaps_fuzz,700398,96,ok,
+2026-11-28,doc_fuzz,2400404,107,ok,
+2026-11-28,calc_fuzz,4738,30,ok,
+2026-11-28,formula_fuzz,5719,0,ok,
+2026-11-28,basics,5026,169,ok,
+2026-11-28,chaos,7984,361,ok,
+2026-11-28,gaps_fuzz,700399,94,ok,
+
+2026-11-28,screen_walk,r153,600,found,"Conditional formats and validation on a table's columns while rows are typed under it and columns beside it, measured in Excel by keys"

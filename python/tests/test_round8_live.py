@@ -591,6 +591,22 @@ class UiOpsRound8Test(unittest.TestCase):
         self.keys("g:D8|w:3|k:Tab|w:4")  # the totals row's last cell: the cell beside it
         self.assertEqual(excel.ActiveCell.Address, "$E$8")
 
+    def test_rules_on_a_tables_column_grow_with_it(self):
+        # Excel 16, measured by keys: a conditional format and a validation on C3:C6 of B2:D6 apply to C3:C7 once a row
+        # is typed under it; one on C3:C5 stays. YCGrid left them on the old rows
+        self.ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+        for r in range(3, 7):
+            self.ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+        self.ws.ListObjects.Add(1, self.ws.Range("B2:D6"), None, 1)
+        self.ws.Range("C3:C6").FormatConditions.Add(1, 5, "=3")
+        self.ws.Range("D3:D5").FormatConditions.Add(1, 5, "=3")
+        self.ws.Range("C3:C6").Validation.Add(1, 1, 1, "0", "100")
+        self.keys("m:2,2|g:B7|w:3|t:x|k:Enter|w:6")
+        self.assertEqual(sorted(fc.AppliesTo.Address for fc in self.ws.Cells.FormatConditions), ["$C$3:$C$7", "$D$3:$D$5"])
+        self.assertEqual(self.ws.Range("C7").Validation.Type, 1)
+        self.keys("k:c-Z|w:6")  # the growth's step: the rules go back with it
+        self.assertEqual(sorted(fc.AppliesTo.Address for fc in self.ws.Cells.FormatConditions), ["$C$3:$C$6", "$D$3:$D$5"])
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

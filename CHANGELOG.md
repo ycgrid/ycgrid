@@ -137,6 +137,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - A row a table grows over takes a column's format only when all of the column's data has it, as in Excel.
 - Convert to Range writes the references that replace the table's names with their sheet (`Sheet1!$C3`), as Excel does.
 - Tab in a table's last data cell adds a row above its totals row too, as in Excel: it left the table.
+- Conditional formats and data validation on a table's columns grow with the table when a row is added under it, as in
+  Excel.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
 - The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text
