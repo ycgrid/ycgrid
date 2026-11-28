@@ -794,10 +794,12 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
   }
 }
 
-std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& rr) {
-  if (!Config().generate_table_refs || !s.snap || !s.edit.active) return {};
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& rr, int64_t formula_row) {
+  if (!Config().generate_table_refs || !s.snap) return {};
+  if (formula_row < 0 && (!s.edit.active || s.edit.sheet != sheet)) return {};  // (another sheet's: not measured)
+  const int64_t own_row = formula_row >= 0 ? formula_row : int64_t{s.edit.r};
   const model::Sheet* sh = s.snap->Sheet(sheet);
-  if (!sh || sh->tables->empty() || s.edit.sheet != sheet) return {};  // (another sheet's: not measured, cells as before)
+  if (!sh || sh->tables->empty()) return {};
   const model::Table* t = nullptr;
   for (const model::Table& x : *sh->tables) {
     if (x.range.Contains(rr.r0, rr.c0) && x.range.Contains(rr.r1, rr.c1)) t = &x;
@@ -820,7 +822,7 @@ std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& rr) {
     parts = {"#Headers", "#Data"};
   } else if (t->header && t->totals && d.r0 <= d.r1 && rr.r0 == d.r0 && rr.r1 == tr) {
     parts = {"#Data", "#Totals"};
-  } else if (rr.r0 == rr.r1 && rr.r0 >= d.r0 && rr.r0 <= d.r1 && s.edit.r == rr.r0) {
+  } else if (rr.r0 == rr.r1 && rr.r0 >= d.r0 && rr.r0 <= d.r1 && own_row == int64_t{rr.r0}) {
     at = true;  // the formula's own row
   } else {
     return {};  // part of a column, another row: the cells (Excel 16, measured)

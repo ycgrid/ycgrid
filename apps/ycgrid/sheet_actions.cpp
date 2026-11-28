@@ -1866,6 +1866,16 @@ void AutoSum(AppState& s, const char* fn) {
     if (it != filter_hidden.end() && it->first <= r1) return "SUBTOTAL(" + std::to_string(sub) + "," + range + ")";
     return f + "(" + range + ")";
   };
+  // the table a cell is right under, without its totals row: AutoSum there makes the row the totals row and sums
+  // with SUBTOTAL(109...) as Excel 16 does (measured: Alt+= in C7 under B2:D6 is =SUBTOTAL(109,[Qty]), over C7:D7
+  // =SUBTOTAL(109,C3:C6) and =SUBTOTAL(109,D3:D6))
+  auto under_table = [&](uint32_t r, uint32_t c) -> const model::Table* {
+    for (const model::Table& t : *sh->tables) {
+      if (!t.totals && r == t.range.r1 + 1 && c >= t.range.c0 && c <= t.range.c1 && t.HasData()) return &t;
+    }
+    return nullptr;
+  };
+  const int sub_total = sub ? 100 + sub : 0;  // SUBTOTAL's code that leaves hidden rows out, as a totals row's
   // B2, or B2:B4 (Excel writes =SUM(C2) for one cell, not C2:C2)
   auto ref = [](uint32_t r0, uint32_t c0, uint32_t r1, uint32_t c1) {
     return r0 == r1 && c0 == c1 ? core::CellA1(r0, c0) : core::CellA1(r0, c0) + ":" + core::CellA1(r1, c1);
@@ -1937,13 +1947,34 @@ void AutoSum(AppState& s, const char* fn) {
   // it) and pointed at (the arrows move it from its first cell, Shift its other end; a drag replaces it)
   auto edit_cell = [&](uint32_t r, uint32_t c) {
     const Proposal p = propose_cell(r, c);
+    if (const model::Table* t = sub_total ? under_table(r, c) : nullptr; t && p.ok && p.up && p.totals.empty()) {
+      const uint32_t j = c - t->range.c0;
+      const std::string name = j < t->columns.size() ? t->columns[j].name : std::string();
+      if (!name.empty()) {
+        std::string esc;
+        for (char ch : name) {
+          if (ch == '[' || ch == ']' || ch == '#' || ch == '\'') esc += '\'';
+          esc += ch;
+        }
+        StartEdit(s, true, "=SUBTOTAL(" + std::to_string(sub_total) + ",[" + esc + "])");
+        return;
+      }
+    }
     if (!p.ok) {
       StartEdit(s, true, std::string("=") + fn + "()");
       s.edit.pending_caret = static_cast<int>(s.edit.text.size()) - 1;
       s.edit.cursor_to_end = false;
       return;
     }
-    const std::string text = proposal_text(p, 0, 0);
+    std::string text = proposal_text(p, 0, 0);
+    // a column's part of a table, written as the table's (Excel 16, measured: Alt+= under a totals row proposes
+    // =SUM(Table1[[#Data],[#Totals],[Qty]]))
+    if (p.up && p.totals.empty()) {
+      const std::string a1 = ref(p.range.r0, p.range.c0, p.range.r1, p.range.c1);
+      if (const std::string st = TableRefFor(s, sheet, p.range, r); !st.empty() && text.find("(" + a1 + ")") != std::string::npos) {
+        text.replace(text.find("(" + a1 + ")") + 1, a1.size(), st);
+      }
+    }
     StartEdit(s, true, text);
     const size_t open = text.find('(');
     const size_t b = p.up && text.compare(1, 9, "SUBTOTAL(") == 0 ? text.find(',') + 1 : open + 1;
@@ -2002,10 +2033,18 @@ void AutoSum(AppState& s, const char* fn) {
     const uint32_t c_end = sel.Cols() > 4096 ? std::max(sel.c0, used_c1 + 1) : sel.c1;
     std::vector<std::pair<core::CellPos, std::string>> out;
     for (uint32_t r = sel.r0; r <= r_end; ++r) {
-      for (uint32_t c = sel.c0; c <= c_end; ++c) out.push_back({core::CellPos{r, c}, proposal_text(p, r - sel.r0, c - sel.c0)});
+      for (uint32_t c = sel.c0; c <= c_end; ++c) {
+        std::string text = proposal_text(p, r - sel.r0, c - sel.c0);
+        // under a table: the row becomes its totals row, summed with SUBTOTAL (=SUBTOTAL(109,C3:C6))
+        if (sub_total && p.up && p.totals.empty() && under_table(r, c) && text.compare(0, f.size() + 2, "=" + f + "(") == 0) {
+          text = "=SUBTOTAL(" + std::to_string(sub_total) + "," + text.substr(f.size() + 2);
+        }
+        out.push_back({core::CellPos{r, c}, text});
+      }
     }
+    // entered as typed: a total under a table makes its row the totals row (as typing it does)
     s.engine->PostUser(TR("AutoSum"), [sheet, out](Document& d) {
-      for (const auto& [at, text] : out) d.SetFormula(sheet, at.row, at.col, text.substr(1));
+      for (const auto& [at, text] : out) d.SetInput(sheet, at.row, at.col, text);
     });
     return;
   }
@@ -2090,8 +2129,10 @@ void AutoSum(AppState& s, const char* fn) {
   grown.r1 = static_cast<uint32_t>(std::min<int64_t>(grown.r1, row_limit - 1));
   grown.c1 = static_cast<uint32_t>(std::min<int64_t>(grown.c1, col_limit - 1));
   if (out.empty()) return;
+  // entered as typed: a total written under a table makes its row the totals row (Excel 16, measured: Alt+= over
+  // C3:C6 writes =SUM(C3:C6) in C7 and the table shows its totals row)
   s.engine->PostUser(TR("AutoSum"), [sheet, out](Document& d) {
-    for (const auto& [at, text] : out) d.SetFormula(sheet, at.row, at.col, text);
+    for (const auto& [at, text] : out) d.SetInput(sheet, at.row, at.col, "=" + text);
   });
   // the selection takes in the row (column) of totals below (beside) it, from its first number (Excel)
   render::SelectRange(s.FocusView(), grown);

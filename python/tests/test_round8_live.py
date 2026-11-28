@@ -542,6 +542,38 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertEqual(self.ws.Range("C2").Value, 2024)
         self.assertEqual(self.ws.Range("C3").Value, 5)
 
+    def test_autosum_under_a_table_makes_its_totals_row(self):
+        from yc import excel
+
+        excel.Application.DisplayAlerts = False
+
+        def table():
+            while excel.Worksheets.Count > 1:
+                excel.Worksheets(excel.Worksheets.Count).Delete()
+            ws = excel.Worksheets.Add(After=excel.Worksheets(1))
+            ws.Activate()
+            ws.Range("B2:D2").Value = [["Sym", "Qty", "Px"]]
+            for r in range(3, 7):
+                ws.Range(f"B{r}:D{r}").Value = [[f"S{r}", r, r * 1.5]]
+            return ws, ws.ListObjects.Add(1, ws.Range("B2:D6"), None, 1)
+
+        # Excel 16, measured by keys: Alt+= right under a table makes the row its totals row, nothing else written
+        # in it; YCGrid grew the data over the total and =SUM(C3:C6) became the circular =SUM(C3:C7)
+        ws, lo = table()
+        self.keys("m:2,2|g:C7|w:3|k:a-Equal|w:6|k:Enter|w:6")
+        self.assertEqual(ws.Range("C7").Formula, "=SUBTOTAL(109,[Qty])")
+        self.assertTrue(lo.ShowTotals)
+        self.assertEqual(lo.Range.Address, "$B$2:$D$7")
+        self.assertIsNone(ws.Range("B7").Value)
+        self.assertEqual(ws.Range("C7").Value, 18)
+        ws, lo = table()
+        self.keys("g:C7:D7|w:3|k:a-Equal|w:6")
+        self.assertEqual([ws.Range("C7").Formula, ws.Range("D7").Formula], ["=SUBTOTAL(109,C3:C6)", "=SUBTOTAL(109,D3:D6)"])
+        self.assertTrue(lo.ShowTotals)
+        # a formula typed into the totals row stays when a table option changes (Banded Rows cleared it)
+        self.keys("g:C7|w:2|t:=MAX(C3:C6)|k:Enter|w:5|g:C4|w:2|x:TblBandedRows|w:5")
+        self.assertEqual(ws.Range("C7").Formula, "=MAX(C3:C6)")
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

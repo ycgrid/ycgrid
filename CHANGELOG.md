@@ -130,6 +130,11 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   added, a header row with a year or set in bold over text is taken as the header.
 - Data > Sort, `Range.Sort(Header=xlGuess)` and `RemoveDuplicates(Header=xlGuess)` guess the header row the same way,
   as Excel's: a header row with a blank in it is sorted with the data.
+- A formula typed or written right under a table makes that row the table's totals row, as in Excel, and AutoSum there
+  writes `=SUBTOTAL(109,[Qty])`: the table grew over it as data, and `=SUM(C3:C6)` became the circular `=SUM(C3:C7)`.
+  Under a totals row AutoSum proposes `Table1[[#Data],[#Totals],[Qty]]`, as Excel's.
+- A formula typed into a table's totals row stays when an option of the table changes: Banded Rows cleared it.
+- A row a table grows over takes a column's format only when all of the column's data has it, as in Excel.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
 - The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text

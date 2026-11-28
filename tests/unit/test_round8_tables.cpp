@@ -527,20 +527,24 @@ TEST_CASE("Round8 tables: the cells a table grows over take its formats, and onl
   numfmt("C5", "0%");  // a format of its own, under the table
   t.Set("C3", "=B3*7");
   t.Set("C4", "=B4*7");  // C2 holds a value: not a calculated column
+  // a formula under the table makes its row the totals row, the cell keeping its own 0% (Excel 16, measured
+  // 2026-11-28 with these steps through Range.Formula: A1:C5, ShowTotals, C5 shows 600%); then A6 under the totals row
+  // grows nothing
   t.Set("C5", "=B4*2");  // 6
   t.d.Recalc();
   REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
-  CHECK(t.T("C5") == "6.00");  // the last row's 0.00 over its own 0%
+  CHECK(TableOf(t, id).totals);
+  CHECK(t.T("C5") == "600%");
   t.Set("A6", "d");
   t.d.Recalc();
-  REQUIRE(TableOf(t, id).range == Rect{0, 0, 5, 2});
-  CHECK(t.V("C6").IsEmpty());  // =B4*7 in C3:C4 only: nothing continues
+  REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
+  CHECK(t.V("C6").IsEmpty());
   // beside it: the header is the text of what was typed in the cell's own format, then takes the header's format
   numfmt("C1", "0.00");
   numfmt("D1", "0%");
   t.Set("D1", "12.5");
   t.d.Recalc();
-  REQUIRE(TableOf(t, id).range == Rect{0, 0, 5, 3});
+  REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 3});
   CHECK(t.V("D1").IsString());
   CHECK(t.T("D1") == "1250%");
   const auto& st = t.d.wb().styles->Get(t.d.S(t.sheet())->GetStyle(0, 3));
@@ -894,5 +898,31 @@ TEST_CASE("A row typed under a list takes its formats and formulas as Excel's", 
     type(t, "A7", "x");
     INFO(rows.size());
     CHECK(is_bold(t, "A7") == want);
+  }
+}
+
+TEST_CASE("A row a table grows over takes a column's format only when all its data shares it", "[table][round8]") {
+  // Excel 16, measured through Range.Formula: Name / Qty / Price in A1:C4, 0.00 on some of C2:C4, C5 with or without
+  // its own 0%, then 6 written in C5: 0.00 only when C2:C4 all have it, else C5 keeps what it had
+  struct Case {
+    std::vector<const char*> fmt;
+    bool own;
+    const char* shown;
+  };
+  for (const Case& k : std::vector<Case>{{{"C2", "C3", "C4"}, true, "6.00"}, {{"C3", "C4"}, true, "600%"}, {{"C2", "C4"}, true, "600%"},
+                                         {{"C4"}, true, "600%"}, {{"C4"}, false, "6"}, {{"C3", "C4"}, false, "6"}, {{"C2", "C3", "C4"}, false, "6.00"}}) {
+    yctest::Doc t;
+    const uint32_t id = SalesTable(t);
+    auto numfmt = [&](const char* a1, const char* code) {
+      const auto p = t.P(a1);
+      t.d.ModifyStyle(t.sheet(), Rect::Cell(p.row, p.col), [&](yc::model::Style& s) { s.numfmt = t.d.wb_mut().styles.mut().InternString(code); });
+    };
+    for (const char* a : k.fmt) numfmt(a, "0.00");
+    if (k.own) numfmt("C5", "0%");
+    t.Set("C5", "6");
+    t.d.Recalc();
+    INFO(k.fmt.size() << (k.own ? " own" : ""));
+    REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
+    CHECK(t.T("C5") == k.shown);
   }
 }

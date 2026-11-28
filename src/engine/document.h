@@ -1250,8 +1250,9 @@ class Document : public formula::SheetResolver {
   // changed it); the formulas changed are put back on their cells (`skip`: a sheet whose cells are left alone)
   void RewriteThreeDCells(uint32_t id, const std::function<bool(formula::RefSpec&)>& fix, uint32_t skip);
   void ForEachReferenceText(const std::function<void(std::string&)>& fn);  // names, charts, rules and validation
-  void AutoExpandTable(uint32_t sheet, uint32_t r, uint32_t c) { AutoExpandTable(sheet, Rect::Cell(r, c)); }
-  void AutoExpandTable(uint32_t sheet, const Rect& w);  // w: the cells being written
+  void AutoExpandTable(uint32_t sheet, uint32_t r, uint32_t c, bool formula = false) { AutoExpandTable(sheet, Rect::Cell(r, c), formula); }
+  // w: the cells being written; formula: a formula is (one under a table makes its row the totals row)
+  void AutoExpandTable(uint32_t sheet, const Rect& w, bool formula = false);
   // a table on `sheet` (columns c0..c1, first row first) grew down from its last row old_last to new_last: the ranges
   // that end at old_last inside it grow with it (cell formulas, names, rules, objects)
   void GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_last, uint32_t new_last, uint32_t c0, uint32_t c1);

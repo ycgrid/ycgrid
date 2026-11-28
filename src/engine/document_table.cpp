@@ -716,7 +716,9 @@ bool Document::UpdateTable(uint32_t sheet, uint32_t id, const std::function<void
     SyncTableHeaders(sheet);
     if (after.filter_button && !S(sheet)->autofilter->on) SetAutoFilter(sheet, after.range);
   }
-  if (after.totals) WriteTotalsRow(sheet, id);
+  // the totals row's cells are written when it comes, not at every change of the table: a formula typed into it
+  // (=MAX(C3:C6)) was cleared by Banded Rows
+  if (after.totals && !before.totals) WriteTotalsRow(sheet, id);
   RebuildAll();
   changes_.push_back(CellChange{sheet, before.range.Union(after.range), kSrcUser});
   wb_.dirty = true;
@@ -851,9 +853,27 @@ void Document::GrowTables(const std::vector<std::pair<uint32_t, Rect>>& list) {
   Commit();
 }
 
-void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
+void Document::AutoExpandTable(uint32_t sheet, const Rect& w, bool formula) {
   const Sheet* s = S(sheet);
   if (!s || s->tables->empty() || ProtectionApplies(sheet)) return;
+  // a formula in the row under a table (typed, Alt+= or Range.Formula) makes that row the table's totals row, with
+  // nothing else written in it; a value grows the data (Excel 16, measured: =SUM(C3:C6) in C7 under B2:D6 is a
+  // totals row, 5 a data row). Grown as data, the SUM's range followed to C3:C7, a circular reference
+  if (formula && w.r0 == w.r1) {
+    for (const Table& t : *s->tables) {
+      if (t.totals || w.r0 != t.range.r1 + 1 || w.c0 < t.range.c0 || w.c1 > t.range.c1) continue;
+      if (!t.header && t.range.r0 == t.range.r1) continue;  // a table of one row keeps it as data
+      const Rect old = t.range;
+      NoteStructural();
+      Table* mt = MutTable(sheet, t.id);
+      mt->range.r1 = w.r0;
+      mt->totals = true;
+      RebuildAll();
+      changes_.push_back(CellChange{sheet, Rect{old.r0, old.c0, w.r0, old.c1}, kSrcUser});
+      wb_.dirty = true;
+      return;
+    }
+  }
   if (defer_table_growth) {
     if (deferred_growth_.size() < 4096) deferred_growth_.emplace_back(sheet, w);
     return;
@@ -918,6 +938,13 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
           if (!below && !(had_header && r == nr.r0)) continue;
           const uint32_t st = below ? ms->GetStyle(old.r1, c) : ms->GetStyle(r, old.c1);
           if (ms->GetStyle(r, c) == st) continue;
+          // under it, only a format every data row of the column shares: 0.00 in C2:C4 makes the new C5 0.00, in C3:C4
+          // only it leaves C5 as it was, its own 0% or General (Excel 16, measured through Range.Formula and by keys)
+          if (below) {
+            bool shared = true;
+            for (uint32_t rr = body0; rr < old.r1 && shared; ++rr) shared = ms->GetStyle(rr, c) == st;
+            if (!shared) continue;
+          }
           // a header's format waits until its text is made from what the write put there (SyncTableHeaders, at the end
           // of the write: the grow comes before the write)
           if (!below && had_header && r == nr.r0) grown_header_styles_.push_back({sheet, r, c, st});

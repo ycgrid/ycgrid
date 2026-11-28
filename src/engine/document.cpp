@@ -943,7 +943,7 @@ bool Document::SetInput(uint32_t sheet, uint32_t r, uint32_t c, std::string_view
     // rest may wait (defer_table_growth)
     const bool keep = defer_table_growth;
     if (text[0] == '=' && text.find('[') != std::string_view::npos) defer_table_growth = false;
-    AutoExpandTable(sheet, r, c);
+    AutoExpandTable(sheet, r, c, text[0] == '=' && text.size() > 1);
     defer_table_growth = keep;
   }
   if (text[0] == '=' && text.size() > 1) {

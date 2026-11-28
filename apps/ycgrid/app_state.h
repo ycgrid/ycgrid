@@ -1074,7 +1074,8 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
 std::string GetPivotDataFor(AppState& s, uint32_t sheet, uint32_t r, uint32_t c);
 // Use table names in formulas: Table1[Px], Table1[@Qty]... for the part of a table pointed at while typing a formula
 // ("" for cells that are no such part, or with the option off)
-std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& r);
+// formula_row: the row of the formula's cell on that sheet (AutoSum's); -1: the cell being edited
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& r, int64_t formula_row = -1);
 void DrawCellTips(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
 void DrawMiscWindows(AppState& s);
 void DrawMiscDialogs(AppState& s);
