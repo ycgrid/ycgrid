@@ -128,6 +128,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
 - A row hidden by a height of 0 (`RowHeight = 0`) is left out of SUBTOTAL at once: the formula kept counting it.
 - Create Table (Ctrl+T) and `ListObjects.Add` guess a header row as Excel does: a list all of text gets a header row
   added, a header row with a year or set in bold over text is taken as the header.
+- Data > Sort, `Range.Sort(Header=xlGuess)` and `RemoveDuplicates(Header=xlGuess)` guess the header row the same way,
+  as Excel's: a header row with a blank in it is sorted with the data.
 - A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
   away).
 - The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text

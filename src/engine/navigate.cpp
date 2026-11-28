@@ -177,7 +177,7 @@ bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, cons
     }
     const model::Style& a = styles.Get(s.GetStyle(r.r0, c));
     const model::Style& b = styles.Get(s.GetStyle(r.r0 + 1, c));
-    if (a.bold != b.bold || a.italic != b.italic || a.fill_color != b.fill_color || a.font_color != b.font_color) return true;
+    if (a.bold != b.bold || a.italic != b.italic || a.underline != b.underline || a.fill_color != b.fill_color || a.font_color != b.font_color) return true;
   }
   return false;
 }

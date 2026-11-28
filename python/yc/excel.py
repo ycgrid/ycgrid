@@ -2578,14 +2578,12 @@ _TABLE_SORTS = {}
 
 
 def _guess_header(sheet, a):
-    """Excel's xlGuess: the first row is a header when it is all text over a row with something else."""
+    """Excel's xlGuess, the one the Sort and Create Table dialogs make (measured on 13 layouts): no blank in the first
+    two rows, and some column whose first cell is text over a number below it, or a number over text, or a first row
+    formatted apart from the second."""
     if a[2] <= a[0]:
         return False
-    first = _rq("range.get", sheet=sheet, rect=[a[0], a[1], a[0], a[3]])["values"]
-    second = _rq("range.get", sheet=sheet, rect=[a[0] + 1, a[1], a[0] + 1, a[3]])["values"]
-    row1 = [v for v in (first[0] if first else []) if v is not None]
-    row2 = [v for v in (second[0] if second else []) if v is not None]
-    return bool(row1) and all(isinstance(v, str) for v in row1) and any(not isinstance(v, str) for v in row2)
+    return bool(_rq("range.guess_header", sheet=sheet, rect=list(a)))
 
 
 _SORTS = {}

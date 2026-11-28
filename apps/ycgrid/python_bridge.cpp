@@ -2286,6 +2286,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       return x;
     });
   }
+  // xlGuess (Range.Sort, RemoveDuplicates): whether the range's first row is its header, Excel's one guess
+  if (m == "range.guess_header") {
+    return eng.Call([&](Document& d) {
+      if (d.auto_calc) d.Recalc();
+      else d.CalcEntered();
+      const model::Sheet* s = d.S(sheet);
+      const MV* rect = p.Get("rect");
+      return MV::Bool(s && rect && engine::GuessHeaderRow(*d.wb().styles, *s, RectOf(*rect)));
+    });
+  }
   if (m == "range.current_region") {
     return eng.Call([&](Document& d) {
       if (d.auto_calc) d.Recalc();  // manual calculation: read what the cells show (Excel), new formulas computed

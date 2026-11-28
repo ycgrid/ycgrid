@@ -486,23 +486,11 @@ void DrawWatchWindow(AppState& s) {
 
 // ---- The range Sort and Remove Duplicates work on ----
 
+// the Sort dialog's My data has headers: Excel's one guess, Create Table's and xlGuess's too (engine::GuessHeaderRow;
+// measured on 13 layouts through the Sort dialog's check box, which agree)
 bool GuessHeader(AppState& s, const model::Sheet& sh, const Rect& a) {
   if (a.Rows() < 2 || !s.snap) return false;
-  // Excel: the first row is a header when it is text over other kinds of values, or formatted unlike the row below
-  const auto& tbl = *s.snap->wb.styles;
-  bool first_text = true, any_text = false, second_nontext = false, styled = false;
-  for (uint32_t c = a.c0; c <= a.c1 && c - a.c0 < 256; ++c) {
-    const auto& v1 = sh.GetValue(a.r0, c);
-    first_text = first_text && (v1.IsString() || v1.IsEmpty());
-    any_text = any_text || v1.IsString();
-    const auto& v2 = sh.GetValue(a.r0 + 1, c);
-    second_nontext = second_nontext || (!v2.IsString() && !v2.IsEmpty());
-    const model::Style& s1 = tbl.Get(sh.GetStyle(a.r0, c));
-    const model::Style& s2 = tbl.Get(sh.GetStyle(a.r0 + 1, c));
-    styled = styled || s1.bold != s2.bold || s1.italic != s2.italic || s1.underline != s2.underline || s1.fill_color != s2.fill_color ||
-             s1.font_color != s2.font_color;
-  }
-  return first_text && any_text && (second_nontext || styled);
+  return engine::GuessHeaderRow(*s.snap->wb.styles, sh, a);
 }
 
 DataRange FindDataRange(AppState& s) {

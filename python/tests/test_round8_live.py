@@ -514,6 +514,34 @@ class UiOpsRound8Test(unittest.TestCase):
         finally:
             excel.Application.ExtendList = True
 
+    def test_the_sort_dialog_guesses_the_header_row_as_excel(self):
+        from yc import excel
+
+        # Excel 16's Sort dialog (its check box read through UI Automation) and Range.Sort(Header=xlGuess) guess as
+        # Create Table does: a year among text headers is a header row, a header row with a blank is not
+        def guess(rows):
+            self.ws.Cells.Clear()
+            self.ws.Range("B2:D6").Value = rows
+            self.keys("m:2,2|g:C4|w:3")
+            yc.ui.command("CustomSort")
+            self.keys("w:6")
+            box = [i for i in yc.ui.items("") if i.get("label") == "My data has headers"]
+            self.keys("k:Escape|w:4")
+            self.assertTrue(box)
+            return box[0].get("checked")
+
+        nums = [[f"S{r}", r, r * 2] for r in range(3, 7)]
+        self.assertTrue(guess([["Sym", 2024, "Px"]] + nums))
+        self.assertFalse(guess([["Sym", None, "Px"]] + nums))
+        self.assertTrue(guess([["Sym", "Qty", "Px"]] + nums))
+        self.assertFalse(guess([[f"t{r}{c}" for c in range(3)] for r in range(5)]))
+        # the object model's xlGuess: the year row stays on top of a descending sort
+        self.ws.Cells.Clear()
+        self.ws.Range("B2:D6").Value = [["Sym", 2024, "Px"], ["a", 1, 2], ["b", 5, 3], ["c", 3, 4], ["d", 2, 5]]
+        self.ws.Range("B2:D6").Sort(Key1=self.ws.Range("C2"), Order1=excel.xlDescending, Header=excel.xlGuess)
+        self.assertEqual(self.ws.Range("C2").Value, 2024)
+        self.assertEqual(self.ws.Range("C3").Value, 5)
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

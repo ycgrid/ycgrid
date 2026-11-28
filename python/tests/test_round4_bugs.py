@@ -341,8 +341,9 @@ class KeyboardRound4Test(unittest.TestCase):
         # Alt+Down was only written on the menu: nothing opened
         ws = self.ws
         ws.Range("B1:B3").Value = [["x"], ["y"], ["x"]]
-        self.keys("g:B4|w:2|k:a-Down|w:6|k:Down|w:3|k:Enter|w:4")
-        self.assertEqual(ws.Range("B4").Value, "y")  # x, y (each once, A to Z): Down moves to y
+        # x, y (each once, A to Z); the list begins on none, so Down, Down is y (Excel 16, measured by keys)
+        self.keys("g:B4|w:2|k:a-Down|w:6|k:Down|w:3|k:Down|w:3|k:Enter|w:4")
+        self.assertEqual(ws.Range("B4").Value, "y")
         # a cell with a validation list still opens its own list
         from yc.excel import xlValidateList
 
