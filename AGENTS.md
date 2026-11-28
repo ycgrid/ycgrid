@@ -880,7 +880,7 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   merged area or part of a multi-cell array and that no two tables, merges or arrays overlap: each path that let one
   in was found within minutes of the check (seeds 31000041, 32000257, 32027683).
 - A table holds text in its header, and nothing a table can't hold: one question (`TableCantHold`: another table,
-  merged cells, any of a multi-cell array) for every way a table gets cells (AddTable, ResizeTable, AutoExpandTable),
+  merged cells, any of a multi-cell array) for every way a table gets cells (AddTable, ResizeTable, AutoExpandTable, the totals row a formula under it makes),
   cells it takes over from a spill given up first (`TakeSpillsUnder`: the headers are Column1, Column2, the array
   shows #SPILL!, Excel 16 measured), and its headers made text again at every step's `Commit` whatever path wrote
   them (a fill of blanks, a cut from another sheet), inside the step so Undo takes it back. Each path that kept a rule
