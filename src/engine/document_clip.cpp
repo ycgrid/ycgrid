@@ -2359,10 +2359,11 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
   auto list_pos = [&](const SortKey& k, const Value& v) -> int {
     const bool own = !k.custom_items.empty();
     if ((!own && (k.custom_list < 0 || k.custom_list >= static_cast<int>(lists.size()))) || !v.IsString()) return -1;
-    const std::string low = Lower(v.str());
+    // Case sensitive takes the list's items as they are written: high isn't High (Excel 16, measured 2026-11-28)
+    const std::string low = match_case ? std::string(v.str()) : Lower(v.str());
     const auto& L = own ? k.custom_items : lists[static_cast<size_t>(k.custom_list)];
     for (size_t i = 0; i < L.size(); ++i) {
-      if (Lower(L[i]) == low) return static_cast<int>(i);
+      if ((match_case ? L[i] : Lower(L[i])) == low) return static_cast<int>(i);
     }
     return -1;
   };
@@ -2419,11 +2420,12 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
       const Value& va = cell(a, j).value;
       const Value& vb = cell(b, j).value;
       if (k.custom_list >= 0 || !k.custom_items.empty()) {
-        // the list's order (reversed when descending); values not in the list come after it
+        // the list's order; values not in the list come after it, and before it when descending (the whole order
+        // reversed); blanks stay last (Excel 16, measured 2026-11-28)
         const int pa = list_pos(k, va), pb = list_pos(k, vb);
         if (pa >= 0 || pb >= 0) {
-          if (pa < 0) return false;
-          if (pb < 0) return true;
+          if (pa < 0) return k.descending && rank(va) != 4;
+          if (pb < 0) return !(k.descending && rank(vb) != 4);
           if (pa != pb) return k.descending ? pa > pb : pa < pb;
           continue;
         }

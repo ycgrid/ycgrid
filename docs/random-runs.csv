@@ -13582,3 +13582,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,gaps_fuzz,700453,96,ok,
 2026-11-28,basics,5080,162,ok,
 2026-11-28,screen_walk,r173,800,found,"Arrows, Tab, Enter, Home, End, Page keys, Shift and Ctrl moves, Ctrl+A and Shift/Ctrl+Space on a sheet protected with only unlocked cells selectable, measured in Excel by keys; basics gets the state protected_select_unlocked"
+2026-11-28,doc_fuzz,2400461,94,ok,
+2026-11-28,calc_fuzz,4793,3,ok,
+2026-11-28,formula_fuzz,5774,0,ok,
+2026-11-28,gaps_fuzz,700454,89,ok,
+2026-11-28,chaos,8041,361,ok,
+2026-11-28,basics,5081,163,ok,
+2026-11-28,screen_walk,r174,500,found,"Sort by a custom order (Low,Mid,High) ascending, descending and case sensitive, by cell color on top and bottom, two colors, with blanks and values not in the list, measured in Excel through COM"

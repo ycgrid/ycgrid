@@ -39,6 +39,8 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Sorting by a custom list: descending puts the values not in the list first, as Excel does, and Case sensitive
+  takes only the list's items as they are written.
 - On a sheet protected without "Select locked cells", the keys walk the unlocked cells as in Excel: Right and Left
   in reading order, Down, Up and Enter in column order, all the way round, Home to the first; Home, Ctrl+Home, Page
   Down and Shift with an arrow no longer select locked cells.

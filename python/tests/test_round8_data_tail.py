@@ -213,6 +213,29 @@ class NamesAndOutlineTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class SortOrderTailTest(_Live):
+    def test_a_custom_order_descending_and_case_sensitive(self):
+        # Excel 16, measured 2026-11-28 (Sort.SortFields.Add with CustomOrder): descending puts the values not in the
+        # list first; Case sensitive takes only the items as written; blanks stay last
+        ws = self.ws
+
+        def sort(order, match_case=False):
+            ws.Range("A1:B9").Value = [["Risk", 0], ["Mid", 1], ["high", 2], ["Low", 3], [None, 4], ["Mid", 5], ["Other", 6],
+                                       ["low", 7], ["High", 8]]
+            ws.Sort.SortFields.Clear()
+            ws.Sort.SortFields.Add(ws.Range("A2:A9"), 0, order, "Low,Mid,High")
+            ws.Sort.MatchCase = match_case
+            ws.Sort.SetRange(ws.Range("A1:B9"))
+            ws.Sort.Header = 1
+            ws.Sort.Apply()
+            return [int(x) for x in self.col("B2:B9")]
+
+        self.assertEqual(sort(1), [3, 7, 1, 5, 2, 8, 6, 4])
+        self.assertEqual(sort(2), [6, 2, 8, 1, 5, 3, 7, 4])
+        self.assertEqual(sort(1, True), [3, 1, 5, 8, 2, 7, 6, 4])
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class PivotTailTest(_Live):
     ROWS = [["Region", "Product", "Sales", "Num"], ["East", "P1", 10, 5], ["West", "P2", 20, 15], ["East", "P2", 30, 25],
             ["North", "P1", 40, 35], ["West", "P1", 50, 45], ["North", "P2", 60, 55], ["East", "P1", 70, 65], ["West", "P2", 80, 75]]
