@@ -38,6 +38,8 @@ struct Settings {
   std::vector<std::pair<std::string, std::string>> autocorrect;
   std::vector<std::string> autocorrect_removed;  // built-in replacements the user deleted
   bool autocorrect_replace = true;               // Replace text as you type (Application.AutoCorrect.ReplaceText)
+  // AutoFormat As You Type: a web or e-mail address typed becomes a link (Application.AutoFormatAsYouTypeReplaceHyperlinks)
+  bool autoformat_hyperlinks = true;
   // the status bar's selection statistics (right-click the status bar, as in Excel)
   bool status_average = true, status_count = true, status_numerical_count = false, status_min = false, status_max = false, status_sum = true;
   // ... and its other entries, as Excel's Customize Status Bar: the cell mode (Ready / Enter / Edit / Point), Caps Lock,
@@ -70,6 +72,8 @@ struct Settings {
   bool multi_threaded_calc = true;
   int calc_thread_count = 0;
   bool generate_getpivotdata = true;
+  // pointing at a table's column, row or header while typing a formula writes Table1[Px] (Application.GenerateTableRefs)
+  bool generate_table_refs = true;
   // calculation
   bool auto_calc = true;
   bool auto_data_tables = true;  // false: Automatic except for data tables (with auto_calc)
@@ -102,6 +106,9 @@ struct Settings {
   int move_after_return_dir = 0;
   bool edit_directly_in_cell = true;
   bool enable_autocomplete = true;
+  // Advanced > Extend data range formats and formulas (Application.ExtendList): a row typed under a list takes the
+  // formats and formulas of the rows above
+  bool extend_list = true;
   bool auto_flash_fill = true;  // Advanced > Automatically Flash Fill (Application.FlashFill): grey suggestions while typing
   // editing: the user's custom lists for AutoFill and Sort (File > Options > Edit Custom Lists)
   std::vector<std::vector<std::string>> custom_lists;
@@ -148,6 +155,13 @@ bool UserStateSaved();             // false in hidden instances: no settings, re
 // open. A click on a screenshot's picture in a chaos round opened the picture viewer on the user's screen, again and
 // again. owner is the HWND of the window asking (or null).
 bool OpenOnDesktop(const std::wstring& target, const std::wstring& params = L"", void* owner = nullptr, int show = 1);
+// the last target OpenOnDesktop was asked to open, opened or not (tests: a hidden instance opens nothing)
+std::wstring LastDesktopOpen();
+int DesktopOpens();  // how many times it was asked
+// the temp folder, never throwing: the standard library's temp folder call throws when %TMP% names a folder that isn't
+// there, and a hidden instance asked it while starting (YCGrid ended with abort() before its first frame). A missing
+// one is made; one that can't be is replaced by %LOCALAPPDATA%\ycgrid\temp
+std::wstring TempFolder();
 std::wstring ProjectsDir();  // projects_folder, or Documents\YCGrid
 std::wstring AutoRecoverDir();
 // A folder for a message: the user's own folders become %TEMP%, %LOCALAPPDATA%... (no user name in screenshots)

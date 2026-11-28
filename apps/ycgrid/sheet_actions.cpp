@@ -99,7 +99,11 @@ float LineHeightPerEm(const std::string& name, bool bold, bool italic) {
 float TextBlockHeight(ImFont* font, float px, float wrap_w, const std::string& text, const std::string& name, bool bold, bool italic) {
   const ImVec2 ts = font->CalcTextSizeA(px, FLT_MAX, wrap_w, text.c_str());
   const float lines = std::max(1.0f, std::round(ts.y / std::max(1.0f, px)));
-  return lines * std::max(px, px * LineHeightPerEm(name, bold, italic));
+  // each line takes a whole one-line row (its pixels and the 2 around them): Excel 16 fits wrapped Calibri 11 at a
+  // multiple of one line's height (measured: 29, 43.5, 58, 72.5 for 2 to 5 lines where one line is 14.5), where
+  // the lines rounded together came 1.5 points short at two lines and 3.5 at five. The caller adds the last 2
+  const float line = std::ceil(std::max(px, px * LineHeightPerEm(name, bold, italic))) + 2.0f;
+  return lines * line - 2.0f;
 }
 
 // Excel: a row that sizes itself fits its text again after a change (wrapped text, line breaks, a bigger font).
@@ -219,6 +223,30 @@ std::string AutoCloseParens(std::string t) {
 }
 
 // move: 1 Enter, 2 Shift+Enter, 3 Tab, 4 Shift+Tab, 5-8 an arrow key (down, up, right, left) that ended the entry
+// Tab in a table's last cell (render::TabTarget's add_row, on the sheet or after an entry): a row at the table's end,
+// the active cell already on the row's first cell (Excel)
+void AddTableRowAfterTab(AppState& s, uint32_t sheet_id, int64_t table) {
+  if (table < 0 || !s.engine || RefuseReadOnlyUi(s)) return;
+  const uint32_t id = static_cast<uint32_t>(table);
+  s.engine->PostUser(TR("Insert Table Rows"), [sheet_id, id](Document& d) { d.TableInsertRow(sheet_id, id, -1); });
+}
+
+}  // namespace
+
+void ProtectionCellRules(const model::Sheet& sh, const model::StyleTable* styles, std::function<bool(uint32_t, uint32_t)>* unlocked,
+                         std::function<bool(uint32_t, uint32_t)>* selectable) {
+  *unlocked = nullptr;
+  *selectable = nullptr;
+  const model::SheetProtection& prot = *sh.protection;
+  if (!prot.on || !styles) return;
+  const model::Sheet* p = &sh;
+  const bool sel_locked = prot.select_locked && prot.select_unlocked, sel_unlocked = prot.select_unlocked;
+  *unlocked = [p, styles](uint32_t r, uint32_t c) { return !styles->Get(p->GetStyle(r, c)).locked; };
+  if (!sel_locked) *selectable = [p, styles, sel_unlocked](uint32_t r, uint32_t c) { return sel_unlocked && !styles->Get(p->GetStyle(r, c)).locked; };
+}
+
+namespace {
+
 void MoveActive(AppState& s, int move) {
   if (move == 0) return;
   const model::Sheet* sh = s.FocusSheet();
@@ -290,6 +318,21 @@ void MoveActive(AppState& s, int move) {
     sel.act_r = static_cast<uint32_t>(r);
     sel.act_c = static_cast<uint32_t>(c);
   } else if (a.IsCell() || a == anchor) {
+    // the sheet's own rules for Tab (a protected sheet's unlocked cells, a table's rows), as Tab on the sheet does
+    if (tab) {
+      std::function<bool(uint32_t, uint32_t)> unlocked, selectable;
+      ProtectionCellRules(*sh, s.snap ? &s.snap->wb.styles.get() : nullptr, &unlocked, &selectable);
+      uint32_t tr = 0, tc = 0;
+      int64_t add_row = -1;
+      if (render::TabTarget(*sh, sel.act_r, sel.act_c, move == 4, unlocked, selectable, &tr, &tc, &add_row)) {
+        render::SelectCell(v, tr, tc, false);
+        sel.tab_from = UINT32_MAX;
+        AddTableRowAfterTab(s, sh->id, add_row);
+        render::EnsureVisible(*sh, v, sel.act_r, sel.act_c);
+        return;
+      }
+      if (unlocked) return;  // a protected sheet without another unlocked cell: the active cell stays
+    }
     const uint32_t tab_from = sel.TabFrom();
     if (tab) sel.NoteTab(move == 3);
     switch (move) {
@@ -444,6 +487,34 @@ bool RefusePartOfArray(AppState& s, uint32_t sheet, const std::vector<Rect>& are
   return false;
 }
 
+// Ctrl+Enter fills the selection from the active cell. An entry that grew a table over the active cell made it a
+// header, whose text is the entry's as text: the fill then starts from the first cell of the selection that isn't a
+// header, typed again there, so the data cells get the entry as typed (1 Ctrl+Enter over E2:E6 beside a table: E2 the
+// header "1", E3:E6 the number 1, Excel 16 measured by keys); the header is made text again at Commit
+static bool FillSourceCell(Document& d, uint32_t sheet, const std::vector<Rect>& areas, std::string_view text, bool r1c1, uint32_t* r, uint32_t* c) {
+  const model::Sheet* s = d.S(sheet);
+  if (!s || s->tables->empty()) return true;
+  auto header = [&](uint32_t hr, uint32_t hc) {
+    for (const model::Table& t : *s->tables) {
+      if (t.header && t.range.r0 == hr && t.range.c0 <= hc && hc <= t.range.c1) return true;
+    }
+    return false;
+  };
+  if (!header(*r, *c)) return true;
+  for (const Rect& a : areas) {
+    for (uint32_t rr = a.r0; rr <= a.r1 && rr - a.r0 < 2; ++rr) {  // a table's header row is one row
+      for (uint32_t cc = a.c0; cc <= a.c1; ++cc) {
+        if (header(rr, cc)) continue;
+        std::string ignored;
+        if (!d.SetInput(sheet, rr, cc, text, &ignored, engine::kSrcUser, r1c1)) return false;
+        *r = rr, *c = cc;
+        return true;
+      }
+    }
+  }
+  return true;  // every cell filled is a header: they all take the active cell's text
+}
+
 // Ctrl+Enter: the format the entry gave its cell (5%, a date, =TODAY()) goes to every cell filled, as in Excel
 void FillEntryFormat(Document& d, uint32_t sheet, uint32_t r, uint32_t c, uint32_t before, const std::vector<Rect>& areas) {
   const model::Sheet* s = d.S(sheet);
@@ -587,8 +658,10 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
       std::string err;
       const uint32_t fmt0 = d.S(sheet) ? d.wb().styles->Get(d.S(sheet)->GetStyle(r, c)).numfmt : 0;
       if (!d.SetInput(sheet, r, c, text, &err, engine::kSrcUser, r1c1)) return;
-      d.FillFrom(sheet, r, c, areas);
-      FillEntryFormat(d, sheet, r, c, fmt0, areas);
+      uint32_t fr = r, fc = c;
+      if (!FillSourceCell(d, sheet, areas, text, r1c1, &fr, &fc)) return;
+      d.FillFrom(sheet, fr, fc, areas);
+      FillEntryFormat(d, sheet, fr, fc, fmt0, areas);
     });
     s.SetStatus(TR("Filling ") + std::to_string(fill_cells) + TR(" cells..."), 3.0);
     e.active = false;
@@ -600,16 +673,29 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
   const std::string label = TR("Typing \"") + shown + TR("\" in ") + core::CellA1(r, c);
   std::vector<uint32_t> group = GroupTargets(s, sheet);  // grouped sheets: the same entry in the same cells (Excel)
   group.erase(group.begin());
+  // what a table does by itself after the typing (growing, filling a calculated column) is a step of its own: the
+  // first Ctrl+Z takes back only that (Excel 16, measured by keys)
+  const bool defer_growth = true;
+  // AutoFormat As You Type: a web or e-mail address typed into one cell becomes a link with the Hyperlink style, in
+  // a step of its own after the typing (Excel 16: the first Ctrl+Z takes back the link and keeps the text, measured)
+  const std::string link_to = !array && Config().autoformat_hyperlinks ? engine::AutoLinkAddress(text) : std::string();
+  // Extend data range formats and formulas: a value typed in the row under a list (Excel's, in the typing's step)
+  const bool extend = !array && Config().extend_list && !formula::LooksLikeFormula(text);
   auto work = [=](Document& d, std::string* error) {
+    d.defer_table_growth = defer_growth;
     d.Begin(label);
     d.param_commit = param;
     const uint32_t fmt_before = d.S(sheet) ? d.wb().styles->Get(d.S(sheet)->GetStyle(r, c)).numfmt : 0;
     const bool r_ok = d.SetInput(sheet, r, c, text, error, engine::kSrcUser, r1c1);
     d.param_commit = false;
+    if (r_ok && extend) d.ExtendList(sheet, r, c);
     for (const uint32_t g : group) {
       if (!r_ok) break;
       std::string ignored;
-      if (d.SetInput(g, r, c, text, &ignored, engine::kSrcUser, r1c1) && array) d.FillFrom(g, r, c, areas);
+      if (d.SetInput(g, r, c, text, &ignored, engine::kSrcUser, r1c1) && array) {
+        uint32_t fr = r, fc = c;
+        if (FillSourceCell(d, g, areas, text, r1c1, &fr, &fc)) d.FillFrom(g, fr, fc, areas);
+      }
     }
     // fonts inside the text: follow the edits, or go away when the cell no longer holds text
     if (r_ok && !array) {
@@ -633,10 +719,26 @@ void CommitEdit(AppState& s, bool array, int move, bool cse) {
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
     }
     if (r_ok && array) {
-      d.FillFrom(sheet, r, c, areas);
-      FillEntryFormat(d, sheet, r, c, fmt_before, areas);
+      uint32_t fr = r, fc = c;
+      if (FillSourceCell(d, sheet, areas, text, r1c1, &fr, &fc)) {
+        d.FillFrom(sheet, fr, fc, areas);
+        FillEntryFormat(d, sheet, fr, fc, fmt_before, areas);
+      }
     }
     d.Commit();
+    d.GrowDeferredTables();
+    if (r_ok && !link_to.empty()) {
+      const model::Sheet* ls = d.S(sheet);
+      const core::Value& v = d.GetValue(sheet, r, c);
+      if (ls && v.IsString() && !ls->links->count((uint64_t{r} << 16) | c)) {
+        d.Begin(TR("Hyperlink"));
+        model::Hyperlink link;
+        link.address = link_to;
+        d.SetHyperlink(sheet, r, c, link);
+        d.ApplyCellStyle(sheet, Rect::Cell(r, c), "Hyperlink");
+        d.Commit();
+      }
+    }
     return r_ok;
   };
   // the engine is busy (recalculating millions of formulas after a reload, a fill a frame before): the entry is handed
@@ -1567,6 +1669,54 @@ bool InsertCopiedAt(AppState& s, const Rect& at, int what) {
   return true;
 }
 
+const model::Table* SelectionTable(AppState& s, Rect* area) {
+  const model::Sheet* sh = s.FocusSheet();
+  const auto& sel = s.FocusView().sel;
+  if (!sh || sh->tables->empty() || sel.areas.size() != 1 || sel.mode != render::SelectMode::Cells) return nullptr;
+  const Rect a = sel.areas.back();
+  for (const model::Table& t : *sh->tables) {
+    if (t.range.Contains(a.r0, a.c0) && t.range.Contains(a.r1, a.c1)) {
+      if (area) *area = a;
+      return &t;
+    }
+  }
+  return nullptr;
+}
+
+bool TableRowsCols(AppState& s, bool insert, int what) {
+  Rect a{};
+  const model::Table* t = SelectionTable(s, &a);
+  if (!t || !s.engine) return false;
+  if (RefuseReadOnlyUi(s)) return true;
+  s.repeat_command.clear();
+  EndCopyMode(s);  // Excel: an insert or delete ends cut / copy mode
+  s.last_insert = AppState::LastInsert{};
+  const uint32_t sheet = s.focus_sheet, id = t->id;
+  std::vector<uint32_t> lines;  // the table's data rows or columns the selection takes, as indexes
+  if (what == 1) {
+    const Rect d = t->Data();
+    for (uint32_t r = std::max(a.r0, d.r0); d.r0 <= d.r1 && r <= std::min(a.r1, d.r1); ++r) lines.push_back(r - d.r0);
+  } else {
+    for (uint32_t c = a.c0; c <= a.c1; ++c) lines.push_back(c - t->range.c0);
+  }
+  if (lines.empty()) return true;  // the header or totals row alone: nothing (Excel 16, measured)
+  const char* label = what == 1 ? (insert ? TR("Insert Table Rows") : TR("Delete Table Rows"))
+                                : (insert ? TR("Insert Table Columns") : TR("Delete Table Columns"));
+  s.engine->PostUser(label, [=](Document& d) {
+    if (insert) {
+      // as many lines as are selected, above (left of) the first one
+      for (size_t i = 0; i < lines.size(); ++i) {
+        if (!(what == 1 ? d.TableInsertRow(sheet, id, lines.front()) : d.TableInsertColumn(sheet, id, lines.front()))) break;
+      }
+    } else {
+      for (auto it = lines.rbegin(); it != lines.rend(); ++it) {
+        if (!(what == 1 ? d.TableDeleteRow(sheet, id, *it) : d.TableDeleteColumn(sheet, id, *it))) break;
+      }
+    }
+  });
+  return true;
+}
+
 void InsertOrDelete(AppState& s, bool insert, int what) {
   if (!s.engine) return;
   s.repeat_command.clear();
@@ -1574,6 +1724,21 @@ void InsertOrDelete(AppState& s, bool insert, int what) {
   if (areas.empty()) return;
   const auto mode = s.FocusView().sel.mode;
   const model::Sheet* sh = s.FocusSheet();
+  // in a table Ctrl+- and Ctrl+Shift+= insert and delete its rows or columns without a dialog: columns when the
+  // selection is taller than wide, else rows; deleting across every column deletes rows, and the whole table its
+  // cells (Excel 16, measured by keys posted to its sheet window)
+  Rect ta{};
+  if (what == 0 && !(insert && CopyModeOn(s))) {
+    if (const model::Table* t = SelectionTable(s, &ta)) {
+      if (!insert && ta == t->range) {
+        what = 4;
+      } else {
+        const bool all_cols = ta.c0 == t->range.c0 && ta.c1 == t->range.c1;
+        TableRowsCols(s, insert, ta.Rows() > ta.Cols() && (insert || !all_cols) ? 2 : 1);
+        return;
+      }
+    }
+  }
   // whole rows / columns selected any way (header, Name Box, Go To, Python) insert and delete rows / columns
   const Rect sa = areas.back();
   const bool all_rows = sh && sa.r0 == 0 && sa.r1 >= sh->row_limit - 1, all_cols = sh && sa.c0 == 0 && sa.c1 >= sh->col_limit - 1;
@@ -1701,6 +1866,16 @@ void AutoSum(AppState& s, const char* fn) {
     if (it != filter_hidden.end() && it->first <= r1) return "SUBTOTAL(" + std::to_string(sub) + "," + range + ")";
     return f + "(" + range + ")";
   };
+  // the table a cell is right under, without its totals row: AutoSum there makes the row the totals row and sums
+  // with SUBTOTAL(109...) as Excel 16 does (measured: Alt+= in C7 under B2:D6 is =SUBTOTAL(109,[Qty]), over C7:D7
+  // =SUBTOTAL(109,C3:C6) and =SUBTOTAL(109,D3:D6))
+  auto under_table = [&](uint32_t r, uint32_t c) -> const model::Table* {
+    for (const model::Table& t : *sh->tables) {
+      if (!t.totals && r == t.range.r1 + 1 && c >= t.range.c0 && c <= t.range.c1 && t.HasData()) return &t;
+    }
+    return nullptr;
+  };
+  const int sub_total = sub ? 100 + sub : 0;  // SUBTOTAL's code that leaves hidden rows out, as a totals row's
   // B2, or B2:B4 (Excel writes =SUM(C2) for one cell, not C2:C2)
   auto ref = [](uint32_t r0, uint32_t c0, uint32_t r1, uint32_t c1) {
     return r0 == r1 && c0 == c1 ? core::CellA1(r0, c0) : core::CellA1(r0, c0) + ":" + core::CellA1(r1, c1);
@@ -1772,13 +1947,34 @@ void AutoSum(AppState& s, const char* fn) {
   // it) and pointed at (the arrows move it from its first cell, Shift its other end; a drag replaces it)
   auto edit_cell = [&](uint32_t r, uint32_t c) {
     const Proposal p = propose_cell(r, c);
+    if (const model::Table* t = sub_total ? under_table(r, c) : nullptr; t && p.ok && p.up && p.totals.empty()) {
+      const uint32_t j = c - t->range.c0;
+      const std::string name = j < t->columns.size() ? t->columns[j].name : std::string();
+      if (!name.empty()) {
+        std::string esc;
+        for (char ch : name) {
+          if (ch == '[' || ch == ']' || ch == '#' || ch == '\'') esc += '\'';
+          esc += ch;
+        }
+        StartEdit(s, true, "=SUBTOTAL(" + std::to_string(sub_total) + ",[" + esc + "])");
+        return;
+      }
+    }
     if (!p.ok) {
       StartEdit(s, true, std::string("=") + fn + "()");
       s.edit.pending_caret = static_cast<int>(s.edit.text.size()) - 1;
       s.edit.cursor_to_end = false;
       return;
     }
-    const std::string text = proposal_text(p, 0, 0);
+    std::string text = proposal_text(p, 0, 0);
+    // a column's part of a table, written as the table's (Excel 16, measured: Alt+= under a totals row proposes
+    // =SUM(Table1[[#Data],[#Totals],[Qty]]))
+    if (p.up && p.totals.empty()) {
+      const std::string a1 = ref(p.range.r0, p.range.c0, p.range.r1, p.range.c1);
+      if (const std::string st = TableRefFor(s, sheet, p.range, r); !st.empty() && text.find("(" + a1 + ")") != std::string::npos) {
+        text.replace(text.find("(" + a1 + ")") + 1, a1.size(), st);
+      }
+    }
     StartEdit(s, true, text);
     const size_t open = text.find('(');
     const size_t b = p.up && text.compare(1, 9, "SUBTOTAL(") == 0 ? text.find(',') + 1 : open + 1;
@@ -1837,10 +2033,18 @@ void AutoSum(AppState& s, const char* fn) {
     const uint32_t c_end = sel.Cols() > 4096 ? std::max(sel.c0, used_c1 + 1) : sel.c1;
     std::vector<std::pair<core::CellPos, std::string>> out;
     for (uint32_t r = sel.r0; r <= r_end; ++r) {
-      for (uint32_t c = sel.c0; c <= c_end; ++c) out.push_back({core::CellPos{r, c}, proposal_text(p, r - sel.r0, c - sel.c0)});
+      for (uint32_t c = sel.c0; c <= c_end; ++c) {
+        std::string text = proposal_text(p, r - sel.r0, c - sel.c0);
+        // under a table: the row becomes its totals row, summed with SUBTOTAL (=SUBTOTAL(109,C3:C6))
+        if (sub_total && p.up && p.totals.empty() && under_table(r, c) && text.compare(0, f.size() + 2, "=" + f + "(") == 0) {
+          text = "=SUBTOTAL(" + std::to_string(sub_total) + "," + text.substr(f.size() + 2);
+        }
+        out.push_back({core::CellPos{r, c}, text});
+      }
     }
+    // entered as typed: a total under a table makes its row the totals row (as typing it does)
     s.engine->PostUser(TR("AutoSum"), [sheet, out](Document& d) {
-      for (const auto& [at, text] : out) d.SetFormula(sheet, at.row, at.col, text.substr(1));
+      for (const auto& [at, text] : out) d.SetInput(sheet, at.row, at.col, text);
     });
     return;
   }
@@ -1925,8 +2129,10 @@ void AutoSum(AppState& s, const char* fn) {
   grown.r1 = static_cast<uint32_t>(std::min<int64_t>(grown.r1, row_limit - 1));
   grown.c1 = static_cast<uint32_t>(std::min<int64_t>(grown.c1, col_limit - 1));
   if (out.empty()) return;
+  // entered as typed: a total written under a table makes its row the totals row (Excel 16, measured: Alt+= over
+  // C3:C6 writes =SUM(C3:C6) in C7 and the table shows its totals row)
   s.engine->PostUser(TR("AutoSum"), [sheet, out](Document& d) {
-    for (const auto& [at, text] : out) d.SetFormula(sheet, at.row, at.col, text);
+    for (const auto& [at, text] : out) d.SetInput(sheet, at.row, at.col, "=" + text);
   });
   // the selection takes in the row (column) of totals below (beside) it, from its first number (Excel)
   render::SelectRange(s.FocusView(), grown);
@@ -1947,8 +2153,12 @@ void FillSelection(AppState& s, int dir) {
       if (a.r0 == a.r1 && a.r0 > 0) d.FillDown(sheet, Rect{a.r0 - 1, a.c0, a.r1, a.c1}, false);  // Ctrl+D on a single row: copy the row above
       else d.FillDown(sheet, a);
     } else if (dir == 1) {
+      // Fill Right beside a table grows it in a step of its own after the fill's (Excel 16's first Ctrl+Z takes back
+      // the growth only; Fill Down's one Ctrl+Z takes back both, measured by keys): the next post makes it
+      d.defer_table_growth = true;
       if (a.c0 == a.c1 && a.c0 > 0) d.FillRight(sheet, Rect{a.r0, a.c0 - 1, a.r1, a.c1}, false);
       else d.FillRight(sheet, a);
+      d.defer_table_growth = false;
     } else if (dir == 2 && d.FillDownShown(sheet, a, true)) {
       // a filtered list: the bottom row went into the rows it shows only (Excel, as Fill Down)
     } else {
@@ -1956,6 +2166,7 @@ void FillSelection(AppState& s, int dir) {
     }
    }
   });
+  if (dir == 1) s.engine->PostUser(TR("Table AutoExpansion"), [](Document& d) { d.GrowDeferredTables(); });
 }
 
 
@@ -2122,7 +2333,10 @@ bool ResolveGotoPart(AppState& s, const std::string& part, uint32_t* sheet, Rect
   if (!s.engine) return false;
   const uint32_t focus = s.focus_sheet;
   const core::CellPos at{s.FocusView().sel.act_r, s.FocusView().sel.act_c};  // a relative name reads from the active cell
-  return s.engine->Call([&](engine::Document& d) { return d.ResolveNameRef(part, focus, sheet, r, nullptr, at); });
+  if (s.engine->Call([&](engine::Document& d) { return d.ResolveNameRef(part, focus, sheet, r, nullptr, at); })) return true;
+  // a table's name or a structured reference to it (Trades, Trades[Qty], Trades[#All]): Excel 16 goes there (measured
+  // through Application.Goto, the Name Box's and Go To's path)
+  return ResolveRangeText(s.snap->wb, focus, part, sheet, r);
 }
 
 }  // namespace
@@ -2321,7 +2535,12 @@ void ChangeDecimals(AppState& s, int delta) {
     // based on the decimals General shows; a text, a logical value or an error keeps General (Excel)
     const auto& v = sh->GetValue(sel.act_r, sel.act_c);
     if (!v.IsNumeric() && !v.IsEmpty()) return;
-    code = GeneralShiftedCode(v.IsNumeric() ? formula::FormatGeneral(v.AsDouble(), 11) : "0", delta);
+    // what General shows at the column's width (0.333333 in a default column, so 7 decimals up and 5 down; 0.3333333
+    // where it is wider), as the grid drew it lately; eleven characters when the cell isn't on the screen
+    const auto& view = s.FocusView();
+    const bool drawn = v.IsNumeric() && ImGui::GetFrameCount() - view.active_shown_frame <= 2 && !view.active_shown.empty() &&
+                       view.active_shown.find('#') == std::string::npos;
+    code = GeneralShiftedCode(drawn ? view.active_shown : v.IsNumeric() ? formula::FormatGeneral(v.AsDouble(), 11) : "0", delta);
     if (code.empty()) return;
   } else {
     code = ShiftCodeDecimals(old_code, delta);
@@ -2330,15 +2549,57 @@ void ChangeDecimals(AppState& s, int delta) {
   ApplyNumberFormat(s, code, delta > 0 ? TR("Increase Decimal") : TR("Decrease Decimal"));
 }
 
+// the columns of areas a number format widens, as Excel does (16, measured: Increase Decimal, Comma Style, Percent
+// Style, Range.NumberFormat): a number the new code shows wider than its column widens a column whose width nobody set
+// (or that a format widened before); a column of a set width shows ####. Measured on the UI thread (the font atlas)
+std::vector<std::pair<uint32_t, int32_t>> ColumnsToWidenForFormat(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, const std::string& code) {
+  std::vector<std::pair<uint32_t, int32_t>> out;
+  const model::Sheet* sh = s.snap ? s.snap->Sheet(sheet) : nullptr;
+  if (!sh || !sh->has_used) return out;
+  const auto fmt = formula::CompileFormat(code);
+  if (!fmt) return out;
+  std::set<uint32_t> seen;
+  int64_t cells = 0;
+  for (const Rect& a0 : areas) {
+    const Rect a{std::max(a0.r0, sh->used.r0), std::max(a0.c0, sh->used.c0), std::min(a0.r1, sh->used.r1), std::min(a0.c1, sh->used.c1)};
+    if (a.r0 > a.r1 || a.c0 > a.c1) continue;
+    for (uint32_t c = a.c0; c <= a.c1 && seen.size() < 1000; ++c) {
+      if (!seen.insert(c).second || sh->cols->IsHidden(c)) continue;
+      const int32_t now = sh->cols->Size(c);
+      const auto aw = s.auto_widened.find({sheet, c});
+      if (sh->cols->IsCustom(c) && (aw == s.auto_widened.end() || aw->second != now)) continue;
+      int32_t best = now;
+      engine::ForEachValueRowMajor(*sh, Rect{a.r0, c, a.r1, c}, [&](uint32_t row, uint32_t, const core::Value& v) {
+        if (!v.IsNumeric()) return ++cells < 200000;
+        for (const Rect& m : *sh->merges) {
+          if (m.Contains(row, c) && !m.IsCell()) return ++cells < 200000;
+        }
+        const model::Style& st = s.snap->wb.styles->Get(sh->GetStyle(row, c));
+        const std::string text = formula::FormatValue(v, *fmt).text;
+        ImFont* font = ui::CellFont(s.snap->wb.styles->FontName(st), st.bold, st.italic);
+        const float px = s.snap->wb.styles->FontSize(st) * (96.0f / 72.0f);
+        best = std::max(best, static_cast<int32_t>(std::ceil(font->CalcTextSizeA(px, FLT_MAX, 0.0f, text.c_str()).x)) + 8);
+        return ++cells < 200000;
+      });
+      if (best > now) out.emplace_back(c, best);
+    }
+  }
+  return out;
+}
+
 void ApplyNumberFormat(AppState& s, const std::string& code, const std::string& label) {
   if (!s.engine) return;
   EndCopyMode(s);  // Excel: formatting ends cut / copy mode
   // format code strings must be interned on the engine thread (the style table is only written there)
   const auto areas = SelAreas(s);
   const uint32_t sheet = s.focus_sheet;
-  s.engine->PostUser(label, [areas, sheet, code](Document& d) {
+  const auto widen = ColumnsToWidenForFormat(s, sheet, areas, code);
+  for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+  // one Undo step: the format and the columns it widened
+  s.engine->PostUser(label, [areas, sheet, code, widen](Document& d) {
     const uint32_t id = code == "General" ? 0 : d.wb_mut().styles.mut().InternString(code);
     for (const Rect& a : areas) d.ModifyStyle(sheet, a, [id](model::Style& x) { x.numfmt = id; });
+    for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
   });
 }
 
@@ -2529,6 +2790,7 @@ void HandleGridActions(AppState& s, uint32_t sheet_id, const render::GridActions
     if (act.nav_key != ImGuiKey_None && !s.edit.active) s.FocusView().nav_replay = {act.nav_key, act.nav_ctrl, act.nav_shift, ImGui::GetFrameCount()};
   }
   if (act.cancel_edit) CancelEdit(s);
+  AddTableRowAfterTab(s, sheet_id, act.table_add_row);
   if (act.eval_part) EvaluateEditPart(s, act.eval_begin, act.eval_end);
   if (act.fn_args) OpenFunctionArgsForCell(s);
   if (act.clear_contents) {

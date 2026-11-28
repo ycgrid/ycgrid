@@ -7,6 +7,8 @@
 #include "model/style.h"
 
 #include <cstdint>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace yc::engine {
@@ -18,6 +20,19 @@ uint32_t CtrlJump(const model::Sheet& s, uint32_t r, uint32_t c, bool vertical, 
 
 // current region (Ctrl+Shift+*): grow from (r,c) until surrounded by blank rows and columns
 core::Rect CurrentRegion(const model::Sheet& s, uint32_t r, uint32_t c);
+// Create Table's and ListObjects.Add(xlGuess)'s guess that the range's first row is its header (Excel 16, measured
+// on 13 layouts, the dialog and the object model alike): no blank in the first two rows, and some column whose first
+// cell is text over a number below it (or a number over text), or a first row formatted apart from the second (bold,
+// italic, a fill, a font color)
+bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r);
+// AutoFormat As You Type's link for typed text, "" when it isn't an address (Excel 16, measured by keys): http://,
+// https://, ftp:// followed by a host (a "/" added when there is no path), www. (http:// in front), mailto:, and
+// text with one @ (mailto: in front); nothing with a space or a line break in it
+std::string AutoLinkAddress(std::string_view text);
+// a structured reference ([@Qty], Table1[Qty]) in a formula's text ("=" or not): Excel 16 refuses one in conditional
+// formatting and data validation (measured through FormatConditions.Add and Validation.Add); INDIRECT's text and a
+// name defined on it are taken
+bool HasStructuredRef(std::string_view formula_text);
 
 // Ctrl+End: bottom-right corner of the used range
 core::CellPos LastCell(const model::Sheet& s);

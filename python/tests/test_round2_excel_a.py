@@ -406,6 +406,32 @@ class ValidationCirclesTest(_Base):
         self.ws.ClearCircles()
         self.assertEqual(self.state()["validation_circles"], 0)
 
+    def test_the_input_message_floats_over_a_circle_below_it(self):
+        # the input message was drawn before the circles, so the circle around the cell below crossed it
+        import tempfile
+
+        from tests.test_excel_parity import read_png
+        from yc import ui
+
+        self.ws.Range("A1:A4").Value = [[1], [2], [3], [99]]
+        v = self.ws.Range("A1:A4").Validation
+        v.Add(1, 1, 1, "1", "10")
+        v.InputTitle = "Qty"
+        v.InputMessage = "1 to 10 lots"
+        ui.command("CircleInvalidData")
+        self.keys("g:A3|w:6")
+        box = [i for i in self.items() if (i.get("label") or "") == "Qty\n1 to 10 lots"]
+        self.assertTrue(box, "the input message is on the screen while A3 is selected")
+        x0, y0, x1, y1 = (int(round(v)) for v in box[-1]["rect"])
+        png = os.path.join(tempfile.gettempdir(), "yc_input_msg_over_circle.png")
+        ui.screenshot(png, max_width=4000)
+        _, _, px = read_png(png)
+        red = [(x, y) for x in range(x0 + 2, x1 - 2) for y in range(y0 + 2, y1 - 2) if px(x, y)[0] > 180 and px(x, y)[1] < 90]
+        self.assertFalse(red, "no part of A4's circle shows through the input message")
+        ui.command("ClearValidationCircles")
+        self.keys("g:C1|w:6")
+        self.assertFalse([i for i in self.items() if (i.get("label") or "") == "Qty\n1 to 10 lots"], "it goes with the selection")
+
 
 class PythonMembersTest(_Base):
     def test_text_to_columns_dates_and_separators_from_python(self):

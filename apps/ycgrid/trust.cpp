@@ -484,9 +484,9 @@ void DrawMacroPage() {
   ImGui::TextUnformatted(TR("Macro Settings"));
   ImGui::TextDisabled("%s", TR("For Python code in workbooks' projects (main.py, sheets, modules) not in a trusted location:"));
   ImGui::Spacing();
-  if (ImGui::RadioButton(TR("Disable Python code without notification"), d.c.macro_setting == 1)) d.c.macro_setting = 1;
-  if (ImGui::RadioButton(TR("Disable Python code with notification"), d.c.macro_setting == 0)) d.c.macro_setting = 0;
-  if (ImGui::RadioButton(TR("Enable Python code (not recommended; potentially dangerous code can run)"), d.c.macro_setting == 2)) d.c.macro_setting = 2;
+  if (ui::RadioButton(TR("Disable Python code without notification"), d.c.macro_setting == 1)) d.c.macro_setting = 1;
+  if (ui::RadioButton(TR("Disable Python code with notification"), d.c.macro_setting == 0)) d.c.macro_setting = 0;
+  if (ui::RadioButton(TR("Enable Python code (not recommended; potentially dangerous code can run)"), d.c.macro_setting == 2)) d.c.macro_setting = 2;
   ImGui::Spacing();
   ImGui::PushTextWrapPos(0);
   ImGui::TextDisabled("%s", TR("Workbooks opened by scripts, yc.launch and the MCP tools follow Application.AutomationSecurity instead (Low by default: their code runs)."));
@@ -510,8 +510,8 @@ void DrawMessageBarPage() {
   ImGui::TextUnformatted(TR("Message Bar Settings"));
   ImGui::TextDisabled("%s", TR("Showing the Message Bar"));
   ImGui::Spacing();
-  if (ImGui::RadioButton(TR("Show the Message Bar when content such as Python code has been blocked"), d.c.message_bar)) d.c.message_bar = true;
-  if (ImGui::RadioButton(TR("Never show information about blocked content"), !d.c.message_bar)) d.c.message_bar = false;
+  if (ui::RadioButton(TR("Show the Message Bar when content such as Python code has been blocked"), d.c.message_bar)) d.c.message_bar = true;
+  if (ui::RadioButton(TR("Never show information about blocked content"), !d.c.message_bar)) d.c.message_bar = false;
 }
 
 void DrawCenterDialog(AppState& s) {
@@ -611,8 +611,8 @@ void DrawSecurityOptions(AppState& s) {
   ImGui::PopTextWrapPos();
   ImGui::Spacing();
   ImGui::BeginDisabled(!St().disabled);
-  if (ImGui::RadioButton(TR("Help protect me from unknown content (recommended)"), g_opt.choice == 0)) g_opt.choice = 0;
-  if (ImGui::RadioButton(TR("Enable content for this session"), g_opt.choice == 1)) g_opt.choice = 1;
+  if (ui::RadioButton(TR("Help protect me from unknown content (recommended)"), g_opt.choice == 0)) g_opt.choice = 0;
+  if (ui::RadioButton(TR("Enable content for this session"), g_opt.choice == 1)) g_opt.choice = 1;
   ImGui::EndDisabled();
   ImGui::Separator();
   bool close = !open || ImGui::IsKeyPressed(ImGuiKey_Escape);

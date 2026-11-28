@@ -98,7 +98,7 @@ bool MatchCriterion(const std::string& crit, const core::Value& v, const std::st
 // Read-only mode refuses each change of notes, comments, rules, validation and filters below (RefuseReadOnly);
 // protection keeps its own checks where Excel has them
 
-void Document::SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text) {
+void Document::SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text, bool keep_empty) {
   // a note is one of the sheet's objects: protection refuses it unless editing objects is allowed (Excel 16, measured
   // 2026-11-20: AddComment raises on a protected sheet, locked cell or not)
   if (RefuseReadOnly(sheet) || Refuse(sheet, nullptr, Allow::Objects)) return;
@@ -106,7 +106,7 @@ void Document::SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string
   if (!s) return;
   NoteTouched();
   const uint64_t key = (uint64_t{r} << 16) | c;
-  if (text.empty()) {
+  if (text.empty() && !keep_empty) {
     s->notes.mut().erase(key);
   } else {
     auto it = s->notes->find(key);

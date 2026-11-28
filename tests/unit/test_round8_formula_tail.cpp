@@ -459,3 +459,22 @@ TEST_CASE("Round8 formula tail: the codes Range.NumberFormat refuses, as measure
   CHECK(t.Eval("TEXT(1,\"[>0\")") == "#VALUE!");
   CHECK(t.Eval("TEXT(1,\"0_\")") == "#VALUE!");
 }
+
+TEST_CASE("A row hidden by a height of 0 is hidden for SUBTOTAL at once", "[subtotal][round8]") {
+  // Excel 16, measured (test_excel_basics' data15 / data16 cases): Rows("3:4").RowHeight = 0 makes =SUBTOTAL(103,B3)
+  // 0; the height alone changed and nothing calculated the SUBTOTAL again until a row was hidden by Hide
+  yctest::Doc t;
+  t.Set("B3", "x");
+  t.Set("B4", "y");
+  t.Set("H3", "=SUBTOTAL(103,B3)");
+  t.Set("H4", "=SUBTOTAL(103,B4)");
+  t.d.Recalc();
+  CHECK(t.N("H3") == 1);
+  t.d.SetRowHeight(t.sheet(), 2, 2, 0);
+  t.d.Recalc();
+  CHECK(t.N("H3") == 0);
+  CHECK(t.N("H4") == 1);
+  t.d.SetRowHeight(t.sheet(), 2, 2, 20);  // shown again
+  t.d.Recalc();
+  CHECK(t.N("H3") == 1);
+}

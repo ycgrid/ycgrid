@@ -1253,9 +1253,10 @@ def s_formula_parity(app):
     app.run("SelectObstructingCells")
     check("Select Obstructing Cells selects what blocks the spill", app.state()["selection"].replace("$", "") == "E2", app.state()["selection"])
     R(app, "E2").Value = None
-    sel(app, "E2")
+    R(app, "G1:G3").FormulaArray = "=E1:E3*2"
+    sel(app, "G2")
     app.run("SelectCurrentArray")
-    check("Select Current Array (Ctrl+/)", app.state()["selection"].replace("$", "") == "E1:E3", app.state()["selection"])
+    check("Select Current Array (Ctrl+/)", app.state()["selection"].replace("$", "") == "G1:G3", app.state()["selection"])
     h0 = app.excel.Application.FormulaBarHeight
     app.run("ExpandFormulaBar")
     check("Expand Formula Bar (Ctrl+Shift+U)", app.excel.Application.FormulaBarHeight == 3, app.excel.Application.FormulaBarHeight)
@@ -2376,6 +2377,20 @@ def s_table_design(app):
     app.inp("k:c-A|t:$A$1:$D$4|k:Enter|w:4")
     answer(app)
     check("Resize Table to A1:D4", lo().Range.Address.replace("$", "") == "A1:D4", lo().Range.Address)
+    addr = lambda: lo().Range.Address.replace("$", "")  # noqa: E731
+    b3 = ws.Range("B3").Value
+    sel(app, "B3")
+    app.run("InsertTableRowsAbove")
+    check("Insert Table Rows Above: a row above B3", addr() == "A1:D5" and ws.Range("B3").Value is None and ws.Range("B4").Value == b3, (addr(), ws.Range("B4").Value))
+    sel(app, "B3")
+    app.run("DeleteTableRows")
+    check("Delete Table Rows: the row goes", addr() == "A1:D4" and ws.Range("B3").Value == b3, (addr(), ws.Range("B3").Value))
+    sel(app, "B3")
+    app.run("InsertTableColumnsLeft")
+    check("Insert Table Columns to the Left: a column at B", addr() == "A1:E4" and ws.Range("B3").Value is None and ws.Range("C3").Value == b3, (addr(), ws.Range("C3").Value))
+    sel(app, "B3")
+    app.run("DeleteTableColumns")
+    check("Delete Table Columns: the column goes", addr() == "A1:D4" and ws.Range("B3").Value == b3, (addr(), ws.Range("B3").Value))
     sel(app, "B2")
     app.run("ConvertToRange")
     answer(app)

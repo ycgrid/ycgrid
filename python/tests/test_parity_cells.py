@@ -477,6 +477,24 @@ class CommandsTest(_Base):
         finally:
             self.keys("k:Escape|w:3")
 
+    def test_a_find_all_row_is_found_by_its_cell_and_a_click_goes_there(self):
+        # the rows were listed by their sheet's name only (each also a tab's), and a clicked row wasn't highlighted
+        from yc import excel, ui
+
+        self.ws.Range("B2").Value = "needle one"
+        self.ws.Range("D5").Value = "needle two"
+        self.keys("g:A1|w:2|k:c-F|w:6|k:c-A|t:needle|w:2")
+        self.click_label("Find All")
+        try:
+            row = [i for i in ui.items("Find and Replace") if i.get("label") == self.ws.Name + "!$D$5"]
+            self.assertTrue(row, "the second row is listed by its sheet and cell")
+            r = row[0]["rect"]
+            x, y = int((r[0] + r[2]) / 2), int((r[1] + r[3]) / 2)
+            self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4")
+            self.assertEqual(excel.ActiveCell.Address, "$D$5")
+        finally:
+            self.keys("k:Escape|w:3")
+
     def test_the_editor_of_a_right_aligned_cell_grows_left(self):
         # L7: the editor always started at the cell's left edge
         from yc import ui

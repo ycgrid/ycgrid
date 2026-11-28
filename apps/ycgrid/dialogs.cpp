@@ -14,6 +14,7 @@
 #include "frame/frame_context.h"
 #include "grid/grid.h"
 #include "ribbon/ribbon.h"
+#include "dock/dock_layout.h"
 #include "theme/theme.h"
 #include "yc_ui_items.h"
 #include "trust.h"
@@ -28,6 +29,7 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <tuple>
 
 namespace yc::app {
 
@@ -748,7 +750,7 @@ void DrawFormatCells(AppState& s) {
   }
   FormatDlg& f = g_fmt;
   bool apply = false, close = false;
-  if (ImGui::BeginTabBar("##fmt_tabs")) {
+  if (BeginDlgTabBar("##fmt_tabs")) {
     const char* tabs[] = {TR("Number"), TR("Alignment"), TR("Font"), TR("Border"), TR("Fill"), TR("Protection")};
     for (int i = 0; i < 6; ++i) {
       if (f.chars && i != 2) continue;  // selected characters: only their font
@@ -796,7 +798,7 @@ void DrawFormatCells(AppState& s) {
             ImGui::SetNextItemWidth(S(110));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem("##symbol", ImRect(at, at + ImVec2(S(110), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##symbol", kSymbols[std::clamp(f.symbol, 0, static_cast<int>(std::size(kSymbols)) - 1)])) {
+            if (ui::BeginCombo("##symbol", kSymbols[std::clamp(f.symbol, 0, static_cast<int>(std::size(kSymbols)) - 1)])) {
               for (int k = 0; k < static_cast<int>(std::size(kSymbols)); ++k) {
                 if (ImGui::Selectable(kSymbols[k], f.symbol == k)) f.symbol = k;
               }
@@ -916,6 +918,7 @@ void DrawFormatCells(AppState& s) {
                 const std::string& c = list[k];
                 ImGui::PushID(static_cast<int>(k));
                 if (ImGui::Selectable("##code", c == f.custom)) std::snprintf(f.custom, sizeof(f.custom), "%s", c.c_str());
+                ui::NoteUiText(c.c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
                 ImGui::SameLine(ImGui::GetStyle().ItemSpacing.x);
                 ImGui::TextUnformatted(c.c_str());
                 ImGui::PopID();
@@ -967,7 +970,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##halign", ImRect(at, at + ImVec2(S(190), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo("##halign", &hi, h, IM_ARRAYSIZE(h))) {
+          if (ui::Combo("##halign", &hi, h, IM_ARRAYSIZE(h))) {
             f.edit.halign = static_cast<H>(hi);
             if (f.edit.halign != H::General && f.edit.halign != H::Left && f.edit.halign != H::Right && f.edit.halign != H::Distributed) f.edit.indent = 0;
             if (f.edit.halign != H::Distributed) f.edit.justify_last_line = false;
@@ -1002,7 +1005,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##valign", ImRect(at, at + ImVec2(S(190), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo("##valign", &vi, v, IM_ARRAYSIZE(v))) f.edit.valign = kVOrder[vi];
+          if (ui::Combo("##valign", &vi, v, IM_ARRAYSIZE(v))) f.edit.valign = kVOrder[vi];
           // Justify distributed: only for Distributed (Indent)
           ImGui::BeginDisabled(f.edit.halign != H::Distributed);
           ImGui::Checkbox(TR("Justify distributed"), &f.edit.justify_last_line);
@@ -1023,7 +1026,7 @@ void DrawFormatCells(AppState& s) {
             ImGui::SetNextItemWidth(S(170));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem("##text_direction", ImRect(at, at + ImVec2(S(170), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##text_direction", dirs[dir])) {
+            if (ui::BeginCombo("##text_direction", dirs[dir])) {
               for (int k = 0; k < 3; ++k) {
                 if (ImGui::Selectable(dirs[k], dir == k)) f.edit.reading_order = static_cast<uint8_t>(k);
               }
@@ -1148,7 +1151,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##font_style", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo(TR("Font style"), &st, styles, 4)) {
+          if (ui::Combo(TR("Font style"), &st, styles, 4)) {
             f.edit.bold = st >= 2;
             f.edit.italic = st % 2 == 1;
           }
@@ -1185,7 +1188,7 @@ void DrawFormatCells(AppState& s) {
             const ImVec2 at = ImGui::GetCursorScreenPos();  // combos aren't recorded: tests find it by its id
             ui::NoteUiItem("##underline", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
           }
-          if (ImGui::Combo(TR("Underline"), &u, ul, 5)) f.edit.underline = static_cast<model::Underline>(u);
+          if (ui::Combo(TR("Underline"), &u, ul, 5)) f.edit.underline = static_cast<model::Underline>(u);
           ColorEdit(TR("Color"), &f.edit.font_color, true, TR("Automatic"));
           ImGui::Checkbox(TR("Strikethrough"), &f.edit.strike);
           bool sup = f.edit.script == 1, sub = f.edit.script == 2;
@@ -1524,6 +1527,12 @@ void DrawFormatCells(AppState& s) {
       if (e.wrap != b.wrap) x.wrap = e.wrap;
       if (e.shrink != b.shrink) x.shrink = e.shrink;
     }, font_changed ? &font : nullptr);  // a new font name is measured too
+    // a number format that shows numbers wider widens a column nobody sized, as the ribbon's formats do (Excel 16)
+    std::vector<std::pair<uint32_t, int32_t>> widen;
+    if (numfmt_changed && code != "General") {
+      widen = ColumnsToWidenForFormat(s, sheet, areas, code);
+      for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+    }
     s.engine->PostUser(TR("Format Cells"), [=](Document& d) {
       auto& tbl = d.wb_mut().styles.mut();
       const uint32_t numfmt_id = numfmt_changed ? (code == "General" ? 0u : tbl.InternString(code)) : 0u;
@@ -1587,6 +1596,7 @@ void DrawFormatCells(AppState& s) {
         // a single cell row / column: no inside line was asked for, its outline edges came from the rim passes
       }
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
     });
   }
   EndDialog(s, close);
@@ -1606,6 +1616,7 @@ struct FindHit {
   std::string value, formula, name;  // Find All's Value, Formula and Name columns (as Excel's list)
 };
 std::vector<FindHit> g_hits;
+int g_hit_sel = -1;  // the row of the list last clicked, highlighted as in Excel
 // Format...: the format to find and to replace with; Choose Format From Cell arms a pick (1 find, 2 replace) taken
 // from the next cell clicked on the sheet
 engine::FormatSpec g_find_fmt, g_repl_fmt;
@@ -1699,9 +1710,11 @@ void DrawFindReplace(AppState& s) {
     return;
   }
   if (g_find_focus) ImGui::SetWindowFocus();
+  // the dialog has the keyboard: Alt + a letter is its own (Replace All...), not the ribbon's KeyTips behind it
+  NoteDialogKeyboard();
   bool close = !open || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape));
   bool replace = g_find_open == 2;
-  if (ImGui::BeginTabBar("##find_tabs")) {
+  if (BeginDlgTabBar("##find_tabs")) {
     if (ImGui::BeginTabItem(TR("Find"), nullptr, g_find_tab_pick && !replace ? ImGuiTabItemFlags_SetSelected : 0)) {
       replace = false;
       ImGui::EndTabItem();
@@ -1822,7 +1835,7 @@ void DrawFindReplace(AppState& s) {
       // combo boxes report no label to the UI item recorder: note it, so tests click it as a person does
       const ImVec2 at = ImGui::GetCursorScreenPos();
       ui::NoteUiItem(id, ImRect(at, at + ImVec2(cw, ImGui::GetFrameHeight())));
-      if (ImGui::BeginCombo(id, items[static_cast<size_t>(std::clamp(*v, 0, static_cast<int>(items.size()) - 1))])) {
+      if (ui::BeginCombo(id, items[static_cast<size_t>(std::clamp(*v, 0, static_cast<int>(items.size()) - 1))])) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
           if (ImGui::Selectable(items[static_cast<size_t>(i)], *v == i)) *v = i;
         }
@@ -1834,9 +1847,11 @@ void DrawFindReplace(AppState& s) {
     combo(TR("Within:"), "##find_within", &within, {TR("Sheet"), TR("Workbook")});
     ImGui::SameLine(label_w + cw + S(30));
     ImGui::Checkbox(TR("Match case"), &g_match_case);
+    if (DlgKey(ImGuiKey_C)) g_match_case = !g_match_case;  // Excel's letters: Match (c)ase, entire cell c(o)ntents
     combo(TR("Search:"), "##find_search", &search, {TR("By Rows"), TR("By Columns")});
     ImGui::SameLine(label_w + cw + S(30));
     ImGui::Checkbox(TR("Match entire cell contents"), &g_whole);
+    if (DlgKey(ImGuiKey_O)) g_whole = !g_whole;
     if (replace) combo(TR("Look in:"), "##find_look", &g_look_in, {TR("Formulas")});
     else combo(TR("Look in:"), "##find_look", &g_look_in, {TR("Formulas"), TR("Values"), TR("Notes")});
     g_scope_wb = within == 1;
@@ -1846,7 +1861,7 @@ void DrawFindReplace(AppState& s) {
   {
     const char* opt = g_find_options ? TR("Options <<") : TR("Options >>");
     ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(opt).x - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().WindowPadding.x);
-    if (ImGui::Button(opt)) g_find_options = !g_find_options;
+    if (ImGui::Button(opt) || DlgKey(ImGuiKey_T)) g_find_options = !g_find_options;  // Op(t)ions
   }
   ImGui::Separator();
   const model::Sheet* sh = s.FocusSheet();
@@ -1956,7 +1971,8 @@ void DrawFindReplace(AppState& s) {
   auto button = [](const char* l) { return ImGui::Button(l, ImVec2(std::max(S(84), ImGui::CalcTextSize(l).x + S(16)), 0)); };
   if (replace) {
     // read-only mode: the status bar says why, never "We couldn't find anything to replace" (the engine refused)
-    if (button(TR("Replace All")) && s.engine && can_find && !RefuseReadOnlyUi(s)) {
+    // Excel's letters: Replace (A)ll, (R)eplace, F(i)nd All, (F)ind Next (Alt with them from a text box)
+    if ((button(TR("Replace All")) || DlgKey(ImGuiKey_A)) && s.engine && can_find && !RefuseReadOnlyUi(s)) {
       const std::string what = g_find, with = g_repl;
       const bool mc = g_match_case, wh = g_whole;
       std::vector<std::pair<uint32_t, Rect>> targets;
@@ -1972,7 +1988,7 @@ void DrawFindReplace(AppState& s) {
       else s.ShowMessage("YCGrid", TR("All done. We made ") + std::to_string(n) + TR(" replacements."));
     }
     ImGui::SameLine();
-    if (button(TR("Replace")) && s.engine && can_find && sh && !RefuseReadOnlyUi(s)) {
+    if ((button(TR("Replace")) || DlgKey(ImGuiKey_R)) && s.engine && can_find && sh && !RefuseReadOnlyUi(s)) {
       // Excel: the active cell is replaced when it matches, then the next match is selected
       const auto& sel = s.FocusView().sel;
       const uint32_t sheet = s.focus_sheet, r = sel.act_r, c = sel.act_c;
@@ -1987,13 +2003,14 @@ void DrawFindReplace(AppState& s) {
     }
     ImGui::SameLine();
   }
-  if (button(TR("Find All")) && s.engine && can_find) {
+  if ((button(TR("Find All")) || DlgKey(ImGuiKey_I)) && s.engine && can_find) {
     g_hits = collect(g_find);
+    g_hit_sel = -1;
     s.SetStatus(g_hits.empty() ? std::string(TR("We couldn't find what you were looking for")) : TR("Find All: found ") + std::to_string(g_hits.size()) + TR(" cells"));
     if (g_hits.empty()) not_found();
   }
   ImGui::SameLine();
-  if (button(TR("Find Next")) || enter) find_next(back);
+  if (button(TR("Find Next")) || enter || DlgKey(ImGuiKey_F)) find_next(back);
   ImGui::SameLine();
   if (button(TR("Close"))) close = true;
   if (!g_hits.empty()) {
@@ -2027,6 +2044,7 @@ void DrawFindReplace(AppState& s) {
           return col == 1 ? h.name : col == 2 ? std::string(cell) : col == 3 ? h.value : h.formula;
         };
         std::stable_sort(g_hits.begin(), g_hits.end(), [&](const FindHit& a, const FindHit& b) { return desc ? key(b) < key(a) : key(a) < key(b); });
+        g_hit_sel = -1;
         ss->SpecsDirty = false;
       }
       ImGuiListClipper clip;
@@ -2037,14 +2055,20 @@ void DrawFindReplace(AppState& s) {
           ImGui::TableNextRow();
           ImGui::TableNextColumn();
           ImGui::PushID(i);
-          if (ImGui::Selectable(h.sheet_name.c_str(), false, ImGuiSelectableFlags_SpanAllColumns)) GoToHit(s, h);
+          if (ImGui::Selectable(h.sheet_name.c_str(), i == g_hit_sel, ImGuiSelectableFlags_SpanAllColumns)) {
+            g_hit_sel = i;
+            GoToHit(s, h);
+          }
           ImGui::PopID();
           if (!notes) {
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(h.name.c_str());
           }
           ImGui::TableNextColumn();
-          ImGui::TextUnformatted(core::CellA1(h.r, h.c, true, true).c_str());
+          const std::string addr = core::CellA1(h.r, h.c, true, true);
+          ImGui::TextUnformatted(addr.c_str());
+          // tests find a row by its sheet and cell, as a person reads it (the sheet's name alone is also a tab's)
+          ui::NoteUiText((h.sheet_name + "!" + addr).c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
           ImGui::TableNextColumn();
           ImGui::TextUnformatted(notes ? h.text.c_str() : h.value.c_str());
           if (!notes) {
@@ -2072,6 +2096,7 @@ void DrawFindReplace(AppState& s) {
   if (close) {
     g_find_open = 0;
     g_hits.clear();
+    g_hit_sel = -1;
   }
 }
 
@@ -2121,7 +2146,7 @@ void DrawGoTo(AppState& s) {
   ImGui::SetNextItemWidth(-1);
   const bool enter = ImGui::InputTextWithHint("##goto", TR("A1, B2:D10, Sheet2!C3 or a name"), g_goto, sizeof(g_goto),
                                               ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
-  if (ImGui::Button(TR("Special..."))) {
+  if (ImGui::Button(TR("Special...")) || DlgKey(ImGuiKey_S)) {  // Alt+S from the reference box (Excel)
     EndDialog(s, true);
     s.OpenDialog(Dialog::GoToSpecial);
     return;
@@ -2130,10 +2155,23 @@ void DrawGoTo(AppState& s) {
   bool close = OkCancel(&ok);
   if ((ok || enter || go) && g_goto[0]) {
     if (const model::Sheet* here = s.FocusSheet()) {
-      const auto& sel = s.FocusView().sel;
-      const std::string cell = core::CellA1(sel.act_r, sel.act_c, true, true);
+      // the whole selection, every area (Excel 16, measured: Application.PreviousSelections(1) after Goto from
+      // B2:B8 is $B$2:$B$8, from A3:A4,A6,A8 all three areas), so F5, Enter selects again what was selected
       const bool other_sheet = std::strchr(g_goto, '!') != nullptr;
-      g_goto_back = other_sheet ? core::QuoteSheetName(here->name) + "!" + cell : cell;
+      const std::string prefix = other_sheet ? core::QuoteSheetName(here->name) + "!" : std::string();
+      std::string back;
+      for (const Rect& a : s.FocusView().sel.areas) {
+        const bool whole_cols = a.r0 == 0 && a.r1 + 1 >= here->row_limit;
+        const bool whole_rows = a.c0 == 0 && a.c1 + 1 >= here->col_limit;
+        std::string t;
+        if (whole_cols && !whole_rows) t = "$" + core::ColumnName(a.c0) + ":$" + core::ColumnName(a.c1);
+        else if (whole_rows && !whole_cols) t = "$" + std::to_string(uint64_t{a.r0} + 1) + ":$" + std::to_string(uint64_t{a.r1} + 1);
+        else t = core::CellA1(a.r0, a.c0, true, true) + (a.IsCell() ? "" : ":" + core::CellA1(a.r1, a.c1, true, true));
+        back += (back.empty() ? "" : ",") + prefix + t;
+      }
+      // a selection too long for the box goes back to its active cell
+      const auto& sel = s.FocusView().sel;
+      g_goto_back = back.size() < sizeof g_goto ? back : prefix + core::CellA1(sel.act_r, sel.act_c, true, true);
     }
     Goto(s, g_goto);
     const std::string r = g_goto;
@@ -2291,12 +2329,18 @@ void DrawInsDel(AppState& s, bool insert) {
     g_ins_choice = (a.r1 - a.r0) > (a.c1 - a.c0) ? 4 : 3;
   }
   if (paste_in) ImGui::TextUnformatted(TR("Insert Paste"));
-  ImGui::RadioButton(insert ? TR("Shift cells right") : TR("Shift cells left"), &g_ins_choice, 4);
-  ImGui::RadioButton(insert ? TR("Shift cells down") : TR("Shift cells up"), &g_ins_choice, 3);
+  // Excel's letters: Shift cells r(I)ght / (L)eft, (D)own / (U)p, Entire (R)ow, Entire (C)olumn (Ctrl+-, R, Enter
+  // deletes the row, as people type it)
+  if (DlgKey(insert ? ImGuiKey_I : ImGuiKey_L)) g_ins_choice = 4;
+  if (DlgKey(insert ? ImGuiKey_D : ImGuiKey_U)) g_ins_choice = 3;
+  if (!paste_in && DlgKey(ImGuiKey_R)) g_ins_choice = 1;
+  if (!paste_in && DlgKey(ImGuiKey_C)) g_ins_choice = 2;
+  ui::RadioButton(insert ? TR("Shift cells right") : TR("Shift cells left"), &g_ins_choice, 4);
+  ui::RadioButton(insert ? TR("Shift cells down") : TR("Shift cells up"), &g_ins_choice, 3);
   if (paste_in && g_ins_choice != 3 && g_ins_choice != 4) g_ins_choice = 3;
   if (!paste_in) {
-    ImGui::RadioButton(TR("Entire row"), &g_ins_choice, 1);
-    ImGui::RadioButton(TR("Entire column"), &g_ins_choice, 2);
+    ui::RadioButton(TR("Entire row"), &g_ins_choice, 1);
+    ui::RadioButton(TR("Entire column"), &g_ins_choice, 2);
   }
   bool ok = false;
   const bool close = OkCancel(&ok);
@@ -2367,6 +2411,7 @@ void DrawMoveCopySheet(AppState& s) {
     }
   }
   ImGui::EndChild();
+  if (DlgKey(ImGuiKey_C)) g_move_copy = !g_move_copy;  // Excel 16's letter (UI Automation's AccessKey)
   ImGui::Checkbox(TR("Create a copy"), &g_move_copy);
   bool ok = false;
   bool close = OkCancel(&ok);
@@ -2405,7 +2450,7 @@ void DrawPasteSpecialText(AppState& s) {
   if (ImGui::IsWindowAppearing()) as = 0;
   ImGui::TextUnformatted(TR("Source: text from another program"));
   ImGui::Spacing();
-  ImGui::RadioButton(TR("Paste"), true);
+  ui::RadioButton(TR("Paste"), true);
   ImGui::Spacing();
   ImGui::TextUnformatted(TR("As:"));
   const char* kinds[] = {TR("Unicode Text"), TR("Text")};
@@ -2476,7 +2521,7 @@ void DrawPasteSpecial(AppState& s) {
       for (int col = 0; col < 2; ++col) {
         ImGui::TableNextColumn();
         const int i = col * (kCount / 2) + row;
-        ImGui::RadioButton(kChoices[i].label, &g_ps_mode, i);
+        ui::RadioButton(kChoices[i].label, &g_ps_mode, i);
       }
     }
     ImGui::EndTable();
@@ -2489,7 +2534,7 @@ void DrawPasteSpecial(AppState& s) {
     for (int k : kOrder) {
       ImGui::TableNextColumn();
       ImGui::PushID(100 + k);
-      ImGui::RadioButton(ops[k], &g_ps_op, k);
+      ui::RadioButton(ops[k], &g_ps_op, k);
       ImGui::PopID();
     }
     ImGui::EndTable();
@@ -2551,12 +2596,16 @@ void DrawZoom(AppState& s) {
   static int pct = 100;
   static bool fit = false;  // Excel's "Fit selection": the zoom that shows the selected cells
   if (ImGui::IsWindowAppearing()) pct = static_cast<int>(s.FocusView().zoom * 100 + 0.5f), fit = false;
-  for (int z : {200, 100, 75, 50, 25}) {
+  // Excel 16's letters (UI Automation's AccessKey of its Zoom dialog): 0 200%, 1 100%, 7 75%, 5 50%, 2 25%, F Fit
+  // selection, C the Custom box
+  static const std::pair<int, ImGuiKey> kZooms[] = {{200, ImGuiKey_0}, {100, ImGuiKey_1}, {75, ImGuiKey_7}, {50, ImGuiKey_5}, {25, ImGuiKey_2}};
+  for (const auto& [z, key] : kZooms) {
     char label[16];
     std::snprintf(label, sizeof(label), "%d%%", z);
-    if (ImGui::RadioButton(label, !fit && pct == z)) pct = z, fit = false;
+    if (ui::RadioButton(label, !fit && pct == z) || DlgKey(key)) pct = z, fit = false;
   }
-  if (ImGui::RadioButton(TR("Fit selection"), fit)) fit = true;
+  if (ui::RadioButton(TR("Fit selection"), fit) || DlgKey(ImGuiKey_F)) fit = true;
+  if (DlgKey(ImGuiKey_C)) ImGui::SetKeyboardFocusHere();
   ImGui::SetNextItemWidth(S(100));
   if (ImGui::InputInt(TR("Custom %"), &pct)) fit = false;
   pct = std::clamp(pct, 10, 400);
@@ -3030,6 +3079,9 @@ void DrawFunctionArgs(AppState& s) {
     }
   }
   ImGui::Spacing();
+  // the description and the help of the argument being typed keep one height: grown when a box took the keyboard (a
+  // help two lines long), the dialog, sized when it opened, scrolled and cut OK and Cancel under its edge
+  const float help_top = ImGui::GetCursorPosY();
   if (h) {
     ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x);
     ImGui::TextWrapped("%s", h->desc);
@@ -3050,6 +3102,7 @@ void DrawFunctionArgs(AppState& s) {
     }
     ImGui::PopTextWrapPos();
   }
+  if (const float used = ImGui::GetCursorPosY() - help_top, room = ImGui::GetTextLineHeightWithSpacing() * 6; used < room) ImGui::Dummy(ImVec2(1, room - used));
   const std::string call = CallText(d);
   ImGui::Text("%s %s", TR("Formula result ="), ArgValue(s, call).c_str());
   static bool help = false;
@@ -3078,15 +3131,17 @@ void DrawFunctionArgs(AppState& s) {
     StartEdit(s, true, f);
     CommitEdit(s, false, 0);
   } else if (ok && d.span_begin >= 0 && s.edit.active && d.span_end <= static_cast<int>(s.edit.text.size())) {
-    // the call around the caret: it is written back over itself
+    // the call around the caret: it is written back over itself, and OK enters the formula, as Excel's does (Ctrl+A
+    // after =SUM, then OK: the cell has =SUM(A1:A2); left in the editor, the entry waited for an Enter nobody
+    // expected to press). An outer call still missing arguments gets Enter's message, as in Excel
     std::string t = s.edit.text;
     t.replace(static_cast<size_t>(d.span_begin), static_cast<size_t>(d.span_end - d.span_begin), call);
     render::SetEditText(s.edit, t, d.span_begin + static_cast<int>(call.size()));
     s.edit.ref_begin = s.edit.ref_end = -1;
-    s.edit.focus_request = true;
+    CommitEdit(s, false, 0);
   } else if (ok) {
     if (s.edit.active) {
-      // typing a formula: the call goes in at the caret
+      // typing a formula: the call goes in at the caret, and OK enters the formula (as above)
       std::string t = s.edit.text;
       int caret = std::clamp(s.edit.caret, 0, static_cast<int>(t.size()));
       if (t.empty() || t[0] != '=') {
@@ -3096,7 +3151,7 @@ void DrawFunctionArgs(AppState& s) {
       }
       t.insert(static_cast<size_t>(caret), call);
       render::SetEditText(s.edit, t, caret + static_cast<int>(call.size()));
-      s.edit.focus_request = true;
+      CommitEdit(s, false, 0);
     } else {
       // the cell gets the formula, as Excel's OK does
       StartEdit(s, true, "=" + call);
@@ -3144,7 +3199,7 @@ void DrawInsertFunction(AppState& s) {
   ImGui::SameLine();
   ImGui::SetNextItemWidth(S(200));
   category = std::clamp(category, -1, static_cast<int>(cats.size()));
-  if (ImGui::BeginCombo("##cat", category == -1 ? TR("Most Recently Used") : category == 0 ? TR("All") : cats[static_cast<size_t>(category - 1)])) {
+  if (ui::BeginCombo("##cat", category == -1 ? TR("Most Recently Used") : category == 0 ? TR("All") : cats[static_cast<size_t>(category - 1)])) {
     if (ImGui::Selectable(TR("Most Recently Used"), category == -1)) category = -1;
     if (ImGui::Selectable(TR("All"), category == 0)) category = 0;
     for (size_t i = 0; i < cats.size(); ++i) {
@@ -3170,6 +3225,32 @@ void DrawInsertFunction(AppState& s) {
     // Most Recently Used: the last one used first, as Excel lists them
     auto rank = [](const formula::FuncHelp* h) { return std::find(g_fn_recent.begin(), g_fn_recent.end(), h->name) - g_fn_recent.begin(); };
     std::sort(list.begin(), list.end(), [&](auto* a, auto* b) { return rank(a) < rank(b); });
+  } else if (!f.empty()) {
+    // a search lists the best matches first, as Excel's recommends them: the name, then a name it starts, then one it
+    // is in, then the descriptions, the functions people use most first and the shortest description next. In the
+    // Chinese UI a search matches the descriptions only, and alphabetical order chose AVEDEV for the Chinese word for
+    // average and DSUM for the one for adding up
+    static const char* const kCommon[] = {"SUM", "AVERAGE", "COUNT", "MAX", "MIN", "IF", "VLOOKUP", "XLOOKUP", "INDEX", "MATCH", "ROUND",
+                                          "SUMIF", "SUMIFS", "COUNTIF", "COUNTIFS", "AVERAGEIF", "IFERROR", "AND", "OR", "DATE", "TODAY", "NOW",
+                                          "YEAR", "MONTH", "DAY", "LEFT", "RIGHT", "MID", "LEN", "TEXT", "CONCAT", "TRIM", "ABS", "STDEV.S", "PMT"};
+    auto tier = [&](const formula::FuncHelp* h) {
+      const std::string n = engine::Lower(h->name);
+      if (n == f) return 0;
+      if (n.rfind(f, 0) == 0) return 1;
+      if (n.find(f) != std::string::npos) return 2;
+      for (const char* c : kCommon) {
+        if (std::strcmp(c, h->name) == 0) return 3;
+      }
+      return 4;
+    };
+    std::sort(list.begin(), list.end(), [&](auto* a, auto* b) {
+      const int ta = tier(a), tb = tier(b);
+      if (ta != tb) return ta < tb;
+      if (ta == 3) return std::find_if(std::begin(kCommon), std::end(kCommon), [&](const char* c) { return std::strcmp(c, a->name) == 0; }) <
+                          std::find_if(std::begin(kCommon), std::end(kCommon), [&](const char* c) { return std::strcmp(c, b->name) == 0; });
+      if (ta == 4 && std::strlen(a->desc) != std::strlen(b->desc)) return std::strlen(a->desc) < std::strlen(b->desc);
+      return std::strcmp(a->name, b->name) < 0;
+    });
   } else {
     std::sort(list.begin(), list.end(), [](auto* a, auto* b) { return std::strcmp(a->name, b->name) < 0; });
   }
@@ -3192,6 +3273,9 @@ void DrawInsertFunction(AppState& s) {
   }
   if (list.empty()) ImGui::TextDisabled(TR("No matching functions"));
   ImGui::EndChild();
+  // the chosen function's syntax, description and help link in a part of one height, as Excel's: grown with them,
+  // the dialog (sized when it opened) scrolled and hid OK and Cancel under its edge
+  ImGui::BeginChild("##fnhelp", ImVec2(0, ImGui::GetTextLineHeightWithSpacing() * 6), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar);
   if (const formula::FuncHelp* h = chosen.empty() ? nullptr : formula::FindFuncHelp(chosen)) {
     ImGui::Text("%s(%s)", h->name, h->args);
     ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x);
@@ -3202,6 +3286,7 @@ void DrawInsertFunction(AppState& s) {
   static bool help = false;
   if (ImGui::IsWindowAppearing()) help = false;
   if (!chosen.empty()) FunctionHelpLink(chosen, &help);
+  ImGui::EndChild();
   bool ok = false;
   const bool close = OkCancel(&ok) || accept;
   if (close && !((ok || accept) && !chosen.empty()) && g_fx_edit) {  // Cancel: the "=" fx put in the cell goes
@@ -3339,6 +3424,8 @@ bool BeginModal(const char* title, bool* open, int flags) {
     opened_width.erase(id);
     return false;
   }
+  // a title that changes (Step 2 of 3) keeps its first one as ImGui's name: ui.items / ui.windows report this one
+  ui::NoteWindowTitle(title);
   if (auto_size) {
     // the width it opened at (the first frames lay it out: the widest of them)
     float& w = opened_width[id];
@@ -3356,6 +3443,15 @@ bool BeginModal(const char* title, bool* open, int flags) {
   return true;
 }
 
+void DockAsTaskPane(const char* window_title, bool left, float width) {
+  if (ImGui::FindWindowByName(window_title)) return;  // shown before in this session: where the user left it
+  const ImGuiWindow* grid = ImGui::FindWindowByName("###yc_gridhost");
+  if (!grid || !grid->DockNode) return;  // the sheets aren't docked (a container): it floats
+  const float total = grid->DockNode->Size.x;
+  if (total <= width * 2.0f) return;  // too narrow to share
+  ui::dock::DockBesideWindow(window_title, "###yc_gridhost", left ? 0 : 1, width / total);
+}
+
 void PlaceNewWindow(WindowPlace where) {
   const ImGuiViewport* vp = ImGui::GetMainViewport();
   ImVec2 pos = vp->GetCenter(), pivot(0.5f, 0.5f);
@@ -3366,6 +3462,50 @@ void PlaceNewWindow(WindowPlace where) {
     case WindowPlace::Right: pos = ImVec2(vp->Pos.x + vp->Size.x - S(24), vp->Pos.y + vp->Size.y * 0.22f), pivot = ImVec2(1.0f, 0.0f); break;
   }
   ImGui::SetNextWindowPos(pos, ImGuiCond_FirstUseEver, pivot);
+}
+
+void NoteDialogKeyboard() {
+  if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) ui::ribbon::St().dialog_keys_frame = ImGui::GetFrameCount();
+}
+
+bool DlgKey(ImGuiKey key) {
+  const ImGuiIO& io = ImGui::GetIO();
+  if (io.KeyCtrl || !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) return false;
+  if (io.WantTextInput && !io.KeyAlt) return false;  // a text box takes the letter itself; Alt+letter still chooses
+  return ImGui::IsKeyPressed(key, false);
+}
+
+bool CheckboxMixed(const char* label, bool* all, bool mixed) {
+  if (mixed) ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, true);
+  const bool clicked = ImGui::Checkbox(label, all);
+  if (mixed) ImGui::PopItemFlag();
+  return clicked;
+}
+
+bool BeginDlgTabBar(const char* id) {
+  if (!ImGui::BeginTabBar(id)) return false;  // lesson-ok: dlg-tabs the one place that calls it
+  ImGuiContext& g = *GImGui;
+  ImGuiTabBar* bar = g.CurrentTabBar;
+  // the dialog's own tabs only (a tab bar inside a tab, as Header / Footer's pages, keeps out), while it has the keyboard
+  if (!bar || g.CurrentTabBarStack.Size != 1 || bar->Tabs.Size < 2 || !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) return true;
+  int dir = 0;
+  if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Tab) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_PageDown)) dir = 1;
+  if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Tab) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_PageUp)) dir = -1;
+  if (!dir) return true;
+  // the tabs in the order they show (a tab left out this frame, as Format Cells' for a table style, isn't one)
+  std::vector<const ImGuiTabItem*> shown;
+  for (const ImGuiTabItem& t : bar->Tabs) {
+    if (t.LastFrameVisible >= g.FrameCount - 1) shown.push_back(&t);
+  }
+  std::sort(shown.begin(), shown.end(), [](const ImGuiTabItem* a, const ImGuiTabItem* b) { return a->Offset < b->Offset; });
+  if (shown.size() < 2) return true;
+  size_t at = 0;
+  for (size_t i = 0; i < shown.size(); ++i) {
+    if (shown[i]->ID == bar->SelectedTabId) at = i;
+  }
+  const int n = static_cast<int>(shown.size());
+  bar->NextSelectedTabId = shown[static_cast<size_t>((static_cast<int>(at) + dir + n) % n)]->ID;
+  return true;
 }
 
 bool DlgListKeys(int* sel, int count, const std::function<const char*(int)>& label) {
@@ -3571,8 +3711,8 @@ struct MiniMenu {
   }
 };
 }  // namespace
-void OpenCellContextMenuAt(ImVec2 pos) {
-  g_open_cell_menu = true;
+void OpenCellContextMenuAt(ImVec2 pos, int kind) {
+  (kind == 1 ? g_open_row_menu : kind == 2 ? g_open_col_menu : g_open_cell_menu) = true;
   g_cell_menu_at = true;
   g_cell_menu_pos = pos;
 }
@@ -3696,12 +3836,17 @@ void DrawContextMenus(AppState& s) {
   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(S(8), S(7)));
   if (g_open_cell_menu) ImGui::OpenPopup("##cellmenu");
   static int kbd_frames = 0;  // opened from the keyboard: show where the keyboard is (the first item) for its first frames
-  if (g_cell_menu_at && ImGui::IsPopupOpen("##cellmenu")) {
+  // the menu Shift+F10 opened (the cell's, the row's or the column's), placed at the active cell before its Begin
+  static const char* kbd_menu = nullptr;
+  if (g_cell_menu_at) kbd_menu = g_open_row_menu ? "##rowmenu" : g_open_col_menu ? "##colmenu" : "##cellmenu";
+  auto kbd_place = [&](const char* id) {
+    if (!kbd_menu || std::strcmp(kbd_menu, id) != 0 || !ImGui::IsPopupOpen(id)) return;
     ImGui::SetNextWindowPos(g_cell_menu_pos);
     kbd_frames = 2;
-  }
+    kbd_menu = nullptr;
+  };
   // the mini toolbar comes with a menu the mouse opened (Excel: not with Shift+F10 or the Menu key)
-  if (g_open_cell_menu || g_open_col_menu || g_open_row_menu) g_menu_mini = !(g_open_cell_menu && g_cell_menu_at);
+  if (g_open_cell_menu || g_open_col_menu || g_open_row_menu) g_menu_mini = !g_cell_menu_at;
   g_cell_menu_at = false;
   if (g_open_col_menu) ImGui::OpenPopup("##colmenu");
   if (g_open_row_menu) ImGui::OpenPopup("##rowmenu");
@@ -3731,7 +3876,8 @@ void DrawContextMenus(AppState& s) {
     MenuCmd("ScreenshotSelection", TR("Screenshot of Selection"));
     ImGui::Separator();
   };
-  if (!ImGui::IsPopupOpen("##cellmenu")) kbd_frames = 0;  // closed in its first frame: the next menu starts plain
+  if (!ImGui::IsPopupOpen("##cellmenu") && !ImGui::IsPopupOpen("##rowmenu") && !ImGui::IsPopupOpen("##colmenu") && !kbd_menu)
+    kbd_frames = 0;  // closed in its first frame: the next menu starts plain
   // with the mini toolbar: no window background (the toolbar and the menu draw their own boxes), the menu at the mouse
   // and the toolbar above it
   auto mini_style = [&](const char* id) {
@@ -3748,6 +3894,29 @@ void DrawContextMenus(AppState& s) {
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
   };
+  // Excel's letters in the menus (the underlined ones; Shift+F10 or the Menu key, then V pastes values): only the
+  // letters no other entry of the menu shares, which run their entry at once (a shared one only moves the highlight
+  // in Excel's menus). Only while the menu itself has the keyboard, not an open submenu
+  auto letters = [&](std::initializer_list<std::pair<ImGuiKey, const char*>> cmds, std::initializer_list<std::pair<ImGuiKey, int>> pastes) {
+    const ImGuiIO& kio = ImGui::GetIO();
+    if (!ImGui::IsWindowFocused() || ImGui::IsAnyItemActive() || kio.KeyCtrl || kio.KeyAlt || kio.KeyShift) return;
+    for (const auto& [key, id] : cmds) {
+      const ui::Command* c = ui::Commands().Find(id);
+      if (ImGui::IsKeyPressed(key, false) && (!c || c->enabled)) {
+        ImGui::CloseCurrentPopup();
+        Exec(id);
+        return;
+      }
+    }
+    for (const auto& [key, way] : pastes) {  // the Paste Options pictures: Paste (P), Values (V), Formatting (R)
+      if (ImGui::IsKeyPressed(key, false) && CopyModeOn(s)) {
+        ImGui::CloseCurrentPopup();
+        PasteWayNow(s, way);
+        return;
+      }
+    }
+  };
+  kbd_place("##cellmenu");
   const bool cell_mini = mini_style("##cellmenu");
   const bool cell_open = ImGui::BeginPopup("##cellmenu");
   mini_pop(cell_mini);
@@ -3762,6 +3931,22 @@ void DrawContextMenus(AppState& s) {
       MenuCmd("FormatCellsDialog", TR("Format Cells..."));
     } else {
     if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    // in a table Insert and Delete are submenus of its rows and columns (Excel 16's menu, read through UI Automation:
+    // Insert I > Table Columns to the Left L, Table Rows Above A; Delete D > Table Columns C, Table Rows R)
+    const bool table_menu = !CopyModeOn(s) && SelectionTable(s) != nullptr;
+    static int sub_opened = -1;  // the letter that opens a submenu isn't also one of its own
+    if (table_menu) {
+      const ImGuiIO& kio = ImGui::GetIO();
+      const bool own = ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl && !kio.KeyAlt && !kio.KeyShift;
+      if (own && ImGui::IsKeyPressed(ImGuiKey_I, false)) ImGui::OpenPopup(TR("Insert")), sub_opened = ImGui::GetFrameCount();
+      if (own && ImGui::IsKeyPressed(ImGuiKey_D, false)) ImGui::OpenPopup(TR("Delete")), sub_opened = ImGui::GetFrameCount();
+      letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+              {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
+    } else {
+      letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_I, "InsertCells"}, {ImGuiKey_D, "DeleteCells"}, {ImGuiKey_F, "FormatCellsDialog"},
+               {ImGuiKey_K, "PickFromList"}, {ImGuiKey_A, "NameManager"}},
+              {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
+    }
     clip_items();
     // a #SPILL! formula: what is in its way can be selected (Excel's error button)
     if (s.snap) {
@@ -3773,8 +3958,27 @@ void DrawContextMenus(AppState& s) {
         break;
       }
     }
-    MenuCmd("InsertCells", !CopyModeOn(s) ? TR("Insert...") : s.clip->cut ? TR("Insert Cut Cells...") : TR("Insert Copied Cells..."));
-    MenuCmd("DeleteCells", TR("Delete..."));
+    if (table_menu) {
+      auto sub = [&](const char* title, std::initializer_list<std::tuple<const char*, const char*, ImGuiKey>> entries) {
+        if (!ImGui::BeginMenu(title)) return;
+        const ImGuiIO& kio = ImGui::GetIO();
+        const bool own = ImGui::GetFrameCount() != sub_opened && ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl &&
+                         !kio.KeyAlt && !kio.KeyShift;
+        for (const auto& [id, label, key] : entries) {
+          MenuCmd(id, label);
+          if (own && ImGui::IsKeyPressed(key, false)) {
+            ImGui::CloseCurrentPopup();
+            Exec(id);
+          }
+        }
+        ImGui::EndMenu();
+      };
+      sub(TR("Insert"), {{"InsertTableColumnsLeft", TR("Table Columns to the Left"), ImGuiKey_L}, {"InsertTableRowsAbove", TR("Table Rows Above"), ImGuiKey_A}});
+      sub(TR("Delete"), {{"DeleteTableColumns", TR("Table Columns"), ImGuiKey_C}, {"DeleteTableRows", TR("Table Rows"), ImGuiKey_R}});
+    } else {
+      MenuCmd("InsertCells", !CopyModeOn(s) ? TR("Insert...") : s.clip->cut ? TR("Insert Cut Cells...") : TR("Insert Copied Cells..."));
+      MenuCmd("DeleteCells", TR("Delete..."));
+    }
     MenuCmd("ClearContents");
     ImGui::Separator();
     DrawCellMenuFilter(s);  // Filter > by Selected Cell's Value / Color / Font Color (Excel)
@@ -3826,12 +4030,21 @@ void DrawContextMenus(AppState& s) {
     mm.End();
     ImGui::EndPopup();
   }
+  // the row and column menus' letters are Excel 16's (UI Automation's AccessKey of its menus): Cut T, Copy C, Paste P,
+  // Paste Special S, Insert I, Delete D, Clear Contents N, Format Cells F, Row Height R / Column Width W, Hide H,
+  // Unhide U
+  kbd_place("##colmenu");
   const bool col_mini = mini_style("##colmenu");
   const bool col_open = ImGui::BeginPopup("##colmenu");
   mini_pop(col_mini);
   if (col_open) {
     MiniMenu mm;
     mm.Begin(col_mini);
+    if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_S, "PasteSpecial"}, {ImGuiKey_I, "InsertColumns"}, {ImGuiKey_D, "DeleteColumns"},
+             {ImGuiKey_N, "ClearContents"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_W, "ColumnWidth"}, {ImGuiKey_H, "HideColumns"},
+             {ImGuiKey_U, "UnhideColumns"}},
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}, {ImGuiKey_R, 7}});
     clip_items();
     MenuCmd("InsertColumns", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
     MenuCmd("DeleteColumns", TR("Delete"));
@@ -3845,12 +4058,18 @@ void DrawContextMenus(AppState& s) {
     mm.End();
     ImGui::EndPopup();
   }
+  kbd_place("##rowmenu");
   const bool row_mini = mini_style("##rowmenu");
   const bool row_open = ImGui::BeginPopup("##rowmenu");
   mini_pop(row_mini);
   if (row_open) {
     MiniMenu mm;
     mm.Begin(row_mini);
+    if (kbd_frames > 0 && --kbd_frames == 0) ImGui::SetNavCursorVisible(true);
+    letters({{ImGuiKey_T, "Cut"}, {ImGuiKey_C, "Copy"}, {ImGuiKey_S, "PasteSpecial"}, {ImGuiKey_I, "InsertRows"}, {ImGuiKey_D, "DeleteRows"},
+             {ImGuiKey_N, "ClearContents"}, {ImGuiKey_F, "FormatCellsDialog"}, {ImGuiKey_R, "RowHeight"}, {ImGuiKey_H, "HideRows"},
+             {ImGuiKey_U, "UnhideRows"}},
+            {{ImGuiKey_P, 0}, {ImGuiKey_V, 5}});  // R is Row Height's here, not the Formatting picture's
     clip_items();
     MenuCmd("InsertRows", !CopyModeOn(s) ? TR("Insert") : s.clip->cut ? TR("Insert Cut Cells") : TR("Insert Copied Cells"));
     MenuCmd("DeleteRows", TR("Delete"));

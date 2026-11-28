@@ -286,6 +286,54 @@ TEST_CASE("數列：等差、等比、日期（月底、工作日）、終止值
   CHECK(t.T("D4") == "2026/10/26");  // the next Monday
 }
 
+TEST_CASE("Series from one cell runs on to its Stop value (Excel 16, measured)") {
+  yctest::Doc t;
+  const uint32_t s = t.sheet();
+  t.Set("A1", "1");
+  t.d.FillSeries(s, R("A1"), true, 0, 0, 3, true, 10);
+  CHECK(t.N("A4") == 10);
+  CHECK(t.V("A5").IsEmpty());
+  t.Set("B1", "1");
+  t.d.FillSeries(s, R("B1"), true, 0, 0, 3, false, 0);  // no Stop value: nothing to fill
+  CHECK(t.V("B2").IsEmpty());
+  t.Set("C1", "1");
+  t.d.FillSeries(s, R("C1:C3"), true, 0, 0, 3, true, 100);  // a longer selection stops at its end
+  CHECK(t.N("C3") == 7);
+  CHECK(t.V("C4").IsEmpty());
+  t.Set("E1", "2");
+  t.d.FillSeries(s, R("E1"), true, 1, 0, 2, true, 100);
+  CHECK(t.N("E6") == 64);
+  CHECK(t.V("E7").IsEmpty());
+  t.Set("A20", "1");
+  t.d.FillSeries(s, R("A20"), false, 0, 0, 1, true, 5);
+  CHECK(t.N("E20") == 5);
+  CHECK(t.V("F20").IsEmpty());
+  t.Set("F1", "10");
+  t.d.FillSeries(s, R("F1"), true, 0, 0, -2, true, 3);
+  CHECK(t.N("F4") == 4);
+  CHECK(t.V("F5").IsEmpty());
+  t.Set("G1", "1");
+  t.Set("H1", "5");
+  t.d.FillSeries(s, R("G1:H1"), true, 0, 0, 3, true, 10);  // each column on its own
+  CHECK(t.N("G4") == 10);
+  CHECK(t.N("H2") == 8);
+  CHECK(t.V("H3").IsEmpty());
+  t.Set("J1", "1");
+  t.d.FillSeries(s, R("J1"), true, 0, 0, 3, true, 0);  // the Stop value behind the start
+  CHECK(t.V("J2").IsEmpty());
+  // a series that never reaches its Stop value fills nothing (it would have filled the column to its last row)
+  t.Set("K1", "1");
+  t.d.FillSeries(s, R("K1"), true, 0, 0, 0, true, 10);
+  CHECK(t.V("K2").IsEmpty());
+  t.Set("L1", "2");
+  t.d.FillSeries(s, R("L1"), true, 1, 0, 1, true, 100);
+  CHECK(t.V("L2").IsEmpty());
+  // near the sheet's last row it stops at the edge
+  t.Set("M1048570", "1");
+  t.d.FillSeries(s, R("M1048570"), true, 0, 0, 1, true, 100);
+  CHECK(t.N("M1048576") == 7);
+}
+
 TEST_CASE("Data bars with negative values: an axis at 0, negative bars to the left") {
   yctest::Doc t;
   t.Set("A1", "-50");

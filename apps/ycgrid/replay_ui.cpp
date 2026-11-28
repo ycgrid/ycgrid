@@ -64,7 +64,7 @@ std::wstring RecordingsFolder(const AppState& s) {
   if (!s.file_path.empty()) {
     dir = fs::path(s.file_path).parent_path() / L"recordings";
   } else if (!UserStateSaved()) {
-    dir = fs::temp_directory_path() / L"YCGrid-hidden-projects" / L"recordings";  // a hidden instance: not in Documents
+    dir = fs::path(TempFolder()) / L"YCGrid-hidden-projects" / L"recordings";  // a hidden instance: not in Documents
   } else {
     PWSTR docs = nullptr;
     if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &docs)) && docs) dir = fs::path(docs) / L"YCGrid" / L"recordings";
@@ -264,7 +264,7 @@ void DrawReplayFrame(AppState& s) {
     ImGui::SetItemTooltip("%s", playing ? TR("Pause") : TR("Play"));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(72));
-    if (ImGui::BeginCombo("##speed", SpeedText(st.speed).c_str())) {
+    if (ui::BeginCombo("##speed", SpeedText(st.speed).c_str())) {
       for (double sp : kSpeeds) {
         if (ImGui::Selectable(SpeedText(sp).c_str(), sp == st.speed)) s.python->SetReplaySpeed(sp);
       }

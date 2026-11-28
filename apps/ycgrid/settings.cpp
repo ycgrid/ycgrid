@@ -143,6 +143,7 @@ void LoadSettings() {
   Read(j, "proofing", "flag_repeated", &g_settings.spell_repeated);
   Read(j, "proofing", "autocorrect_removed", &g_settings.autocorrect_removed);
   Read(j, "proofing", "autocorrect_replace", &g_settings.autocorrect_replace);
+  Read(j, "proofing", "autoformat_hyperlinks", &g_settings.autoformat_hyperlinks);
   if (j.contains("proofing") && j["proofing"].is_object() && j["proofing"].contains("autocorrect") && j["proofing"]["autocorrect"].is_array()) {
     g_settings.autocorrect.clear();
     for (const auto& e : j["proofing"]["autocorrect"]) {
@@ -174,6 +175,7 @@ void LoadSettings() {
   Read(j, "calculation", "threads", &g_settings.calc_thread_count);
   g_settings.calc_thread_count = std::clamp(g_settings.calc_thread_count, 0, 1024);
   Read(j, "formulas", "generate_getpivotdata", &g_settings.generate_getpivotdata);
+  Read(j, "formulas", "generate_table_refs", &g_settings.generate_table_refs);
   Read(j, "status_bar", "caps_lock", &g_settings.status_caps_lock);
   Read(j, "status_bar", "num_lock", &g_settings.status_num_lock);
   Read(j, "status_bar", "scroll_lock", &g_settings.status_scroll_lock);
@@ -200,6 +202,7 @@ void LoadSettings() {
   g_settings.move_after_return_dir = std::clamp(g_settings.move_after_return_dir, 0, 3);
   Read(j, "editing", "edit_directly_in_cell", &g_settings.edit_directly_in_cell);
   Read(j, "editing", "enable_autocomplete", &g_settings.enable_autocomplete);
+  Read(j, "editing", "extend_list", &g_settings.extend_list);
   Read(j, "editing", "auto_flash_fill", &g_settings.auto_flash_fill);
   Read(j, "live_data", "publish_interval_ms", &g_settings.publish_interval_ms);
   g_settings.publish_interval_ms = std::clamp(g_settings.publish_interval_ms, 0, 5000);
@@ -271,7 +274,17 @@ bool g_save_enabled = true;
 void EnableSettingsSave(bool on) { g_save_enabled = on; }
 bool UserStateSaved() { return g_save_enabled; }
 
+namespace {
+std::wstring g_last_desktop_open;
+int g_desktop_opens = 0;
+}  // namespace
+
+std::wstring LastDesktopOpen() { return g_last_desktop_open; }
+int DesktopOpens() { return g_desktop_opens; }
+
 bool OpenOnDesktop(const std::wstring& target, const std::wstring& params, void* owner, int show) {
+  g_last_desktop_open = target;
+  ++g_desktop_opens;
   if (!g_save_enabled) return false;  // a hidden instance: nothing on the user's desktop
   // lesson-ok: shell-open the one place that opens things on the desktop
   const auto r = ::ShellExecuteW(static_cast<HWND>(owner), L"open", target.c_str(), params.empty() ? nullptr : params.c_str(), nullptr, show);
@@ -315,6 +328,7 @@ bool SaveSettings() {
   section("proofing")["flag_repeated"] = g_settings.spell_repeated;
   section("proofing")["autocorrect_removed"] = g_settings.autocorrect_removed;
   section("proofing")["autocorrect_replace"] = g_settings.autocorrect_replace;
+  section("proofing")["autoformat_hyperlinks"] = g_settings.autoformat_hyperlinks;
   {
     json ac = json::array();
     for (const auto& [a, b] : g_settings.autocorrect) ac.push_back(json::array({a, b}));
@@ -343,6 +357,7 @@ bool SaveSettings() {
   section("calculation")["multi_threaded"] = g_settings.multi_threaded_calc;
   section("calculation")["threads"] = g_settings.calc_thread_count;
   section("formulas")["generate_getpivotdata"] = g_settings.generate_getpivotdata;
+  section("formulas")["generate_table_refs"] = g_settings.generate_table_refs;
   section("status_bar")["caps_lock"] = g_settings.status_caps_lock;
   section("status_bar")["num_lock"] = g_settings.status_num_lock;
   section("status_bar")["scroll_lock"] = g_settings.status_scroll_lock;
@@ -366,6 +381,7 @@ bool SaveSettings() {
   section("editing")["move_after_return_direction"] = g_settings.move_after_return_dir;
   section("editing")["edit_directly_in_cell"] = g_settings.edit_directly_in_cell;
   section("editing")["enable_autocomplete"] = g_settings.enable_autocomplete;
+  section("editing")["extend_list"] = g_settings.extend_list;
   section("editing")["auto_flash_fill"] = g_settings.auto_flash_fill;
   section("live_data")["publish_interval_ms"] = g_settings.publish_interval_ms;
   section("projects")["folder"] = ToUtf8(g_settings.projects_folder);
@@ -413,9 +429,27 @@ bool SaveSettings() {
   return ::MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
+std::wstring TempFolder() {
+  std::error_code ec;
+  fs::path dir = fs::temp_directory_path(ec);  // lesson-ok: temp-folder the one place that asks it
+  if (ec || dir.empty()) {
+    wchar_t buf[MAX_PATH + 1];
+    const DWORD n = ::GetTempPathW(MAX_PATH + 1, buf);
+    dir = n ? fs::path(std::wstring(buf, n)) : fs::path();
+  }
+  if (!dir.empty()) {
+    fs::create_directories(dir, ec);
+    if (fs::is_directory(dir, ec)) return dir.wstring();
+  }
+  const std::wstring local = KnownFolder(FOLDERID_LocalAppData);
+  dir = fs::path(local.empty() ? L"." : local) / L"ycgrid" / L"temp";
+  fs::create_directories(dir, ec);
+  return dir.wstring();
+}
+
 std::wstring ProjectsDir() {
   // a hidden instance (tests, agents) makes its projects (Book1, Book2...) in the temp folder, not in Documents
-  if (!g_save_enabled) return (fs::temp_directory_path() / L"YCGrid-hidden-projects").wstring();
+  if (!g_save_enabled) return (fs::path(TempFolder()) / L"YCGrid-hidden-projects").wstring();
   if (!g_settings.projects_folder.empty()) return g_settings.projects_folder;
   std::wstring docs = KnownFolder(FOLDERID_Documents);
   if (docs.empty()) docs = KnownFolder(FOLDERID_Profile);

@@ -83,7 +83,7 @@ void AppState::ShowError(std::string title, std::string text) {
 
 void AppState::NoteRefusal(std::string text, std::string brief) {
   if (text.empty()) return;
-  ReportError("YCGrid", "YCGrid", text, true);
+  ReportRefusal(text);
   refusal = brief.empty() ? text.substr(0, text.find('\n')) : std::move(brief);
   refusal_until = ImGui::GetTime() + 6.0;
 }
@@ -103,7 +103,7 @@ std::wstring AppState::LayoutPath() const {
   if (local) ::CoTaskMemFree(local);
   // a hidden instance (tests, agents) keeps its window layout to itself: containers and zoom made in a test must not
   // open in the user's next YCGrid
-  if (!UserStateSaved()) dir = (std::filesystem::temp_directory_path() / (L"YCGrid-hidden-" + std::to_wstring(::GetCurrentProcessId()))).wstring();
+  if (!UserStateSaved()) dir = (std::filesystem::path(TempFolder()) / (L"YCGrid-hidden-" + std::to_wstring(::GetCurrentProcessId()))).wstring();
   std::error_code ec;
   std::filesystem::create_directories(dir, ec);
   return dir + L"\\default_layout.json";
@@ -280,6 +280,9 @@ void SyncCommandState(AppState& s) {
     enable("DeleteRows", !pr || pr->delete_rows);
     enable("DeleteColumns", !pr || pr->delete_columns);
     enable("DeleteCells", !pr || pr->delete_rows || pr->delete_columns);
+    // a table's rows and columns: only while the selection is in one (a protected sheet's tables don't change)
+    const bool sel_table = !pr && SelectionTable(s) != nullptr;
+    for (const char* id : {"InsertTableRowsAbove", "InsertTableColumnsLeft", "DeleteTableRows", "DeleteTableColumns"}) enable(id, sel_table);
     for (const char* id : {"SortAscending", "SortDescending", "CustomSort", "SortCellColorTop", "SortFontColorTop", "SortIconTop"}) enable(id, !pr || pr->sort);
     for (const char* id : {"NewComment", "InsertComment"}) enable(id, !pr || pr->objects);
   }
@@ -475,6 +478,9 @@ void RegisterCommands(AppState& s) {
       "FillRight", "FillUp", "FillLeft"};
   R.on_run = [&s](const std::string& id) {
     if (id == "Repeat" || id == "Undo" || id == "Redo") return;
+    // an object inserted opens its contextual tab once it is there (the engine answers a few frames later)
+    if (id.rfind("Insert", 0) == 0 || id.rfind("FormatAsTable", 0) == 0 || id.rfind("PivotTable", 0) == 0)
+      ui::ribbon::St().open_contextual_until = ImGui::GetFrameCount() + 60;
     for (const char* k : kRepeatable) {
       if (id != k) continue;
       s.repeat_id = id;
@@ -778,8 +784,13 @@ void RegisterCommands(AppState& s) {
     if (Editing(s) || !s.engine) return;
     const auto areas = SelAreas(s);
     const uint32_t sheet = s.focus_sheet;
+    // the Comma style's code widens a column nobody sized, as the other number formats do (Excel 16, measured: a
+    // default column holding 1234567.891 became 13 wide)
+    const auto widen = ColumnsToWidenForFormat(s, sheet, areas, "_(* #,##0.00_);_(* (#,##0.00);_(* \"-\"??_);_(@_)");
+    for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
     s.engine->PostUser(TR("Comma Style"), [=](Document& d) {
       for (const Rect& a : areas) d.ApplyCellStyle(sheet, a, "Comma");
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
     });
   };
   // Excel's number format keys (Ctrl+Shift+~ ! @ # ^)
@@ -806,6 +817,15 @@ void RegisterCommands(AppState& s) {
   add(Make("DeleteCells", TR("Delete"), icon::DeleteCells, "Ctrl+-")).execute = [&s](Command&) { InsertOrDelete(s, false, 0); };
   add(Make("DeleteRows", TR("Delete Sheet Rows"))).execute = [&s](Command&) { InsertOrDelete(s, false, 1); };
   add(Make("DeleteColumns", TR("Delete Sheet Columns"))).execute = [&s](Command&) { InsertOrDelete(s, false, 2); };
+  // a table's own rows and columns (Excel's menus show them while the selection is in a table)
+  add(Make("InsertTableRowsAbove", TR("Insert Table Rows Above"), nullptr, "", TR("Insert table rows above the selected ones; the cells beside the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, true, 1); };
+  add(Make("InsertTableColumnsLeft", TR("Insert Table Columns to the Left"), nullptr, "", TR("Insert table columns left of the selected ones; the cells above and below the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, true, 2); };
+  add(Make("DeleteTableRows", TR("Delete Table Rows"), nullptr, "", TR("Delete the table rows of the selection; the cells beside the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, false, 1); };
+  add(Make("DeleteTableColumns", TR("Delete Table Columns"), nullptr, "", TR("Delete the table columns of the selection; the cells above and below the table stay."))).execute =
+      [&s](Command&) { TableRowsCols(s, false, 2); };
   // like Excel: Shift+F11, Home > Insert > Insert Sheet and the tab menu put the new sheet before the active one; the
   // (+) button after it (NewSheetAfter)
   auto insert_sheet = [&s](bool after) {
@@ -1002,18 +1022,20 @@ void RegisterCommands(AppState& s) {
     Config().formula_bar_lines = Config().formula_bar_lines > 1 ? 1 : 3;
     SaveSettings();
   };
-  // Ctrl+/: the whole array of the active cell (a spill range or an array formula), as in Excel
+  // Ctrl+/: the array formula entered with Ctrl+Shift+Enter the active cell belongs to, its first cell active; a
+  // dynamic array's spill isn't one (Excel 16: "No cells were found.", measured by keys)
   add(Make("SelectCurrentArray", TR("Select Current Array"), nullptr, "Ctrl+/")).execute = [&s](Command&) {
     const model::Sheet* sh = s.FocusSheet();
+    if (!sh || s.edit.active) return;
     auto& v = s.FocusView();
-    const model::SpillRange* sp = sh && !sh->spills->empty() ? sh->SpillAt(v.sel.act_r, v.sel.act_c) : nullptr;
-    if (!sp) {
-      s.SetStatus(TR("The active cell isn't part of an array"));
+    const model::SpillRange* sp = !sh->spills->empty() ? sh->SpillAt(v.sel.act_r, v.sel.act_c) : nullptr;
+    if (!sp || !sp->cse) {
+      s.ShowMessage("YCGrid", TR("No cells were found."));
       return;
     }
-    const uint32_t ar = v.sel.act_r, ac = v.sel.act_c;
     render::SelectRange(v, sp->rect);
-    v.sel.act_r = ar, v.sel.act_c = ac;
+    v.sel.anc_r = v.sel.act_r = sp->rect.r0;
+    v.sel.anc_c = v.sel.act_c = sp->rect.c0;
   };
   // a #SPILL! formula's error button: the cells in the range it wants that hold something
   add(Make("SelectObstructingCells", TR("Select Obstructing Cells"))).execute = [&s](Command&) {

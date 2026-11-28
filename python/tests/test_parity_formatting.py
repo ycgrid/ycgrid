@@ -312,15 +312,110 @@ class FormattingParityTest(unittest.TestCase):
         self.click("OK")
         self.assertEqual(self.ws.Range("A1").FormatConditions(1).DupeUnique, 0)  # xlUnique
 
+    def test_number_format_list_from_the_keytips(self):
+        # Alt, H, N, arrows, Enter, as in Excel: the list opened where the mouse was (the screen's corner from the
+        # KeyTips), the arrows did nothing in it, and the Enter that picked also moved the active cell down
+        from yc import ui
+
+        self.ws.Range("B2").Value = 0.256
+        self.keys("m:2,2|w:2|g:B2|w:2|k:Alt|w:3|t:H|w:3|t:N|w:6")
+        combo = self.ribbon("NumberFormat")
+        general = self.find("General", nth=0)["rect"]
+        self.assertLess(abs(general[0] - combo[0]), 20, "the list drops under its box")
+        self.assertGreater(general[1], combo[3] - 2)
+        self.keys("k:DownArrow|w:2|" * 7 + "k:Enter|w:6")
+        self.assertEqual(self.ws.Range("B2").NumberFormat, "0.00%")
+        self.assertEqual(ui.state()["active_cell"], "B2")
+        self.keys("t:5|k:Enter|w:4")  # the sheet has the keyboard again
+        self.assertEqual(self.ws.Range("B2").Value, 0.05)
+        # Alt, H, H opens Fill Color's palette under its button (it applied the last color at once)
+        self.keys("m:2,2|w:2|g:C3|w:2|k:Alt|w:3|t:H|w:3|t:H|w:6")
+        self.assertEqual(self.ws.Range("C3").Interior.ColorIndex, -4142)  # xlColorIndexNone: nothing applied yet
+        fill = self.ribbon("FillColor")
+        red = self.find("Red")["rect"]
+        self.assertTrue(fill[0] - 5 <= self.find("No Fill")["rect"][0] < fill[0] + 30)
+        self.click_rect(red)
+        self.assertEqual(self.ws.Range("C3").Interior.Color, 0x0000FF)  # BGR
+
+    def test_increase_decimal_widens_a_column_nobody_sized(self):
+        # Increase Decimal twice on 0.123456789 showed ######## where Excel 16 widens the column (measured: 8.43 to
+        # 10.27); a column whose width was set by hand keeps it and shows #### (measured too). The decimals start from
+        # what General shows at the column's width (0.123457 in a default column, so 7 decimals), as Excel's
+        self.ws.Range("B1").Value = 0.123456789
+        self.ws.Range("C1").Value = 0.123456789
+        self.ws.Columns("C").ColumnWidth = 8
+        self.keys("g:B1|w:3")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertEqual(self.ws.Range("B1").NumberFormat, "0.0000000")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertGreater(self.ws.Columns("B").ColumnWidth, 9.5)
+        self.assertEqual(self.ws.Range("B1").Text, "0.12345679")
+        self.keys("g:C1|w:3")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.run_cmd("DecimalIncrease")
+        self.keys("w:4")
+        self.assertEqual(self.ws.Columns("C").ColumnWidth, 8)
+        self.keys("k:c-Z|w:4|k:c-Z|w:4|k:c-Z|w:4")  # each step takes its format and the width it gave back
+        self.assertLess(self.ws.Columns("B").ColumnWidth, 11)
+        self.assertEqual(self.ws.Range("B1").NumberFormat, "0.0000000")
+        self.keys("k:c-Z|w:4")
+        self.assertAlmostEqual(self.ws.Columns("B").ColumnWidth, 8.43, places=1)
+        # Range.NumberFormat widens too (Excel 16, measured: 0.00000000 on 0.123456789 made column B 10.27 wide)
+        self.ws.Range("E1").Value = 0.123456789
+        self.ws.Range("E1").NumberFormat = "0.00000000"
+        self.assertGreater(self.ws.Columns("E").ColumnWidth, 9.5)
+        # Comma Style (a cell style) too: 1234567.891 made a default column 13 wide in Excel 16 (measured)
+        self.ws.Range("G1").Value = 1234567.891
+        self.keys("g:G1|w:3")
+        self.run_cmd("CommaStyle")
+        self.keys("w:4")
+        self.assertAlmostEqual(self.ws.Columns("G").ColumnWidth, 13, delta=1)
+        # Format Cells' Number tab too (it showed 1,234,567.89 as ######## in a default column)
+        self.ws.Range("I1").Value = 1234567.891
+        self.keys("g:I1|w:3|k:c-1|w:8")
+        from yc import ui
+        self.click("Number")  # the Number tab (the dialog opens on the tab used last)
+        cat = [i for i in ui.items() if i["label"] == "Number" and i["rect"][1] > self.find("Number")["rect"][3]]
+        self.click_rect(cat[0]["rect"])
+        self.click("Use 1000 Separator (,)")
+        self.click("OK")
+        self.assertEqual(self.ws.Range("I1").NumberFormat, "#,##0.00")
+        self.assertGreater(self.ws.Columns("I").ColumnWidth, 10)
+        # a number cell style from Cell Styles (Currency) too
+        self.ws.Range("K1").Value = 1234567.891
+        self.keys("g:K1|w:3")
+        self.run_cmd("CellStyleCurrency")
+        self.keys("w:4")
+        self.assertGreater(self.ws.Columns("K").ColumnWidth, 10)
+
     def test_quick_rule_dialog_is_titled_and_prefilled(self):
-        self.ws.Range("A1:A4").Value = [[10], [20], [30], [40]]
-        self.keys("g:A1:A4|w:2")
+        # Excel 16 proposes halfway between the lowest and highest number (45.5 here, where the average is 33.75),
+        # and for Between a quarter and three quarters of the way, rounded (measured)
+        self.ws.Range("A1:A8").Value = [[12], [45], [7], [30], [88], [21], [64], [3]]
+        self.keys("g:A1:A8|w:2")
         self.run_cmd("CfGreater")
         from yc import ui
 
         self.assertTrue(any(w for w in [i["window"] for i in ui.items()] if w == "Greater Than"))
         self.keys("k:Enter|w:5")
-        self.assertEqual(self.ws.Range("A1").FormatConditions(1).Formula1, "=25")  # the average
+        self.assertEqual(self.ws.Range("A1").FormatConditions(1).Formula1, "=45.5")
+        self.ws.Range("A1:A8").FormatConditions.Delete()
+        self.run_cmd("CfBetween")
+        self.keys("w:4|k:Enter|w:5")
+        fc = self.ws.Range("A1").FormatConditions(1)
+        self.assertEqual((fc.Formula1, fc.Formula2), ("=24", "=67"))
+
+    def test_text_that_contains_proposes_the_active_cells_text(self):
+        # Excel 16 starts the box with the active cell's text (measured: MSFT with B3 active in B2:B4)
+        self.ws.Range("B2:B4").Value = [["AAPL"], ["MSFT"], ["TSLA"]]
+        self.keys("g:B2:B4|w:2|k:Enter|w:3")  # B3 active
+        self.run_cmd("CfTextContains")
+        self.keys("w:4|k:Enter|w:5")
+        fc = self.ws.Range("B2").FormatConditions(1)
+        self.assertEqual(fc.Text, "MSFT")
 
     # ---- 15, 16. rule details from Python ----
     def test_text_operators_and_scale_points(self):
@@ -425,6 +520,22 @@ class FormattingParityTest(unittest.TestCase):
         self.click("Fill", "Format Cells")
         self.keys("k:Escape|w:4|k:c-1|w:6")
         self.assertTrue(any(x.startswith("Pattern: ") for x in self.labels("Format Cells")))
+
+    def test_ctrl_tab_goes_through_a_dialogs_tabs(self):
+        # Excel's dialogs: Ctrl+Tab / Ctrl+PgDn the next tab, Ctrl+Shift+Tab / Ctrl+PgUp the one before; they did nothing
+        self.keys("g:A1|w:2|k:c-1|w:6")
+        self.click("Number", "Format Cells")
+        try:
+            self.keys("k:c-Tab|w:4")
+            self.assertIn("Wrap text", self.labels("Format Cells"), "Alignment after Number")
+            self.keys("k:c-s-Tab|w:4")
+            self.assertIn("Scientific", self.labels("Format Cells"), "back to Number")
+            self.keys("k:c-PageUp|w:4")
+            self.assertIn("Locked", self.labels("Format Cells"), "from the first tab round to the last, Protection")
+            self.keys("k:c-PageDown|w:4")
+            self.assertIn("Scientific", self.labels("Format Cells"), "and on to the first")
+        finally:
+            self.keys("k:Escape|w:4")
 
     def test_currency_symbols_and_shortcut(self):
         r = self.ws.Range("A1")

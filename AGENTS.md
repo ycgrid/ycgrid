@@ -176,6 +176,9 @@ invent a sixth:
   instance only) checks it (`test_live.CrashDumpTest`).
 - A crash without a dump (fast-fail, `0xC0000409`): the Application event log has the offset; a debugger attached to
   the hidden instance (`scripts\crash_stack.py <pid>`: dbghelp `StackWalk64` with `dist_*\ycgrid.pdb`) gives the stack.
+  A dump (crash, hang, a debug build's assert or abort) reads without a debugger installed: `scripts\dump_stack.py
+  <file.dmp>` walks it with the same pdb. A random round's dumps are in its own TEMP folder, deleted with the round:
+  replay the seed with TEMP / TMP set to a folder that exists (a missing one was a crash of its own).
 - A stutter or a freeze: `scripts\ui_sampler.py <pid>` samples the hidden instance's UI thread and names the functions
   it spends its frames in (`--thread yc-engine` samples the engine); a frame waiting in `Engine::Call` is behind the
   engine, so sample the engine next. `perf.stats` gives each frame's work (`frame_cpu_max_ms`), and
@@ -295,7 +298,15 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   when the probe attaches to its thread (`AttachThreadInput`), sets Ctrl / Shift in the shared keyboard state
   (`SetKeyboardState`), posts `WM_KEYDOWN` / `WM_KEYUP` and puts the state back. In PowerShell set
   `Application.CutCopyMode = False` by late binding (`InvokeMember`): the interop type refuses False and 0. Measuring a
-  paste uses Windows' clipboard: ask the user first.
+  paste uses Windows' clipboard: ask the user first. Alt goes in the state too (VK_MENU) with `WM_SYSKEYDOWN` /
+  `WM_SYSKEYUP`; try a chord whose effect is known first (Alt+PgDn moves a screen right).
+- A hidden Excel's menus and dialogs are windows of their own (`NetUIToolWindow` for the filter menu, `NUIDialog`
+  for Sort, Remove Duplicates, the highlight rules) and are in UI Automation, though the sheet isn't: each entry's
+  `AccessKey` is Excel's letter (the filter menu's S, O, T, C, I, F; Number Filters' E, N, G, O, L, Q, W, T, A, O, F),
+  a submenu opens through `ExpandCollapsePattern.Expand`, and a dialog's OK or Cancel through `InvokePattern` from a
+  second thread (a job) while `CommandBars.ExecuteMso` waits for it; read the result through COM after. Its edit
+  boxes give no text: press OK and read what the command made (`FormatConditions(1).Formula1`). Compare names by
+  character codes ([char]0x78BA): a script file PowerShell 5.1 reads without a BOM loses its Chinese.
 - A change to the number format engine must keep every case of tests/unit/excel_measured_formats.inc (TEXT of 159
   codes x 18 values measured in Excel 16): a fix for one code that breaks another fails the build. A test that
   disagrees with a measurement is wrong, not Excel: change it only after measuring, and say "measured" beside it.
@@ -358,8 +369,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - ImGui's implicit Debug window gets its title bar at every frame and is hidden at the frame's end when nothing was
   drawn into it: the recorder lists its items only while it is written to (`WriteAccessed`), or tests see a
   Debug window nobody can.
-- ImGui combo boxes report no label: note each with `ui::NoteUiItem(id, rect)` before `BeginCombo`, so tests find it by
-  its id as a person finds it by its place.
+- ImGui combo boxes report no label: every one goes through `ui::Combo` / `ui::BeginCombo` (yc_ui_items.h), which
+  name it, so tests find it by its id as a person finds it by its place (`check_lessons.py`'s `combo-name`: noted one
+  by one, most were nameless, Data Validation's Allow among them). A range box is also listed as `##rb.<key>`.
 - `ui.items` also lists each id-only button by its bare id (every sheet tab's `##sheettab`, at the tab's place):
   find a control by its whole id (`"Data##sheettab"`), never by a suffix alone, or a test picks the nameless twin
   whenever the map's order puts it first.
@@ -389,7 +401,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   choice (Data Validation's Allow) keeps one height: pad the changing part to its tallest, measured from that part's
   top, never from the window's height (that grows the window frame after frame). A resizable dialog (`BeginDialog`)
   gets its height from its contents when it opens (`ImVec2(w, 0)`), with lists of a fixed height inside: a height
-  guessed in pixels left empty space under the buttons. Review dialogs by their pictures:
+  guessed in pixels left empty space under the buttons. A part of it that appears later (Name Manager's Refers to
+  and its question, Insert Function's description) keeps one height too, or the dialog scrolls and hides its
+  buttons; `clipped_windows` names a resizable dialog that shows a scroll bar. Review dialogs by their pictures:
   `YCGRID_DIALOG_SHOTS=<folder>` makes feature_check save one of every dialog it opens.
 - `SameLine(x)` inside `BeginGroup` counts from the group's start, not the window's: label / box rows that must line
   up are laid out without groups.
@@ -415,6 +429,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   `ImGuiHoveredFlags_AllowWhenBlockedByActiveItem`.
 - `IsWindowHovered(ImGuiHoveredFlags_ChildWindows)` is also true over a popup opened from that window (a chart's flyout
   opened by the sheet): add `ImGuiHoveredFlags_NoPopupHierarchy` where the window acts on the mouse (the sheet's wheel).
+- The sheet calls its overlays (`opt.overlay`) inside its cells' font, zoomed: a menu or popup opened there (the filter
+  menu, Paste Options, a slicer's menu) pushes the UI's font (`ui::F().ui`) around it, or it grows with the zoom (the
+  Paste Options headings were 30 pixels high at 200%). What sits on the cells and zooms with them (a slicer, a shape's
+  text) keeps the cells' font.
 - ImGui scales a font so that ascent + descent equals its size: a font's real line height (rows that fit a taller
   font) comes from its file through GDI (`tmHeight` at a known em size, sheet_actions.cpp `LineHeightPerEm`), not
   `ImFontBaked`.
@@ -442,6 +460,13 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - A dialog that leaves the sheet usable (a window, not `BeginModal`: Insert Symbol, Mark Parameter) closes on Escape
   like any dialog: both stayed open, since ui_sweep pressed Escape only on modal dialogs. Its dialogs pass also
   takes every new floating window with a Cancel or Close button and fails one Escape leaves open.
+- Escape and the close box are a dialog's Cancel, also where Cancel does more than close: Goal Seek Status and Solver
+  Results put the original values back, and a page shown over another (Add Constraint, Add Scenario) goes back to it.
+  `BeginDlg(..., &cancel)` (whatif_ui.cpp) leaves the dialog open on Escape and sets `cancel` for the page to act on;
+  closing every such dialog at once kept the values Goal Seek had found.
+- A dialog's tabs go through `BeginDlgTabBar` (dialogs.cpp): Ctrl+Tab / Ctrl+PgDn and Ctrl+Shift+Tab / Ctrl+PgUp move
+  between them as in Excel. Every dialog called `ImGui::BeginTabBar` itself and none took the keys (`check_lessons.py`'s
+  `dlg-tabs`).
 - A dialog opened over another (Confirm Password, New Range) takes Enter; the frames after it closes, the dialog under
   it must not take that Enter as its own OK (protect_ui's `ParentOk`), or both close at once.
 - File > Options edits a copy that OK applies and Cancel drops: a new option binds to `cfg` (the copy) and gets its
@@ -479,9 +504,22 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   "visible" variant reads false there, since the ribbon draws before the dialog), or Alt, H in Paste Special ran Home's
   commands under it. Excel 2003's menu keys (Alt, E, S, V) are `LegacyKeys` in ribbon.cpp, taken when no tab has the
   letter; a test sends a dialog's letter as a key (`k:V`), since its options read keys, not typed characters.
+  So does a dialog that isn't modal (Find and Replace, Select Data Source, Symbol) while it has the keyboard: it calls
+  `NoteDialogKeyboard()` after its Begin, or Alt+A (Replace All) opened the Data tab's KeyTips behind it. Its options
+  take Excel's letters through `DlgKey` (the letter alone off a text box, Alt+letter always): Ctrl+-, R, Enter and
+  F5, Alt+S, K, Enter are how people delete a row and select the blanks.
 - KeyTips register while they show: a held Alt + a letter (Alt+W pressed together) turns them on and is matched the
   next frame, once the tabs' are there; matched at once against none, it did nothing. ui.input's chords hold the
   modifier keys too (`ImGuiKey_LeftAlt`), as Windows sends them: with only the flag, no test pressed Alt as a person.
+- A menu people open from the keyboard takes Excel's letters (its underlined ones): Alt+Down, E, a few letters, Enter
+  filters a list, Shift+F10, V and Ctrl+V, Ctrl, V paste values; the filter menu, the cell, column and row menus and
+  the Paste Options pictures ignored every letter. A letter acts only while that menu has the keyboard (`IsWindowFocused`, no item active), and only a letter
+  no other entry of the menu shares runs its entry (a shared one only moves Excel's highlight). A new menu a person
+  opens with a key gets its letters, tested by the keys a person presses.
+- ImGui opens a popup where the mouse is: a drop-down sets its place under its button before its Begin (the ribbon's
+  `PopupBelow`), or one opened from the keyboard shows wherever the mouse was left (Alt, H, N put the Number Format
+  list in the screen's corner). It takes the arrows and Enter too (`St().menu_frame` turns ImGui's keyboard
+  navigation on while one shows), and the Enter that picks an entry is not the sheet's (the active cell moved down).
 - A shortcut is handled in one place: Ctrl+F1 was switched by the ribbon's own key check and again by main.cpp's in
   the same frame, so the ribbon never collapsed (since the first release). Before adding a key, grep for its chord;
   test the key a person presses and that the state changed (`test_parity_habits.ShortcutsTest`). `check_lessons.py`'s
@@ -535,6 +573,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - A shortcut written on a command (`Make("PickFromList", ..., "Alt+Down")`) is only its label: the key works once
   the shortcut table or a handler runs it. Test the key a person presses, not the menu: Alt+Down did nothing.
 - An editor opened by a double-click must not treat that same click as "clicked away" on its first frame.
+- A question's default button is Excel's, measured: the button Enter presses decides what a quick Enter does. A
+  validation Warning offered Yes as its default and took an order size outside its rule, where Excel 16 defaults to
+  No (its alert's buttons and focus read through UI Automation: `HasKeyboardFocus`). A hidden instance answers what
+  Enter would, so a test sees the default.
 - A switch that stops editing (read-only mode, whatever turns it on: the button, the idle timeout, Python) drops the
   entry in progress as Escape does, and offers no drags it would refuse: an entry left open took every later click as
   a reference and every key as text, and Enter only answered "There's a problem with this formula"; a drag asked
@@ -641,9 +683,22 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   is measured on them, not only its first: whole columns whose last one is empty got a row total in every row (a
   million again, chaos seed 5643), where Excel writes them as far as the data (`CommandBars.ExecuteMso("AutoSum")`
   in a hidden Excel writes a range's totals, readable through COM).
+- A key the grid handles checks the modifiers a shortcut adds to it: Ctrl+PgDn switched the sheet (main.cpp) and the
+  grid's PageDown, which asked only about Alt, paged the sheet it left a screen down at every switch, unseen until a
+  person came back to it. Alt+Enter moved down as Enter and Alt+Home went to column A, where Excel 16 does nothing
+  (measured by keys posted to its sheet window). Test a shortcut by the state it leaves behind as well as the one it
+  makes, and measure a key with each modifier before letting it fall through to the plain key's action.
 - Typing is not a command: F4 / Ctrl+Y repeat the last command (`AppState::repeat_id`, noted by
   `CommandRegistry::on_run`), and an entry is neither repeated nor ends what they repeat. A "Repeat Typing" written
   as Excel's without a measurement typed a cell's old value over the next cell after F2, Enter, F4.
+- A key that acts on the selection asks whether the selection is in a table: Excel gives a table its own steps
+  (Ctrl+Space its column's data, then the column with its header and totals; Ctrl+A its data, then the table;
+  Ctrl+- and Ctrl+Shift+= its rows or columns without a dialog, `SelectionTable` / `TableRowsCols`), all measured by
+  keys. YCGrid had taken whole columns and opened the Delete dialog there since tables came in. Measure a new key in
+  a table, and on its header and totals rows, before calling it done.
+- Where Tab goes from one cell is `render::TabTarget`, for Tab on the sheet and Tab ending an entry (`MoveActive`)
+  alike: a protected sheet's next unlocked cell, a table's next row from its last column, a row added from its last
+  cell. Tab after an entry kept a rule of its own and went to the locked cell beside it, and neither knew tables.
 - In Enter mode a key that moves on the sheet ends the entry, then does on the sheet what it does there
   (`GridActions::nav_key`, replayed through `GridView::nav_replay` once the editor is gone): the sheet's key code is
   the one place a move is made, never a copy of it in the editor (Ctrl+Home moved the caret, Shift+Right moved one
@@ -664,6 +719,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
 - What only one path does goes where that path is, not where every path meets: a formula entered on a sheet whose
   calculation is off shows 0, and that 0 set in `RegisterFormulaCell` (Undo, moves, copies and inserts register
   formulas too) made Undo there show 0 (doc_fuzz --gaps 700022). Ask which paths reach the shared code first.
+- The other way round, a rule measured for every path is not patched onto one: Python's Ungroup put back the hidden
+  rows `Document::GroupOutline` had shown (the bridge's `HideAgain`), so Alt+Shift+Left kept showing them, and the
+  same patch made Python's Clear Outline keep rows hidden that Excel shows. Measure the rule through the UI and the
+  object model both, and change the Document.
 - A calculation that stops part way (an interrupt) leaves nothing taken out half done: the cells a cycle set aside
   (`cycle_aborted_`, out of the pending set) wait again, or the calculation that goes on finds no circular reference
   (doc_fuzz --gaps 763382). A new early return from `Recalc` puts back what the pass took out.
@@ -774,6 +833,9 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   back by hand in `RestoreFrom` (the default font a theme's fonts set, the theme's effects): Undo of a theme left
   its font. A new such value is restored there, and its command notes the step (`NoteTouched`, through a
   Document method, never a direct store write in a `PostUser`, which leaves no Undo step).
+- A row is hidden by its height being 0, whatever set it (Hide, `RowHeight = 0`, a drag): what reads hidden rows
+  (SUBTOTAL 101-111, AGGREGATE, `FilterShownRuns`) is marked by every path that can make a height 0 or not 0
+  (`SetRowHeight` and `HideRows` alike); the height path marked nothing, and 9 measured replays failed.
 - A change to rows or columns only (a width, a height, hiding) is not a write to their cells: it goes through
   `MarkRowsColsChanged`, never `MarkChanged`, which takes written cells out of the spills over them. Undo of a
   column width cut B3's spill down to typed values and B3 showed #SPILL!. Setting the size a row or column already has
@@ -818,12 +880,24 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   merged area or part of a multi-cell array and that no two tables, merges or arrays overlap: each path that let one
   in was found within minutes of the check (seeds 31000041, 32000257, 32027683).
 - A table holds text in its header, and nothing a table can't hold: one question (`TableCantHold`: another table,
-  merged cells, any of a multi-cell array) for every way a table gets cells (AddTable, ResizeTable, AutoExpandTable),
+  merged cells, any of a multi-cell array) for every way a table gets cells (AddTable, ResizeTable, AutoExpandTable, the totals row a formula under it makes),
   cells it takes over from a spill given up first (`TakeSpillsUnder`: the headers are Column1, Column2, the array
   shows #SPILL!, Excel 16 measured), and its headers made text again at every step's `Commit` whatever path wrote
   them (a fill of blanks, a cut from another sheet), inside the step so Undo takes it back. Each path that kept a rule
   of its own let a header hold a number, a formula or an array's value (doc_fuzz seeds 10280369, 10290940, 10312766,
   10320462).
+- A write under a table is measured by its kind: a value grows the data, a formula (any, typed, Alt+= or
+  `Range.Formula`) makes the row the totals row (Excel 16). Taken as data, Alt+='s `=SUM(C3:C6)` grew into the circular
+  `=SUM(C3:C7)`, and a unit test written from a random case's value write had claimed the formula's growth as measured.
+  The grown row takes a column's format only when every data row shares it (measured), not the row above's.
+- What Excel does by itself after an entry is an Undo step of its own, measured by Ctrl+Z after the entry: a table's
+  growth (Table AutoExpansion) and a calculated column's fill come back one Ctrl+Z each, before the typing (Excel 16;
+  Ctrl+D takes its growth back with the fill). YCGrid made them in the typing's step, so the first Ctrl+Z took the
+  typed value too (`Document::defer_table_growth`, `GrowDeferredTables`). Measure Undo after a new automatic action.
+- A table grows by itself (typing or code writing beside it) only over a line that holds nothing besides what is
+  written, and never for an entry that is refused (Excel 16, measured by keys posted to its sheet window): grown over
+  `=SUM(B2:B6)` under it, the SUM's range followed to the new row, a circular reference (basics seq470822). Measure a
+  rule that decides when Excel does something by itself with the cells around it empty and not.
 - Whether an array can spill is one rule (`Document::SpillBlocked`: a value or formula, a merged area, another array,
   a table), and a #SPILL! anchor is woken by what frees its range whatever freed it (`RecheckBlockedSpills` before
   every calculation, as a spill a merged area now crosses is calculated again): the paths that woke anchors by the
@@ -937,6 +1011,8 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   was checked. A validation list typed into the rule (`AAPL,MSFT`) is the exception: it matches with case, its items
   as written, the entry without the spaces around it (Excel 16, measured). This lesson said "list validation" for both
   without a measurement, and typed lists let `aapl` in.
+  The filter menu's search box is such a criterion too, with a rule of its own (measured): text is found inside the
+  values, a pattern with `*` or `?` is the whole value (`SearchMatches`); a plain `find` there found nothing for `t?`.
 - A setting Excel keeps in the workbook (the calculation mode and iterative calculation: `calc_mode`, `calc_iterate`,
   WKBK key 7) is saved with it and set by opening it (measured 2026-11-16: a file saved manual with iteration opens
   manual with iteration in a new Excel), not only kept in settings.json: a model built on a cycle opened on another machine showed the circular
@@ -1043,7 +1119,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   reads itself or waits for one that does (Excel 16, measured), so its values are settled one by one, its own cells
   read as #BLOCKED! until each is set and the result calculated once more to check it
   (`SettleArrayReadingItself`), and one entered after a cycle shows 0 only in the values that read it. A rule about
-  cycles written for single cells gets its array case measured.
+  cycles written for single cells gets its array case measured. Two such arrays that read each other's cells
+  (B3 {=A1:B3*2} beside A2:A4 {=A1:B3*2}) are settled together (`SettleArraysTogether`): one at a time, each waited for
+  the other, the pair was taken for a cycle in one order of calculation and not in another, and C4 reading A4 kept a
+  value from before (doc_fuzz --xlsx seed 24002581569; a full calculation gave the right one).
 - `formula::NeedCell` (a read of a cell still waiting) isn't a `std::exception`: code that evaluates a formula outside
   the calculation's own loop catches it by name, or the read of a cell a cycle blocks ends the process (doc_fuzz
   --gaps seed 26, the array settling added that day).
@@ -1246,7 +1325,10 @@ here, under its area, saying how to avoid it. Read the area before changing it.
   `EntireColumn`, and `Hidden = False` on it showed the columns, not the rows.
 - What the UI does after a format (rows that size themselves fit a bigger font or Wrap Text) is done after the same
   format from Python: the bridge calls the UI's helper (`FitRowsForStyle` through `OnUi`). `Range.Font.Size = 20` left
-  the row at 15 points while the ribbon grew it, as Excel's object model does.
+  the row at 15 points while the ribbon grew it, as Excel's object model does. Columns too: a number format that
+  shows a number wider than a column nobody sized widens it (`ColumnsToWidenForFormat`, Excel 16 measured through
+  ExecuteMso and `Range.NumberFormat`); YCGrid showed ######## after two Increase Decimals. A column a format widened
+  is noted (`AppState::auto_widened`) and widens again, one sized by hand since keeps its width.
 - A whole column's end marker (`ROW_END`, `kRowEnd`) never opts a request out of a rule: clamp it to the sheet and
   apply the rule. `req.r1 != kRowEnd` kept the filter out of `Range("B:B").Value`, `r.r1 < s->row_limit` out of
   EntireRow.Delete of every row, and `a[2] == ROW_END` read the whole sheet's rows as its columns (all measured in Excel).

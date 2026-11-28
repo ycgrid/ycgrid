@@ -472,6 +472,28 @@ def Workbook_BeforeClose(cancel):
             time.sleep(0.2)
         self.assertTrue(self.conn.request("python.status", {}).get("ready"))  # still alive
 
+    # ---- figures docked one after another never split a pane smaller than a window can be ----
+    def test_many_docked_figures_keep_a_usable_size(self):
+        # each Dock split the last pane again by its ratio: after a dozen, a pane was under a pixel and dragging a
+        # splitter there failed ImGui's own check (a debug build stopped, chaos seed 7609); a pane too small to split
+        # takes the figure as a tab
+        from yc import plot, ui
+        from yc.constants import ycDockRight
+
+        figs = []
+        for i in range(14):
+            fig = plot.figure(f"Many docked {i}", key=f"live.many{i}")
+            fig[0].line([0, 1], [0, 1])
+            fig.Dock(ycDockRight, Ratio=0.2)
+            figs.append(fig)
+        time.sleep(0.5)
+        rects = [w["rect"] for w in ui.windows() if w["label"].startswith("Many docked") and w.get("tab", True)]
+        narrow = [r for r in rects if r[2] - r[0] < 40]
+        self.assertFalse(narrow, f"panes narrower than a window can be: {narrow}")
+        self.assertEqual(ui.state().get("imgui_asserts", 0), 0)
+        for i in range(14):
+            plot.close(key=f"live.many{i}")
+
     # ---- the hang watchdog writes a dump when the UI thread stops answering ----
     def test_hang_dump(self):
         import glob
@@ -1244,7 +1266,9 @@ class UserFlowTest(unittest.TestCase):
         self.keys("g:B4|t:first|k:a-Enter|t:second|k:Enter|w:4")
         self.assertEqual(r("B4").Value, "first\nsecond")     # the break where it was typed, even typed fast
         self.assertTrue(r("B4").WrapText)                    # Alt+Enter turns Wrap Text on, as in Excel
-        self.assertGreaterEqual(ws.Rows(4).RowHeight, 22)    # two lines of 11 pt text (one line: 15)
+        # two lines of 11 pt text are two one-line rows, as Excel fits them (a multiple of one line, measured): they
+        # were 28.5, a line and a half short of the second line's row
+        self.assertEqual(ws.Rows(4).RowHeight, 30)
         self.keys("k:c-Z|w:3")
         self.assertEqual(ws.Rows(4).RowHeight, 15)
         ws.Rows(6).RowHeight = 45                            # a height set by hand stays
@@ -1362,7 +1386,7 @@ class UserFlowTest(unittest.TestCase):
         self.assertEqual(ui.state()["dialog"], dlg, "the same dialog is back")
         self.keys("k:Enter|w:8")                              # OK: the table covers the cells picked
         self.assertEqual(self.ws.ListObjects.Count, 1)
-        self.assertEqual(self.ws.ListObjects(1).Range.Address.replace("$", ""), "A1:B2")
+        self.assertEqual(self.ws.ListObjects(1).Range.Address.replace("$", ""), "A1:B3")  # all numbers: a header row is added (Excel's guess)
 
     def test_file_dialogs_in_a_hidden_window(self):
         from yc import ui
@@ -1751,6 +1775,13 @@ class UserFlowTest(unittest.TestCase):
         v.Add(3, 1, 1, "Buy,Sell")   # xlValidateList
         self.keys("g:B2|w:2|k:a-DownArrow|w:8|k:DownArrow|w:3|k:DownArrow|w:3|k:Enter|w:6")   # Alt+Down opens the list
         self.assertEqual(self.ws.Range("B2").Value, "Sell")
+        # Pick From Drop-down List (a cell without a list): Excel 16 begins on no entry, the first Down takes the
+        # first one (measured by keys); the Down of Alt+Down counted too and the list began on the first entry
+        self.ws.Range("E1:E4").Value = [["Side"], ["Buy"], ["Sell"], ["Buy"]]
+        for n, want in ((1, "Buy"), (2, "Sell")):
+            self.ws.Range("E5").ClearContents()
+            self.keys("m:2,2|w:2|g:E5|w:2|k:a-DownArrow|w:6" + "|k:DownArrow|w:3" * n + "|k:Enter|w:6")
+            self.assertEqual(self.ws.Range("E5").Value, want, n)
         self.keys("g:C5|w:2|k:a-DownArrow|w:4|k:s-a-RightArrow|w:4")   # no list: Alt+arrows don't move the cell
         from yc import ui
         self.assertEqual(ui.state()["active_cell"], "C5")

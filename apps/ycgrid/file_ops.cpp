@@ -973,7 +973,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         ImGui::TextUnformatted(i18n::LanguageLabel());
         const i18n::Lang saved = i18n::SavedLanguage();
         ImGui::SetNextItemWidth(S(220));
-        if (ImGui::BeginCombo("##yc_lang", i18n::LangName(saved))) {
+        if (ui::BeginCombo("##yc_lang", i18n::LangName(saved))) {
           for (i18n::Lang l : {i18n::Lang::En, i18n::Lang::ZhTW}) {
             if (ImGui::Selectable(i18n::LangName(l), l == saved) && l != saved) i18n::SaveLanguage(l);
           }
@@ -1055,9 +1055,9 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         // Workbook Calculation, as Excel's three choices (Formulas > Calculation Options)
         ImGui::TextUnformatted(TR("Workbook Calculation"));
         int mode = !cfg.auto_calc ? 2 : (cfg.auto_data_tables ? 0 : 1);
-        bool mc = ImGui::RadioButton(TR("Automatic"), &mode, 0);
-        mc = ImGui::RadioButton(TR("Automatic except for data tables"), &mode, 1) || mc;
-        mc = ImGui::RadioButton(TR("Manual"), &mode, 2) || mc;
+        bool mc = ui::RadioButton(TR("Automatic"), &mode, 0);
+        mc = ui::RadioButton(TR("Automatic except for data tables"), &mode, 1) || mc;
+        mc = ui::RadioButton(TR("Manual"), &mode, 2) || mc;
         if (mc) {
           cfg.auto_calc = mode != 2;
           cfg.auto_data_tables = mode == 0;
@@ -1077,8 +1077,8 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         const int all = static_cast<int>(core::PoolSize());
         char lab[96];
         std::snprintf(lab, sizeof lab, TR("Use all processors on this computer: %d"), all);
-        if (ImGui::RadioButton(lab, &mode, 0)) cfg.calc_thread_count = 0, changed = true;
-        if (ImGui::RadioButton(TR("Manual##threads"), &mode, 1) && cfg.calc_thread_count == 0) cfg.calc_thread_count = all, changed = true;
+        if (ui::RadioButton(lab, &mode, 0)) cfg.calc_thread_count = 0, changed = true;
+        if (ui::RadioButton(TR("Manual##threads"), &mode, 1) && cfg.calc_thread_count == 0) cfg.calc_thread_count = all, changed = true;
         ImGui::SameLine();
         ImGui::BeginDisabled(mode == 0);
         ImGui::SetNextItemWidth(S(90));
@@ -1107,6 +1107,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       }
       if (ImGui::Checkbox(TR("R1C1 reference style"), &cfg.r1c1)) changed = true;
       if (ImGui::Checkbox(TR("Formula AutoComplete"), &cfg.formula_autocomplete)) changed = true;
+      if (ImGui::Checkbox(TR("Use table names in formulas"), &cfg.generate_table_refs)) changed = true;
       if (ImGui::Checkbox(TR("Use GetPivotData functions for PivotTable references"), &cfg.generate_getpivotdata)) changed = true;
       // Error Checking and its rules (Application.ErrorCheckingOptions)
       ImGui::SeparatorText(TR("Error Checking"));
@@ -1148,9 +1149,10 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(90));
       const char* dirs[] = {TR("Down"), TR("Right##ctx_dir"), TR("Up"), TR("Left##ctx_dir")};
-      if (ImGui::Combo(TR("Direction"), &cfg.move_after_return_dir, dirs, 4)) changed = true;
+      if (ui::Combo(TR("Direction"), &cfg.move_after_return_dir, dirs, 4)) changed = true;
       ImGui::EndDisabled();
       if (ImGui::Checkbox(TR("Allow editing directly in cells"), &cfg.edit_directly_in_cell)) changed = true;
+      if (ImGui::Checkbox(TR("Extend data range formats and formulas"), &cfg.extend_list)) changed = true;
       if (ImGui::Checkbox(TR("Enable AutoComplete for cell values"), &cfg.enable_autocomplete)) changed = true;
       if (ImGui::Checkbox(TR("Automatically Flash Fill"), &cfg.auto_flash_fill)) changed = true;
       if (ImGui::Checkbox(TR("Alert the user when a potentially time consuming operation occurs"), &cfg.large_operation_alert)) changed = true;
@@ -1201,6 +1203,7 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
       if (ImGui::Checkbox(TR("Ignore Internet and file addresses"), &cfg.spell_ignore_internet)) changed = true;
       if (ImGui::Checkbox(TR("Flag repeated words"), &cfg.spell_repeated)) changed = true;
       if (ImGui::Checkbox(TR("Replace text as you type"), &cfg.autocorrect_replace)) changed = true;
+      if (ImGui::Checkbox(TR("Internet and network paths with hyperlinks"), &cfg.autoformat_hyperlinks)) changed = true;
       DrawAutoCorrectList();  // AutoCorrect's replacements (a deletion applies at once, as in Excel's AutoCorrect dialog)
       jump_here(4);
       ImGui::SeparatorText(TR("Save"));
@@ -1265,15 +1268,15 @@ void DrawBackstageContent(AppState& s, int page, const ImRect& area) {
         YC_OPT(r1c1) YC_OPT(formula_autocomplete) YC_OPT(error_checking) YC_OPT(err_evaluate_to_error) YC_OPT(err_number_as_text)
         YC_OPT(err_inconsistent_formula) YC_OPT(err_text_date) YC_OPT(err_omitted_cells) YC_OPT(err_unlocked_formula) YC_OPT(err_empty_cell_reference)
         YC_OPT(err_list_data_validation) YC_OPT(err_inconsistent_list_formula) YC_OPT(cell_drag_and_drop) YC_OPT(move_after_return)
-        YC_OPT(move_after_return_dir) YC_OPT(edit_directly_in_cell) YC_OPT(enable_autocomplete) YC_OPT(auto_flash_fill) YC_OPT(pivot_auto_group_dates)
+        YC_OPT(move_after_return_dir) YC_OPT(edit_directly_in_cell) YC_OPT(extend_list) YC_OPT(enable_autocomplete) YC_OPT(auto_flash_fill) YC_OPT(pivot_auto_group_dates)
         YC_OPT(autorecover) YC_OPT(autorecover_minutes) YC_OPT(publish_interval_ms) YC_OPT(projects_folder) YC_OPT(vscode_path)
         YC_OPT(show_gridlines) YC_OPT(show_headings) YC_OPT(show_formula_bar)
         YC_OPT(large_operation_alert) YC_OPT(large_operation_thousands) YC_OPT(show_chart_tip_names) YC_OPT(show_chart_tip_values)
         YC_OPT(calculate_before_save) YC_OPT(format_stale_values) YC_OPT(multi_threaded_calc) YC_OPT(calc_thread_count)
-        YC_OPT(generate_getpivotdata)
+        YC_OPT(generate_getpivotdata) YC_OPT(generate_table_refs)
         YC_OPT(show_quick_analysis) YC_OPT(standard_font) YC_OPT(standard_font_size) YC_OPT(sheets_in_new_workbook) YC_OPT(show_paste_options)
         YC_OPT(show_insert_options) YC_OPT(alert_before_overwriting) YC_OPT(spell_ignore_upper) YC_OPT(spell_ignore_numbers)
-        YC_OPT(spell_ignore_internet) YC_OPT(spell_repeated) YC_OPT(autocorrect_replace)
+        YC_OPT(spell_ignore_internet) YC_OPT(spell_repeated) YC_OPT(autocorrect_replace) YC_OPT(autoformat_hyperlinks)
 #undef YC_OPT
         ApplyCalcThreads();  // Enable multi-threaded calculation, its threads
         s.engine->Post([a = real.auto_calc, t = real.auto_data_tables, x = real.excel_15_digit_input, it = real.iterative, n = real.max_iterations,

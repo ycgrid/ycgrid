@@ -86,7 +86,8 @@ def ping() -> bool:
 
 def errors(errors_only: bool = False, after: int = 0) -> list:
     """[YC] What the Error Log window lists (View > Error Log), oldest first: dicts with id, time (Unix seconds), source
-    ("YCGrid", "Python", "VS Code"...), title, text and error (False: a message YCGrid showed). after: only newer ids."""
+    ("YCGrid", "Python", "VS Code"...), title, text and error (False: a message YCGrid showed), and refusal (True: what
+    a protected sheet or workbook refused, which Excel says in a message box). after: only newer ids."""
     return list(_rq("errors.list", errors_only=bool(errors_only), after=int(after)))
 
 
@@ -105,9 +106,10 @@ def resolve_errors(ids, note: str = "") -> int:
 def items(window: str = "") -> list:
     """[YC] Tests: the labelled controls on the screen now (buttons, check boxes, radio buttons, text boxes, menu items,
     list entries...) as dicts {label, id, window, rect [x0, y0, x1, y1], disabled} (id: the label with its "##" part,
-    for controls with no visible text); window filters by part of the window title and then lists its unlabelled
-    controls too (color swatches, drawn buttons: label and id ""), in no particular order. Click one with ui.input
-    "c:x,y" as a person does. The first call turns the recording on."""
+    for controls with no visible text), and for a check box, an option button or a checkable menu item `checked`:
+    True, False or "mixed" (a (Select All) over some ticked items); window filters by part of the window title and
+    then lists its unlabelled controls too (color swatches, drawn buttons: label and id ""), in no particular order.
+    Click one with ui.input "c:x,y" as a person does. The first call turns the recording on."""
     got = _rq("ui.items", window=str(window))
     if got is None:  # recording just started: let a frame be drawn
         _rq("ui.input", script="w:2")
@@ -117,8 +119,9 @@ def items(window: str = "") -> list:
 
 def ribbon_items() -> list:
     """[YC] Tests: the ribbon buttons, open menu entries, gallery tiles and Backstage entries on the screen now, as
-    dicts {cmd, where, rect [x0, y0, x1, y1] in window pixels}: where is "ribbon" (a button), "dropdown" (opens a menu
-    or gallery: click its arrow), "combo", "menu" (an entry of the open menu), "tile" or "backstage". Click them
+    dicts {cmd, where, label, rect [x0, y0, x1, y1] in window pixels}: where is "ribbon" (a button), "dropdown" (opens
+    a menu or gallery: click its arrow), "combo", "menu" (an entry of the open menu), "tile" or "backstage"; label is
+    the text shown for it, on one line. Click them
     with ui.input "c:x,y" as a person does. Only what the last frames drew: switch to a tab or open a menu first."""
     return list(_rq("ui.ribbon_items"))
 

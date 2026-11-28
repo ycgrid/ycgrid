@@ -1439,8 +1439,10 @@ bool ValidSheetName(std::string_view n, std::string* error) {
 
 uint32_t Document::AddSheet(std::string name, int32_t index) {
   if (RefuseStructure()) return 0;
-  if (name.empty()) name = wb_.NextSheetName();
-  if (wb_.FindSheet(name) >= 0 || !ValidSheetName(name, nullptr)) name = wb_.NextSheetName();
+  // a new sheet is named in the UI's language, as a new workbook's first sheet is (Excel names it with
+  // the translated word too); the Chinese UI named the first sheet in Chinese and every later one Sheet<n>
+  if (name.empty()) name = wb_.NextSheetName(TR("Sheet"));
+  if (wb_.FindSheet(name) >= 0 || !ValidSheetName(name, nullptr)) name = wb_.NextSheetName(TR("Sheet"));
   Sheet s;
   s.id = wb_.next_sheet_id++;
   s.name = std::move(name);
@@ -1599,7 +1601,7 @@ bool Document::RenameSheet(uint32_t id, std::string_view name, std::string* erro
   if (!ValidSheetName(name, error)) return false;
   const int32_t other = wb_.FindSheet(name);
   if (other >= 0 && wb_.sheets[static_cast<size_t>(other)]->id != id) {
-    if (error) *error = TR("A sheet with that name already exists.");
+    if (error) *error = TR("That name is already taken. Try a different one.");  // Excel 16's message, measured
     return false;
   }
   Sheet* s = M(id);
@@ -1820,7 +1822,7 @@ uint32_t Document::CopySheet(uint32_t id, int32_t new_index) {
     p.id = wb_.next_object_id++;
     p.name = NextPivotName();  // PivotTable names are unique in the workbook
     for (int k = 2; std::any_of(copy.pivots->begin(), copy.pivots->end(), [&](const model::PivotTable& o) { return &o != &p && o.name == p.name; }); ++k) {
-      p.name = "PivotTable" + std::to_string(k);
+      p.name = TR("PivotTable") + std::to_string(k);
     }
   }
   std::unordered_map<std::string, std::string> table_names;  // the source's table (lowered) -> the copy's
@@ -1829,7 +1831,7 @@ uint32_t Document::CopySheet(uint32_t id, int32_t new_index) {
     t.id = wb_.next_object_id++;
     t.name = NextTableName();  // table names are unique in the workbook
     for (int k = 2; std::any_of(copy.tables->begin(), copy.tables->end(), [&](const model::Table& o) { return &o != &t && o.name == t.name; }); ++k) {
-      t.name = "Table" + std::to_string(k);
+      t.name = TR("Table") + std::to_string(k);
     }
     table_names[was] = t.name;
   }

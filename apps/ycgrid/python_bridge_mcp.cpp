@@ -13,6 +13,7 @@
 #include "python_bridge.h"
 
 #include "app_state.h"
+#include "settings.h"
 #include "engine/snapshot.h"
 #include "error_log.h"
 #include "model/table.h"
@@ -332,6 +333,7 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         x.Set("id", MV::Str(it.id));
         x.Set("window", MV::Str(it.window));
         x.Set("disabled", MV::Bool(it.disabled));
+        if (it.checked >= 0) x.Set("checked", it.checked == 2 ? MV::Str("mixed") : MV::Bool(it.checked == 1));
         MV r = MV::Array();
         for (float v : {it.rect.Min.x, it.rect.Min.y, it.rect.Max.x, it.rect.Max.y}) r.Push(MV::Double(v));
         x.Set("rect", std::move(r));
@@ -347,6 +349,7 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         MV x = MV::Map();
         x.Set("cmd", MV::Str(it.cmd));
         x.Set("where", MV::Str(it.where));
+        x.Set("label", MV::Str(it.label));
         MV r = MV::Array();
         for (float v : {it.rect.Min.x, it.rect.Min.y, it.rect.Max.x, it.rect.Max.y}) r.Push(MV::Double(v));
         x.Set("rect", std::move(r));
@@ -423,6 +426,9 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
       for (const auto& n : s.clipped_windows) clipped.Push(MV::Str(n));
       o.Set("clipped_windows", std::move(clipped));  // dialogs whose contents are cut off on the right (should stay empty)
       o.Set("vscode_request", MV::Str(LastVsCodeRequest()));  // a hidden instance opens no VS Code: what it would have opened
+      // nor anything else on the desktop: the last link, file or folder it would have opened, and how many times
+      o.Set("desktop_open", MV::Str(ToUtf8(LastDesktopOpen())));
+      o.Set("desktop_opens", MV::Int(DesktopOpens()));
       MV wins = MV::Array();  // the top-level windows of the last frame: name, [x, y, width, height], fits its contents, popup
       for (const auto& w : s.window_rects) {
         MV e = MV::Map();
@@ -436,7 +442,18 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
       }
       o.Set("windows", std::move(wins));  // windows that narrowed by themselves (should stay empty)  // the window with the keyboard: 0 the main one, else New Window's number
       o.Set("status", MV::Str(s.status));
-      o.Set("imgui_asserts", MV::Int(yc_imgui_assert_count));  // ImGui's checks that failed (a debug build stops on one)
+      o.Set("imgui_asserts", MV::Int(yc_imgui_assert_count));
+      // the table whose column names the column headings show (its header row scrolled away), "" for the letters
+      {
+        std::string th;
+        const uint32_t tid = s.FocusView().table_headings;
+        if (const model::Sheet* fs = tid ? s.FocusSheet() : nullptr) {
+          for (const model::Table& tb : *fs->tables) {
+            if (tb.id == tid) th = tb.name;
+          }
+        }
+        o.Set("table_headings", MV::Str(th));
+      }  // ImGui's checks that failed (a debug build stops on one)
       o.Set("status_stats", MV::Str(s.status_stats));
       o.Set("circular_status", MV::Str(CircularStatusText(s)));  // the status bar's "Circular References: B2"
       o.Set("copy_mode", MV::Bool(s.marquee));  // copied cells outlined (Excel's CutCopyMode): Enter or Paste pastes
@@ -451,6 +468,9 @@ MV PythonBridge::DispatchMcp(const std::string& m, const MV& p, std::string* ec,
         rb.Set("collapsed", MV::Bool(st.collapsed));
         rb.Set("peek", MV::Bool(st.peek));
         rb.Set("tab", MV::Int(st.selected_tab));
+        // its label as shown (Table Design after Ctrl+T): tests read which tab is up without counting the hidden ones
+        if (const auto& tl = ui::ribbon::Tabs(); st.selected_tab >= 0 && st.selected_tab < static_cast<int>(tl.size()))
+          rb.Set("tab_label", MV::Str(tl[static_cast<size_t>(st.selected_tab)].label));
         rb.Set("backstage", MV::Bool(st.backstage));
         rb.Set("keytips", MV::Int(st.keytip_level));
         if (!st.legacy_keys.empty()) rb.Set("legacy_keys", MV::Str(st.legacy_keys));

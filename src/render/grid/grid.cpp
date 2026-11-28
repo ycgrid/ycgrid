@@ -19,6 +19,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <optional>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -936,8 +937,12 @@ CellText MakeText(const Ctx& c, const model::Style& st, const core::Value& v, fl
   // Show Formulas: constants lose their number formats too (a date shows its serial number), as in Excel
   const uint32_t numfmt = c.opt.show_formulas ? 0 : st.numfmt;
   const formula::NumberFormat& fmt = FormatFor(c.styles, numfmt);
-  const float digit_w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, "0").x;
-  const double max_chars = v.IsNumeric() && numfmt == 0 ? std::floor((cell_w - 2 * c.pad) / std::max(1.0f, digit_w)) : -1;
+  // a column holds as many digits as its width in characters, the digit's width taken in whole pixels as Excel takes
+  // it (Calibri 11's 7.43 is 7): measured, the fraction left 99999 as #### in a column 5 wide where Excel shows it
+  // (a column w characters wide is w digits and 5 pixels at 96 DPI: render::CharsToColPx), at the zoom and DPI shown
+  const float s = Dpi() * c.zoom;
+  const float digit_w = std::max(1.0f, std::floor(font->CalcTextSizeA(px, FLT_MAX, 0.0f, "0").x / s)) * s;
+  const double max_chars = v.IsNumeric() && numfmt == 0 ? std::floor((cell_w - 5.0f * s) / digit_w + 0.01) : -1;
   formula::FormatResult fr = formula::FormatValue(v, fmt, max_chars);
   if (max_chars > 0 && max_chars < 11) {
     // the budget counts every character as a digit, but "." and "-" are narrower: one or two more characters may fit
@@ -962,11 +967,13 @@ CellText MakeText(const Ctx& c, const model::Style& st, const core::Value& v, fl
     // the calendar
     const float w = font->CalcTextSizeA(px, FLT_MAX, 0.0f, out.text.c_str()).x;
     if (fr.bad_date || w > cell_w - 2 * c.pad + 1) {
-      const int n = std::max(1, static_cast<int>((cell_w - 2 * c.pad) / std::max(1.0f, font->CalcTextSizeA(px, FLT_MAX, 0.0f, "#").x)));
-      out.text.assign(static_cast<size_t>(n), '#');
+      out.text.clear();
       out.hashes = true;
     }
   }
+  // a # for each character the column is wide, as Excel fills it (measured: ###### in a column 6 wide, ## in 2); the
+  // glyph's own width left one or two short
+  if (out.hashes) out.text.assign(static_cast<size_t>(std::max(1.0, std::floor((cell_w - 5.0f * s) / digit_w + 0.01))), '#');
   if (!out.hashes && fr.fill_at >= 0 && !fr.fill.empty() && fr.fill_at <= static_cast<int>(out.text.size())) {
     // *x: x repeats where the code puts it until the text spans the cell, so an accounting format's $ sits at the
     // left edge and the number at the right (Excel)
@@ -1330,6 +1337,7 @@ void DrawPane(Ctx& c, const Pane& p) {
       ImFont* font = FontFor(c, st);
       const float px = FontPxFor(c, st);
       const CellText ct = MakeText(c, st, v, x1 - x0, font, px, m.r0, m.c0);
+      if (!c.opt.show_formulas && m.Contains(c.view.sel.act_r, c.view.sel.act_c)) c.view.active_shown = ct.text, c.view.active_shown_frame = ImGui::GetFrameCount();
       const ImVec4 clip(std::max(x0, p.rect.Min.x), std::max(y0, p.rect.Min.y), std::min(x1 - 1, p.rect.Max.x), std::min(y1 - 1, p.rect.Max.y));
       if (!ct.image || !DrawCellImage(c, ct, ImRect(x0, y0, x1, y1), clip)) DrawText(c, st, ct, font, px, ImRect(x0, y0, x1, y1), clip, RichFor(c, m.r0, m.c0, v));
     }
@@ -1387,6 +1395,7 @@ void DrawPane(Ctx& c, const Pane& p) {
       ImFont* font = FontFor(c, st);
       const float px = FontPxFor(c, st);
       CellText ct = MakeText(c, st, v, cl.size, font, px, r, col);
+      if (!c.opt.show_formulas && r == c.view.sel.act_r && col == c.view.sel.act_c) c.view.active_shown = ct.text, c.view.active_shown_frame = ImGui::GetFrameCount();
       if (ct.image && DrawCellImage(c, ct, ImRect(cl.pos, rl.pos, cl.pos + cl.size, rl.pos + rl.size),
                                     ImVec4(cl.pos, rl.pos, cl.pos + cl.size - 1, rl.pos + rl.size - 1)))
         continue;
@@ -1549,6 +1558,53 @@ void NormalizeWholeSelection(GridView& view, const model::Sheet& sheet) {
   if (rows_all && cols_all) s.mode = SelectMode::All;
   else if (rows_all) s.mode = SelectMode::Cols;
   else if (cols_all) s.mode = SelectMode::Rows;
+}
+
+bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
+               const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row) {
+  *add_row = -1;
+  if (unlocked) {
+    // a protected sheet: the next / previous unlocked cell, in reading order, wrapping
+    Rect area = sheet.has_used ? sheet.used : Rect::Cell(r, c);
+    area = area.Union(Rect::Cell(r, c));
+    const uint64_t w = area.Cols(), n = static_cast<uint64_t>(area.Rows()) * w;
+    const uint64_t at = static_cast<uint64_t>(r - area.r0) * w + (c - area.c0);
+    for (uint64_t k = 1; k <= n && k < 4000000; ++k) {
+      const uint64_t i = back ? (at + n - k % n) % n : (at + k) % n;
+      const uint32_t rr = area.r0 + static_cast<uint32_t>(i / w), cc = area.c0 + static_cast<uint32_t>(i % w);
+      if (unlocked(rr, cc) && (!selectable || selectable(rr, cc))) {
+        *nr = rr, *nc = cc;
+        return true;
+      }
+    }
+    return false;
+  }
+  // a table: along its rows, from its last column to the next row's first and back; its last cell adds a row
+  for (const model::Table& tb : *sheet.tables) {
+    const Rect body(tb.header ? tb.range.r0 : tb.Data().r0, tb.range.c0, tb.Data().r1, tb.range.c1);
+    if (!body.Contains(r, c) || (body.c0 == body.c1 && body.r0 == body.r1)) continue;
+    if (!back && c == body.c1 && r == body.r1) {
+      // a totals row under it too: the new row goes in above it, the totals moving down (Excel 16, measured by keys)
+      if (body.r1 + 1 >= sheet.row_limit) return false;
+      *add_row = tb.id;
+      *nr = body.r1 + 1, *nc = body.c0;
+      return true;
+    }
+    if (!back && c == body.c1) {
+      const int64_t n = sheet.rows->NextVisible(int64_t{r} + 1, +1, sheet.row_limit);
+      if (n < 0 || n > body.r1) return false;
+      *nr = static_cast<uint32_t>(n), *nc = body.c0;
+      return true;
+    }
+    if (back && c == body.c0 && r > body.r0) {
+      const int64_t n = sheet.rows->NextVisible(int64_t{r} - 1, -1, sheet.row_limit);
+      if (n < static_cast<int64_t>(body.r0)) return false;
+      *nr = static_cast<uint32_t>(n), *nc = body.c1;
+      return true;
+    }
+    return false;
+  }
+  return false;
 }
 
 void EnsureVisible(const model::Sheet& sheet, GridView& view, uint32_t r, uint32_t c) {
@@ -1764,7 +1820,9 @@ static float DrawSheetTabs(TabBarIO* tabs, const ImRect& bottom, GridActions& ac
       else if (io.KeyShift && !io.KeyCtrl) tabs->group_extend = tb.id;  // Shift+click: the sheets from the active one to here
       else tabs->activate = tb.id;
       act.clicked = true;
-      if (!io.KeyCtrl && !io.KeyShift) drag_tab = tb.id;
+      // Ctrl held from the press is Excel's way to copy a sheet (hold Ctrl, drag the tab); a Ctrl+click that doesn't move
+      // only groups it
+      if (!io.KeyShift) drag_tab = tb.id;
     }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
       // a grouped tab keeps the group (its menu offers Ungroup Sheets)
@@ -2319,6 +2377,19 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       if (p.rect.Min.y == cells.Min.y) {  // top pane: draw the column names
         dl->PushClipRect(ImVec2(p.rect.Min.x, rect.Min.y), ImVec2(p.rect.Max.x, cells.Min.y), true);
         dl->AddRectFilled(ImVec2(p.rect.Min.x, rect.Min.y), ImVec2(p.rect.Max.x, cells.Min.y), t.header_bg);
+        // the active cell in a table whose header row is above the rows shown: the headings over its columns show its
+        // column names instead of the letters (Excel's, as Microsoft documents it), so the names stay in sight
+        const model::Table* head_tb = nullptr;
+        if (!opt.r1c1 && !sheet.tables->empty() && !p.rows.empty()) {
+          for (const model::Table& tb : *sheet.tables) {
+            if (tb.header && tb.range.Contains(selst.act_r, selst.act_c) && selst.act_r > tb.range.r0 &&
+                p.rows.front().index > static_cast<int64_t>(tb.range.r0) && p.rows.front().index <= static_cast<int64_t>(tb.range.r1)) {
+              head_tb = &tb;
+              break;
+            }
+          }
+        }
+        if (p.rect.Min.y == cells.Min.y || head_tb) view.table_headings = head_tb ? head_tb->id : 0;
         for (const Line& l : p.cols) {
           const bool on = col_selected(l.index);
           const ImVec2 h0(l.pos, rect.Min.y), h1(l.pos + l.size, cells.Min.y);
@@ -2331,9 +2402,18 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             dl->AddRectFilled(ImVec2(h0.x - 1, h0.y), ImVec2(h0.x, h1.y), t.header_text);
             dl->AddRectFilled(ImVec2(h0.x + 1, h0.y), ImVec2(h0.x + 2, h1.y), t.header_text);
           }
-          const std::string name = opt.r1c1 ? std::to_string(l.index + 1) : ColName(l.index);
+          std::string name = opt.r1c1 ? std::to_string(l.index + 1) : ColName(l.index);
+          bool table_name = false;
+          if (head_tb && l.index >= head_tb->range.c0 && l.index <= head_tb->range.c1) {
+            const uint32_t j = static_cast<uint32_t>(l.index) - head_tb->range.c0;
+            if (j < head_tb->columns.size() && !head_tb->columns[j].name.empty()) name = head_tb->columns[j].name, table_name = true;
+          }
           const float tw = ImGui::CalcTextSize(name.c_str()).x;
-          dl->AddText(ImVec2(IM_ROUND(h0.x + (l.size - tw) * 0.5f), IM_ROUND(h0.y + (header_h - hfont) * 0.5f)), on ? t.header_sel_text : t.header_text, name.c_str());
+          // a column name starts at the left and is cut at the column's edge, as a cell's text
+          const float tx = table_name ? h0.x + S(4) : IM_ROUND(h0.x + (l.size - tw) * 0.5f);
+          if (table_name) dl->PushClipRect(h0, ImVec2(h1.x - 1, h1.y), true);
+          dl->AddText(ImVec2(IM_ROUND(tx), IM_ROUND(h0.y + (header_h - hfont) * 0.5f)), on ? t.header_sel_text : t.header_text, name.c_str());
+          if (table_name) dl->PopClipRect();
         }
         dl->AddRectFilled(ImVec2(p.rect.Min.x, cells.Min.y - 1), ImVec2(p.rect.Max.x, cells.Min.y), t.header_border);
         dl->PopClipRect();
@@ -2379,8 +2459,11 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     const bool click = ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
                        !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId);
     ImGui::PushFont(F().grid, std::max(9.0f, (F().grid_size - 3.0f)));
-    auto button = [&](ImVec2 center, const char* label) {
+    // ui.items lists each by an id a test finds it by, as a person finds it by its place: ##outline_rows_2 (the rows'
+    // level 2 button), ##outline_row_5 (the +/- on row 5); drawn only, they weren't listed
+    auto button = [&](ImVec2 center, const char* label, const std::string& id) {
       const ImRect b(ImVec2(std::floor(center.x - bs * 0.5f), std::floor(center.y - bs * 0.5f)), ImVec2(std::floor(center.x + bs * 0.5f), std::floor(center.y + bs * 0.5f)));
+      ui::NoteUiItem(id.c_str(), b);
       const bool hot = b.Contains(io.MousePos);
       dl->AddRectFilled(b.Min, b.Max, hot ? t.btn_hover : btn_bg);
       dl->AddRect(b.Min, b.Max, btn_border);
@@ -2388,8 +2471,9 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddText(ImVec2(IM_ROUND(b.GetCenter().x - ts.x * 0.5f), IM_ROUND(b.GetCenter().y - ts.y * 0.5f)), t.header_text, label);
       return hot && click;
     };
-    auto sign = [&](ImVec2 center, bool plus) {
+    auto sign = [&](ImVec2 center, bool plus, const std::string& id) {
       const ImRect b(ImVec2(std::floor(center.x - bs * 0.5f), std::floor(center.y - bs * 0.5f)), ImVec2(std::floor(center.x + bs * 0.5f), std::floor(center.y + bs * 0.5f)));
+      ui::NoteUiItem(id.c_str(), b);
       const bool hot = b.Contains(io.MousePos);
       dl->AddRectFilled(b.Min, b.Max, hot ? t.btn_hover : btn_bg);
       dl->AddRect(b.Min, b.Max, btn_border);
@@ -2404,7 +2488,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddRectFilled(g.Min, g.Max, t.header_bg);
       for (int k = 1; k <= row_levels + 1; ++k) {
         std::snprintf(lbl, sizeof(lbl), "%d", k);
-        if (button(ImVec2(outer.Min.x + lvl_w * (static_cast<float>(k) - 0.5f), rect.Min.y + header_h * 0.5f), lbl)) {
+        if (button(ImVec2(outer.Min.x + lvl_w * (static_cast<float>(k) - 0.5f), rect.Min.y + header_h * 0.5f), lbl, std::string("##outline_rows_") + lbl)) {
           act.outline_level = k;
           act.outline_level_rows = true;
         }
@@ -2422,7 +2506,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             if (lv < k && (sheet.outline_below ? prev >= k : next >= k)) {
               const auto gi = sheet.outline_below ? l.index - 1 : l.index + 1;
               const bool collapsed = d.IsHidden(gi);
-              if (sign(ImVec2(x, l.pos + l.size * 0.5f), collapsed)) {
+              if (sign(ImVec2(x, l.pos + l.size * 0.5f), collapsed, "##outline_row_" + std::to_string(l.index + 1))) {
                 act.outline_toggle = true;
                 act.outline_rows = true;
                 act.outline_index = static_cast<uint32_t>(gi);
@@ -2440,7 +2524,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       dl->AddRectFilled(g.Min, g.Max, t.header_bg);
       for (int k = 1; k <= col_levels + 1; ++k) {
         std::snprintf(lbl, sizeof(lbl), "%d", k);
-        if (button(ImVec2(rect.Min.x + row_hdr_w * 0.5f, outer.Min.y + lvl_w * (static_cast<float>(k) - 0.5f)), lbl)) {
+        if (button(ImVec2(rect.Min.x + row_hdr_w * 0.5f, outer.Min.y + lvl_w * (static_cast<float>(k) - 0.5f)), lbl, std::string("##outline_cols_") + lbl)) {
           act.outline_level = k;
           act.outline_level_rows = false;
         }
@@ -2457,7 +2541,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
             if (lv < k && (sheet.outline_right ? prev >= k : next >= k)) {
               const auto gi = sheet.outline_right ? l.index - 1 : l.index + 1;
               const bool collapsed = d.IsHidden(gi);
-              if (sign(ImVec2(l.pos + l.size * 0.5f, y), collapsed)) {
+              if (sign(ImVec2(l.pos + l.size * 0.5f, y), collapsed, "##outline_col_" + core::ColumnName(static_cast<uint32_t>(l.index)))) {
                 act.outline_toggle = true;
                 act.outline_rows = false;
                 act.outline_index = static_cast<uint32_t>(gi);
@@ -2548,8 +2632,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       ref = rr.IsCell() ? core::CellA1(rr.r0, rr.c0, ra0, ca0) : core::CellA1(rr.r0, rr.c0, ra0, ca0) + ":" + core::CellA1(rr.r1, rr.c1, ra1, ca1);
     }
     if (sheet.id != edit.sheet) ref = core::QuoteSheetName(sheet.name) + "!" + ref;
-    if (r0 == r1 && c0 == c1 && whole == 0 && opt.point_text) {
-      if (std::string t = opt.point_text(sheet.id, r0, c0); !t.empty()) ref = std::move(t);
+    // a PivotTable's value (GETPIVOTDATA), a table's part (Table1[Px]): the app's text for what is pointed at; a box
+    // dragged keeps its kind of reference
+    if (whole == 0 && !edit.box_drag && opt.point_text) {
+      if (std::string t = opt.point_text(sheet.id, rr); !t.empty()) ref = std::move(t);
     }
     // Ctrl+click's comma: the edit box writes back its own text the frame the click takes its focus, dropping the
     // comma (and the reference) put in that frame; the drag goes on from the text with the comma again
@@ -3342,7 +3428,10 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       nr = std::clamp<int64_t>(nr, 0, row_limit - 1);
       nc = std::clamp<int64_t>(nc, 0, col_limit - 1);
       if (extend) {
-        // Shift: extend the current area (the active cell stays, the "other corner" moves)
+        // Shift: extend the current area (the active cell stays, the "other corner" moves); in Shift+F8's Add to
+        // Selection that is the area added, and the mode ends with it (Excel 16, measured by keys: Shift+F8, Right,
+        // Right, Shift+Down over B2:B4 gives B2:B4,D2:D3, and the next Right selects E2 alone)
+        if (view.add_mode) view.add_mode = false;
         Rect& a = selst.areas.back();
         static uint32_t far_r = 0, far_c = 0;
         (void)far_r;
@@ -3353,7 +3442,11 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         selst.mode = SelectMode::Cells;
         EnsureVisible(sheet, view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc));
       } else {
+        // Shift+F8's Add to Selection: the areas from before stay, the active cell is an area of its own (B2:B4,D2)
+        std::vector<Rect> keep;
+        if (view.add_mode) keep.assign(selst.areas.begin(), selst.areas.begin() + std::min(view.add_keep, selst.areas.size()));
         SelectCell(view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc), false);
+        if (!keep.empty()) selst.areas.insert(selst.areas.begin(), keep.begin(), keep.end());
         EnsureVisible(sheet, view, static_cast<uint32_t>(nr), static_cast<uint32_t>(nc));
       }
       act.selection_changed = true;
@@ -3373,13 +3466,15 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     if (ImGui::IsKeyPressed(ImGuiKey_F8, false) && !ctrl && !io.KeyAlt) {
       if (io.KeyShift) {
         view.add_mode = !view.add_mode;
+        view.add_keep = selst.areas.size();
         view.extend_mode = false;
       } else {
         view.extend_mode = !view.extend_mode;
         view.add_mode = false;
       }
     }
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) view.extend_mode = view.add_mode = view.end_mode = false;
+    // Escape ends Extend and Add to Selection but not End mode: End, Escape, Down still jumps (Excel 16, measured)
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) view.extend_mode = view.add_mode = false;
     const bool jump = ctrl || view.end_mode;  // End, then an arrow: as Ctrl+arrow
     bool arrow = false;
     // a merged cell is one cell for the keys: a step starts from its far edge, and lands on a merge's top-left cell
@@ -3461,7 +3556,9 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     }
     if (arrow) view.end_mode = false;
     const int64_t page = std::max<int64_t>(1, view.vis_rows - 1);
-    if (key_pressed(ImGuiKey_PageDown) && !no_rows) {  // (every row hidden: Page Down / Up stay, measured)
+    // Ctrl+PgDn / Ctrl+PgUp switch sheets (main.cpp) and don't also page the sheet they leave: its active cell went a
+    // screen down at every switch
+    if (key_pressed(ImGuiKey_PageDown) && !no_rows && !io.KeyCtrl) {  // (every row hidden: Page Down / Up stay, measured)
       if (io.KeyAlt) {
         ScrollBy(view.h, *sheet.cols, fc_end, col_limit, std::max<int64_t>(1, view.vis_cols - 1));
         move_to(er, view.h.first, shift);
@@ -3470,7 +3567,7 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
         move_to(std::min<int64_t>(row_limit - 1, er + page), ec, shift);
       }
     }
-    if (key_pressed(ImGuiKey_PageUp) && !no_rows) {
+    if (key_pressed(ImGuiKey_PageUp) && !no_rows && !io.KeyCtrl) {
       if (io.KeyAlt) {
         ScrollBy(view.h, *sheet.cols, fc_end, col_limit, -std::max<int64_t>(1, view.vis_cols - 1));
         move_to(er, view.h.first, shift);
@@ -3491,13 +3588,14 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       EnsureVisible(sheet, view, static_cast<uint32_t>(tr), static_cast<uint32_t>(tc));
       act.selection_changed = true;
     };
-    if (key_pressed(ImGuiKey_Home) && view.end_mode) {
+    // Alt+Home and Alt+Enter do nothing on the sheet (Excel 16, measured by keys posted to its sheet window)
+    if (key_pressed(ImGuiKey_Home) && view.end_mode && !io.KeyAlt) {
       // End, then Home: the last cell of the used area, as Ctrl+End (Excel)
       const core::CellPos lc = engine::LastCell(sheet);
       if (shift && selst.mode == SelectMode::Cells) grow_to(lc.row, lc.col);
       else move_to(lc.row, lc.col, shift);
       view.end_mode = false;
-    } else if (key_pressed(ImGuiKey_Home)) {
+    } else if (key_pressed(ImGuiKey_Home) && !io.KeyAlt) {
       const int64_t hr = ctrl ? (view.freeze_rows ? fr_end : 0) : er, hc = view.freeze_cols && !tee ? fc_end : 0;
       if (ctrl && shift && selst.mode == SelectMode::Cells) grow_to(hr, hc);
       else move_to(hr, hc, shift);
@@ -3513,7 +3611,54 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     const bool star = ctrl && ((io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_8)) || ImGui::IsKeyPressed(ImGuiKey_KeypadMultiply));
     // Ctrl+Shift+Space works as Ctrl+A (the data around the active cell first)
     const bool sel_all = ctrl && ((!io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_A)) || (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Space)));
-    if (sel_all || star) {
+    // In a table, Ctrl+A, Ctrl+Shift+Space, Ctrl+Space and Shift+Space take the table's part first: Ctrl+A its data,
+    // then all of it; Ctrl+Space its column's data, then the column with its header and totals; Shift+Space its row;
+    // pressed again they go on as outside (Excel 16, measured by keys posted to its sheet window)
+    const model::Table* in_table = nullptr;
+    if (selst.areas.size() == 1 && selst.mode == SelectMode::Cells && !sheet.tables->empty()) {
+      for (const model::Table& tb : *sheet.tables) {
+        if (tb.range.Contains(selst.areas[0].r0, selst.areas[0].c0) && tb.range.Contains(selst.areas[0].r1, selst.areas[0].c1) &&
+            tb.range.Contains(selst.act_r, selst.act_c)) {
+          in_table = &tb;
+          break;
+        }
+      }
+    }
+    // the table part the keys take next from the area (nothing when the area is already all of it)
+    auto table_step = [&](const Rect& tpart, const Rect& twhole) -> std::optional<Rect> {
+      const Rect sa = selst.areas[0];
+      const bool within_part = tpart.Contains(sa.r0, sa.c0) && tpart.Contains(sa.r1, sa.c1);
+      if (within_part && !(sa == tpart)) return tpart;
+      if (!(sa == twhole)) return twhole;
+      return std::nullopt;
+    };
+    auto take_table_part = [&](const Rect& tp) {
+      selst.areas.assign(1, tp);
+      selst.anc_r = tp.r0, selst.anc_c = tp.c0;
+      selst.mode = SelectMode::Cells;
+      act.selection_changed = true;
+    };
+    bool table_took = false;
+    if ((sel_all || (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) ||
+         (io.KeyShift && !ctrl && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space))) &&
+        in_table) {
+      const Rect ta = selst.areas[0], tall = in_table->range, tdata = in_table->Data();
+      std::optional<Rect> tnext;
+      if (sel_all) tnext = table_step(tdata, tall);
+      else if (ctrl) tnext = table_step(Rect{tdata.r0, ta.c0, tdata.r1, ta.c1}, Rect{tall.r0, ta.c0, tall.r1, ta.c1});
+      else tnext = table_step(Rect{ta.r0, tall.c0, ta.r1, tall.c1}, Rect{ta.r0, tall.c0, ta.r1, tall.c1});
+      if (tnext && tdata.r0 <= tdata.r1) {
+        take_table_part(*tnext);
+        table_took = true;
+      } else if (sel_all) {
+        // all of the table already: the whole sheet
+        selst.areas.assign(1, Rect{0, 0, static_cast<uint32_t>(row_limit - 1), static_cast<uint32_t>(col_limit - 1)});
+        selst.mode = SelectMode::All;
+        act.selection_changed = true;
+        table_took = true;
+      }
+    }
+    if ((sel_all || star) && !table_took) {
       const Rect reg = engine::CurrentRegion(sheet, selst.act_r, selst.act_c);
       const bool lone = reg.IsCell() && sheet.IsEmptyCell(reg.r0, reg.c0);
       const bool already = selst.mode == SelectMode::Cells && selst.areas.size() == 1 && selst.areas[0] == reg;
@@ -3533,7 +3678,8 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
     }
     // Ctrl+Space / Shift+Space: the whole columns / rows of every area, stored as a header click stores them (so
     // Shift+arrows after them grow whole columns / rows)
-    if (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) {
+    if (table_took) {
+    } else if (ctrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_Space)) {
       for (Rect& wa : selst.areas) {
         if (selst.mode == SelectMode::Cells) wa = expand_merges(wa);  // a merged cell's columns, all of them
         wa = Rect{0, wa.c0, static_cast<uint32_t>(row_limit - 1), wa.c1};
@@ -3640,34 +3786,35 @@ GridResult DrawGrid(const engine::Snapshot& snap, const model::Sheet& sheet, Gri
       EnsureVisible(sheet, view, selst.act_r, selst.act_c);
       act.selection_changed = true;
     };
-    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
-      if (opt.copy_marquee && !opt.marquee_no_paste && !io.KeyShift && !ctrl && !io.KeyAlt) act.paste_enter = true;
+    // Enter with Ctrl or Alt moves nothing outside an entry (Excel 16, measured: Ctrl+Enter, Alt+Enter, Ctrl+Shift+Enter)
+    if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) && !ctrl && !io.KeyAlt) {
+      if (view.end_mode) {
+        // End, then Enter: the used area's last column in the active cell's row, also in an empty row; with Shift the
+        // selection grows to it (Excel 16, measured by keys)
+        const core::CellPos lc = engine::LastCell(sheet);
+        if (io.KeyShift && selst.mode == SelectMode::Cells) grow_to(selst.act_r, lc.col);
+        else move_to(selst.act_r, lc.col, false);
+        view.end_mode = false;
+      } else if (opt.copy_marquee && !opt.marquee_no_paste && !io.KeyShift && !ctrl && !io.KeyAlt) act.paste_enter = true;
       else if (opt.enter_dir > 0) {
         // File > Options: the way Enter moves (Shift+Enter: the other way)
         static const int kBack[5] = {0, 2, 1, 4, 3};
         move_in_selection(io.KeyShift ? kBack[std::clamp(opt.enter_dir, 1, 4)] : std::clamp(opt.enter_dir, 1, 4), false);
       }
     }
-    // a protected sheet: Tab / Shift+Tab go to the next / previous unlocked cell, in reading order, wrapping (Excel)
-    auto next_unlocked = [&](bool back) {
-      Rect area = sheet.has_used ? sheet.used : Rect::Cell(r, c);
-      area = area.Union(Rect::Cell(r, c));
-      const uint64_t w = area.Cols(), n = static_cast<uint64_t>(area.Rows()) * w;
-      const uint64_t at = static_cast<uint64_t>(r - area.r0) * w + (c - area.c0);
-      for (uint64_t k = 1; k <= n && k < 4000000; ++k) {
-        const uint64_t i = back ? (at + n - k % n) % n : (at + k) % n;
-        const uint32_t rr = area.r0 + static_cast<uint32_t>(i / w), cc = area.c0 + static_cast<uint32_t>(i % w);
-        if (opt.unlocked(rr, cc) && (!opt.selectable || opt.selectable(rr, cc))) {
-          move_to(rr, cc, false);
-          return true;
-        }
-      }
-      return false;
-    };
     const bool single = sel_areas.size() == 1 && (sel_areas.back().IsCell() || sel_areas.back() == am);
-    // (Ctrl+Tab switches windows: the active cell stays)
-    if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl && opt.unlocked && single) next_unlocked(io.KeyShift);
-    else if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl) move_in_selection(io.KeyShift ? 4 : 3, true);
+    // (Ctrl+Tab switches windows: the active cell stays.) One cell: a protected sheet's next unlocked cell, a table's
+    // next row, else one cell over (TabTarget, also after an entry); a selection: within it
+    if (ImGui::IsKeyPressed(ImGuiKey_Tab) && !io.KeyCtrl) {
+      uint32_t tr = r, tc = c;
+      int64_t add_row = -1;
+      if (single && TabTarget(sheet, r, c, io.KeyShift, opt.unlocked, opt.selectable, &tr, &tc, &add_row)) {
+        move_to(tr, tc, false);
+        act.table_add_row = add_row;
+      } else if (!single || !opt.unlocked) {
+        move_in_selection(io.KeyShift ? 4 : 3, true);
+      }
+    }
     if (ImGui::IsKeyPressed(ImGuiKey_Delete)) act.clear_contents = true;
     // F2 edits; Shift+F2 (a note) and Ctrl+F2 (print preview) are commands
     // (Alt+F2 is Save As, Alt+Shift+F2 Save: they don't start editing)

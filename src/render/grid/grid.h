@@ -159,6 +159,13 @@ struct EditState {
 
 struct GridView {  // = Excel's Window (one per sheet)
   uint32_t sheet = 0;
+  // the text the active cell showed when last drawn, fitted to its width as General fits it (Increase / Decrease
+  // Decimal starts from the decimals General shows there, Excel 16, measured), and the frame it was drawn in
+  std::string active_shown;
+  int active_shown_frame = -1;
+  // the table whose column names the column headings show in the last frame (0: the letters): the active cell in a
+  // table whose header row is scrolled out of view, as Excel shows it
+  uint32_t table_headings = 0;
   ScrollAxis v, h;
   Selection sel;
   float zoom = 1.0f;
@@ -179,6 +186,7 @@ struct GridView {  // = Excel's Window (one per sheet)
   // Excel's keyboard modes, shown on the status bar: F8 Extend Selection (arrows and clicks extend), Shift+F8 Add to
   // Selection (a click adds an area), End (the next arrow jumps like Ctrl+arrow); Escape ends them
   bool extend_mode = false, add_mode = false, end_mode = false;
+  size_t add_keep = 0;  // Shift+F8: the areas selected before it, kept while the arrows move the cell added to them
   // the key that ended an entry in Enter mode (GridActions::nav_key), handled as a key on the sheet once the editor is
   // gone: Ctrl+Home, Shift+Right, End...
   struct NavReplay {
@@ -286,7 +294,7 @@ struct GridOptions {
   std::function<std::string(const Rect& src, const Rect& dest, bool ctrl)> fill_tip;
   // what pointing at one cell writes in a formula instead of its address ("": the address): a PivotTable's value
   // cell writes GETPIVOTDATA(...) (File > Options > Formulas > Use GetPivotData functions)
-  std::function<std::string(uint32_t sheet, uint32_t r, uint32_t c)> point_text;
+  std::function<std::string(uint32_t sheet, const Rect& r)> point_text;
   bool show_outline = true;  // Ctrl+8 / Window.DisplayOutline: the outline's bars and level buttons
   bool scroll_lock = false;  // Scroll Lock is on: the arrow keys scroll the window, the active cell stays (Excel)
 };
@@ -336,6 +344,7 @@ struct GridActions {
   int commit_move = 0;               // move after committing: 0 stay, 1 Enter, 2 Shift+Enter, 3 Tab, 4 Shift+Tab, 5-8 arrow down / up / right / left
   bool cancel_edit = false;
   bool clear_contents = false;       // Delete
+  int64_t table_add_row = -1;        // Tab in a table's last cell: the table (id) gets a row at its end (Excel)
   bool paste_enter = false;          // Enter while copied cells are outlined: paste them here and end copy mode (Excel)
   bool autofill = false;             // fill handle
   Rect autofill_src{}, autofill_dest{};
@@ -420,6 +429,13 @@ void SetFormulaCompletions(std::vector<Completion> items);
 // make the active cell visible (also used by Python's ScrollIntoView and Goto)
 void EnsureVisible(const model::Sheet& sheet, GridView& view, uint32_t r, uint32_t c);
 void SelectCell(GridView& view, uint32_t r, uint32_t c, bool extend = false);
+// where Tab / Shift+Tab from one active cell go by the sheet's own rules (Excel), on the sheet and after an entry
+// alike: a protected sheet's next unlocked cell (unlocked set; selectable when locked cells can't be selected), in
+// reading order and wrapping, or a table's next row from its last column (the previous row's last from its first).
+// From a table's last cell *add_row is the table's id: it gets a row, the active cell going to that row's first.
+// False when a plain move one cell over applies.
+bool TabTarget(const model::Sheet& sheet, uint32_t r, uint32_t c, bool back, const std::function<bool(uint32_t, uint32_t)>& unlocked,
+               const std::function<bool(uint32_t, uint32_t)>& selectable, uint32_t* nr, uint32_t* nc, int64_t* add_row);
 void SelectRange(GridView& view, const Rect& r);
 // a selection of whole columns (rows, the whole sheet) however it was made (Name Box, Go To, Python) is shown and
 // handled as one (Excel: C:C typed in the Name Box, then Ctrl+- deletes the column)

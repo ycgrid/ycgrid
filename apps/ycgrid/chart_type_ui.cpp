@@ -14,6 +14,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cctype>
@@ -481,7 +482,7 @@ void DrawInsertChartDialog(AppState& s) {
         ImGui::TextUnformatted(i < vals.series.size() ? vals.series[i].name.c_str() : "");
         ImGui::TableNextColumn();
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##t", ChartTypeName(static_cast<T>(d.combo_type[i])))) {
+        if (ui::BeginCombo("##t", ChartTypeName(static_cast<T>(d.combo_type[i])))) {
           for (T ct : kComboTypes) {
             if (ImGui::Selectable(ChartTypeName(ct), d.combo_type[i] == static_cast<int>(ct))) d.combo_type[i] = static_cast<int>(ct);
           }

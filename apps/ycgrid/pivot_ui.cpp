@@ -2487,8 +2487,8 @@ void DrawPivotDialogs(AppState& s) {
     RangeBox(s, "pivot.source", u.source, sizeof(u.source), S(300), RangeBox_Sheet, TR("Table/Range:"));
     ImGui::Separator();
     ImGui::TextUnformatted(u.with_chart ? TR("Choose where you want the PivotChart to be placed") : TR("Choose where you want the PivotTable report to be placed"));
-    ImGui::RadioButton(TR("New Worksheet"), &u.dest_new, 1);
-    ImGui::RadioButton(TR("Existing Worksheet"), &u.dest_new, 0);
+    ui::RadioButton(TR("New Worksheet"), &u.dest_new, 1);
+    ui::RadioButton(TR("Existing Worksheet"), &u.dest_new, 0);
     ImGui::BeginDisabled(u.dest_new == 1);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(TR("Location:"));
@@ -2611,8 +2611,8 @@ void DrawPivotDialogs(AppState& s) {
   }
   if (BeginDlg(s, Dialog::PivotMove, TR("Move PivotTable###yc_dlg_pivotmove"), 380)) {
     ImGui::TextUnformatted(TR("Choose where you want the PivotTable to be placed"));
-    ImGui::RadioButton(TR("New Worksheet"), &u.move_new, 1);
-    ImGui::RadioButton(TR("Existing Worksheet"), &u.move_new, 0);
+    ui::RadioButton(TR("New Worksheet"), &u.move_new, 1);
+    ui::RadioButton(TR("Existing Worksheet"), &u.move_new, 0);
     ImGui::BeginDisabled(u.move_new == 1);
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted(TR("Location:"));
@@ -2705,8 +2705,8 @@ void DrawPivotDialogs(AppState& s) {
     if (!x.timeline) {
       ImGui::SeparatorText(TR("Item Sorting and Filtering"));
       int sort = x.descending ? 1 : 0;
-      ImGui::RadioButton(TR("Ascending (A to Z)"), &sort, 0);
-      ImGui::RadioButton(TR("Descending (Z to A)"), &sort, 1);
+      ui::RadioButton(TR("Ascending (A to Z)"), &sort, 0);
+      ui::RadioButton(TR("Descending (Z to A)"), &sort, 1);
       x.descending = sort == 1;
       ImGui::Checkbox(TR("Hide items with no data"), &x.hide_no_data);
       ImGui::BeginDisabled(x.hide_no_data);
@@ -3154,7 +3154,7 @@ void DrawPivotDialogs(AppState& s) {
       const int nsrc = have ? static_cast<int>(c.cache->columns) : 0;
       u.item_field = std::clamp(u.item_field, 0, std::max(0, nsrc - 1));
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Field"), u.item_field < nsrc ? c.cache->names[static_cast<size_t>(u.item_field)].c_str() : "")) {
+      if (ui::BeginCombo(TR("Field"), u.item_field < nsrc ? c.cache->names[static_cast<size_t>(u.item_field)].c_str() : "")) {
         for (int f = 0; f < nsrc; ++f) {
           if (ImGui::Selectable(c.cache->names[static_cast<size_t>(f)].c_str(), f == u.item_field)) u.item_field = f;
         }
@@ -3169,7 +3169,7 @@ void DrawPivotDialogs(AppState& s) {
         }
       }
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Name"), u.calc_name)) {
+      if (ui::BeginCombo(TR("Name"), u.calc_name)) {
         for (const auto& ci : p->calc_items) {
           if (ci.field == u.item_field && ImGui::Selectable(ci.name.c_str())) {
             std::snprintf(u.calc_name, sizeof(u.calc_name), "%s", ci.name.c_str());
@@ -3244,7 +3244,7 @@ void DrawPivotDialogs(AppState& s) {
     bool close = p == nullptr;
     if (p) {
       ImGui::SetNextItemWidth(S(300));
-      if (ImGui::BeginCombo(TR("Name"), u.calc_name)) {
+      if (ui::BeginCombo(TR("Name"), u.calc_name)) {
         for (const auto& c : p->calc_fields) {
           if (ImGui::Selectable(c.name.c_str())) {
             std::snprintf(u.calc_name, sizeof(u.calc_name), "%s", c.name.c_str());
@@ -3354,7 +3354,7 @@ void DrawPivotDialogs(AppState& s) {
     const PivotTable* p = ActivePivot(s);
     ImGui::SetNextItemWidth(S(260));
     ImGui::InputText(TR("Custom Name"), u.vf_caption, sizeof(u.vf_caption));
-    if (ImGui::BeginTabBar("##vftabs")) {
+    if (BeginDlgTabBar("##vftabs")) {
       if (ImGui::BeginTabItem(TR("Summarize Values By"), nullptr, u.vf_tab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::TextUnformatted(TR("Summarize value field by"));
         if (ImGui::BeginListBox("##func", ImVec2(S(260), S(150)))) {
@@ -3367,7 +3367,7 @@ void DrawPivotDialogs(AppState& s) {
       }
       if (ImGui::BeginTabItem(TR("Show Values As"), nullptr, u.vf_tab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) {
         ImGui::SetNextItemWidth(S(260));
-        if (ImGui::BeginCombo("##show", ShowAsLabel(u.vf_show))) {
+        if (ui::BeginCombo("##show", ShowAsLabel(u.vf_show))) {
           for (int k = 0; k < model::kPivotShowAs; ++k) {
             if (ImGui::Selectable(ShowAsLabel(k), u.vf_show == k)) u.vf_show = k;
           }
@@ -3490,11 +3490,11 @@ void DrawPivotDialogs(AppState& s) {
       }());
       ImGui::SetNextItemWidth(S(240));
       ImGui::InputText(TR("Custom Name"), u.fs_caption, sizeof(u.fs_caption));
-      if (ImGui::BeginTabBar("##fstabs")) {
+      if (BeginDlgTabBar("##fstabs")) {
         if (ImGui::BeginTabItem(TR("Subtotals & Filters"))) {
-          ImGui::RadioButton(TR("Automatic"), &u.fs_sub, 0);
-          ImGui::RadioButton(TR("None"), &u.fs_sub, 1);
-          ImGui::RadioButton(TR("Custom"), &u.fs_sub, 2);
+          ui::RadioButton(TR("Automatic"), &u.fs_sub, 0);
+          ui::RadioButton(TR("None"), &u.fs_sub, 1);
+          ui::RadioButton(TR("Custom"), &u.fs_sub, 2);
           ImGui::BeginDisabled(u.fs_sub != 2);
           if (ImGui::BeginListBox("##funcs", ImVec2(S(220), S(150)))) {
             for (int i = 0; i < model::kPivotFuncs - 1; ++i) {  // Excel's eleven (no Distinct Count)
@@ -3512,14 +3512,14 @@ void DrawPivotDialogs(AppState& s) {
         }
         if (ImGui::BeginTabItem(TR("Layout & Print"))) {
           ImGui::SeparatorText(TR("Layout"));
-          ImGui::RadioButton(TR("Show item labels in outline form"), &u.fs_form, 1);
+          ui::RadioButton(TR("Show item labels in outline form"), &u.fs_form, 1);
           ImGui::Indent();
           ImGui::BeginDisabled(u.fs_form != 1);
           ImGui::Checkbox(TR("Display labels from the next field in the same column (compact form)"), &u.fs_compact);
           ImGui::Checkbox(TR("Display subtotals at the top of each group"), &u.fs_top);
           ImGui::EndDisabled();
           ImGui::Unindent();
-          ImGui::RadioButton(TR("Show item labels in tabular form"), &u.fs_form, 2);
+          ui::RadioButton(TR("Show item labels in tabular form"), &u.fs_form, 2);
           ImGui::Checkbox(TR("Repeat item labels"), &u.fs_repeat);
           ImGui::Checkbox(TR("Insert blank line after each item label"), &u.fs_blank);
           ImGui::Checkbox(TR("Show items with no data"), &u.fs_all);
@@ -3573,7 +3573,7 @@ void DrawPivotDialogs(AppState& s) {
     PivotTable& o = u.opt;
     ImGui::SetNextItemWidth(S(260));
     ImGui::InputText(TR("PivotTable Name:"), u.opt_name, sizeof(u.opt_name));
-    if (ImGui::BeginTabBar("##opttabs")) {
+    if (BeginDlgTabBar("##opttabs")) {
       if (ImGui::BeginTabItem(TR("Layout & Format"))) {
         ImGui::Checkbox(TR("Merge and center cells with labels"), &o.merge_labels);
         ImGui::SetNextItemWidth(S(80));
@@ -3601,8 +3601,8 @@ void DrawPivotDialogs(AppState& s) {
         ImGui::Checkbox(TR("Show expand/collapse buttons"), &o.show_buttons);
         ImGui::Checkbox(TR("Display field captions and filter drop downs"), &o.field_captions);
         ImGui::TextUnformatted(TR("Field List"));
-        ImGui::RadioButton(TR("Sort A to Z"), &o.field_list_order, 1);
-        ImGui::RadioButton(TR("Sort in data source order"), &o.field_list_order, 0);
+        ui::RadioButton(TR("Sort A to Z"), &o.field_list_order, 1);
+        ui::RadioButton(TR("Sort in data source order"), &o.field_list_order, 0);
         ImGui::EndTabItem();
       }
       if (ImGui::BeginTabItem(TR("Data"))) {
@@ -3651,14 +3651,14 @@ void DrawPivotDialogs(AppState& s) {
       const int field = axis && static_cast<size_t>(u.so_pos) < axis->size() ? (*axis)[static_cast<size_t>(u.so_pos)].field : -1;
       ImGui::TextDisabled("%s", FieldName(*p, field).c_str());
       ImGui::SeparatorText(TR("Sort options"));
-      ImGui::RadioButton(TR("Manual (you can drag items to rearrange them)"), &u.so_mode, 0);
-      ImGui::RadioButton(TR("Ascending (A to Z) by:"), &u.so_mode, 1);
-      ImGui::RadioButton(TR("Descending (Z to A) by:"), &u.so_mode, 2);
+      ui::RadioButton(TR("Manual (you can drag items to rearrange them)"), &u.so_mode, 0);
+      ui::RadioButton(TR("Ascending (A to Z) by:"), &u.so_mode, 1);
+      ui::RadioButton(TR("Descending (Z to A) by:"), &u.so_mode, 2);
       ImGui::BeginDisabled(u.so_mode == 0);
       ImGui::SetNextItemWidth(S(260));
       const Cached& c = CacheFor(s, *p);
       std::string cur = u.so_by < 0 ? FieldName(*p, field) : (c.ok && static_cast<size_t>(u.so_by) < p->data.size() ? engine::PivotDataCaption(*p, *c.cache, static_cast<size_t>(u.so_by)) : "");
-      if (ImGui::BeginCombo("##by", cur.c_str())) {
+      if (ui::BeginCombo("##by", cur.c_str())) {
         if (ImGui::Selectable(FieldName(*p, field).c_str(), u.so_by < 0)) u.so_by = -1;
         for (size_t d = 0; c.ok && d < p->data.size(); ++d) {
           ImGui::PushID(static_cast<int>(d));
@@ -3704,7 +3704,7 @@ void DrawPivotDialogs(AppState& s) {
       auto data_combo = [&]() {
         ImGui::SetNextItemWidth(S(160));
         const std::string cur = c.ok && static_cast<size_t>(u.pf_data) < p->data.size() ? engine::PivotDataCaption(*p, *c.cache, static_cast<size_t>(u.pf_data)) : "";
-        if (ImGui::BeginCombo("##data", cur.c_str())) {
+        if (ui::BeginCombo("##data", cur.c_str())) {
           for (size_t d = 0; c.ok && d < p->data.size(); ++d) {
             ImGui::PushID(static_cast<int>(d));
             if (ImGui::Selectable(engine::PivotDataCaption(*p, *c.cache, d).c_str(), u.pf_data == static_cast<int>(d))) u.pf_data = static_cast<int>(d);
@@ -3717,13 +3717,13 @@ void DrawPivotDialogs(AppState& s) {
         static const char* kTop[] = {TR("Top"), TR("Bottom")};
         static const char* kUnit[] = {TR("Items"), TR("Percent"), TR("Sum")};
         ImGui::SetNextItemWidth(S(90));
-        ImGui::Combo("##top", &u.pf_top, kTop, 2);
+        ui::Combo("##top", &u.pf_top, kTop, 2);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(70));
         ImGui::InputText("##n", u.pf_v1, sizeof(u.pf_v1), ImGuiInputTextFlags_CharsDecimal);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(90));
-        ImGui::Combo("##unit", &u.pf_unit, kUnit, 3);
+        ui::Combo("##unit", &u.pf_unit, kUnit, 3);
         ImGui::SameLine();
         ImGui::TextUnformatted(TR("by"));
         ImGui::SameLine();
@@ -3741,7 +3741,7 @@ void DrawPivotDialogs(AppState& s) {
                                        TR("is greater than"), TR("is greater than or equal to"), TR("is less than"), TR("is less than or equal to"), TR("is between"),
                                        TR("is not between")};
         ImGui::SetNextItemWidth(S(180));
-        if (ImGui::BeginCombo("##type", kNames[std::clamp(u.pf_type, 0, 28)])) {
+        if (ui::BeginCombo("##type", kNames[std::clamp(u.pf_type, 0, 28)])) {
           if (u.pf_kind == 0) {
             for (int t : kLabelTypes) {
               if (ImGui::Selectable(kNames[t], u.pf_type == t)) u.pf_type = t;
@@ -4033,7 +4033,7 @@ void DrawFilterPopupBody(AppState& s, const PivotTable& p, int area) {
     std::vector<const char*> ptrs;
     for (const auto& n : names) ptrs.push_back(n.c_str());
     ImGui::SetNextItemWidth(S(200));
-    if (ImGui::Combo(TR("Select field:"), &u.filter_field_pos, ptrs.data(), static_cast<int>(ptrs.size()))) u.filter_items.clear();
+    if (ui::Combo(TR("Select field:"), &u.filter_field_pos, ptrs.data(), static_cast<int>(ptrs.size()))) u.filter_items.clear();
   }
   const int pos = std::clamp(u.filter_field_pos, 0, static_cast<int>(axis.size()) - 1);
   const auto& af = axis[static_cast<size_t>(pos)];
@@ -4109,9 +4109,9 @@ void DrawFilterPopupBody(AppState& s, const PivotTable& p, int area) {
     ImGui::Checkbox(TR("Select Multiple Items"), &u.filter_multi);
     return;
   }
-  bool all = true;
-  for (size_t i = 0; i < u.filter_items.size(); ++i) all = all && (!matches(i) || u.filter_on[i]);
-  if (ImGui::Checkbox(q.empty() ? TR("(Select All)") : TR("(Select All Search Results)"), &all)) {
+  bool all = true, any = false;
+  for (size_t i = 0; i < u.filter_items.size(); ++i) all = all && (!matches(i) || u.filter_on[i]), any = any || (matches(i) && u.filter_on[i]);
+  if (CheckboxMixed(q.empty() ? TR("(Select All)") : TR("(Select All Search Results)"), &all, any && !all)) {
     for (size_t i = 0; i < u.filter_items.size(); ++i) {
       if (matches(i)) u.filter_on[i] = static_cast<char>(all ? 1 : 0);
     }
@@ -4467,6 +4467,7 @@ void DrawSlicers(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
       u.sl_l0 = slp->left, u.sl_t0 = slp->top, u.sl_w0 = slp->width, u.sl_h0 = slp->height;
     }
     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) ImGui::OpenPopup("##slmenu");
+    ImGui::PushFont(ui::F().ui, ui::F().ui_size);  // a menu in the UI's font, not the zoomed cells'
     if (ImGui::BeginPopup("##slmenu")) {
       const uint32_t id = sl.id;
       u.sl_sel = sl.id, u.sl_sel_sheet = sheet_id;
@@ -4522,6 +4523,7 @@ void DrawSlicers(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
       }
       ImGui::EndPopup();
     }
+    ImGui::PopFont();
     const ImRect body(ImVec2(r.Min.x + pad, head.Max.y + S(2)), ImVec2(r.Max.x - pad, r.Max.y - pad));
     if (sl.timeline) {
       DrawTimelineBody(s, sl, pt, body, dmin, dmax, tl_from, tl_to);
@@ -4827,10 +4829,12 @@ void DrawPivotOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
       DrawFieldButton(dl, br, hov, af);
       // the filter list
       ImGui::SetNextWindowPos(u.filter_pos, ImGuiCond_Appearing);
+      ImGui::PushFont(ui::F().ui, ui::F().ui_size);  // a menu in the UI's font, not the zoomed cells'
       if (ImGui::BeginPopup("##pivot_filter")) {
         DrawFilterPopupBody(s, p, b.area);
         ImGui::EndPopup();
       }
+      ImGui::PopFont();
       ImGui::PopID();
     }
   }

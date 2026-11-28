@@ -198,6 +198,8 @@ STATES = {
     "pointing": (None, "g:F3|t:=SUM(|k:UpArrow|k:s-UpArrow"),
     "formula_bar": (None, _formula_bar_keys),
     "merged": (_st_merged, "g:B9"),
+    # Shift+F8's Add to Selection, still on: B2:B4 and D2 by the keyboard (as Excel 16 makes them, measured)
+    "add_mode": (None, "g:B2:B4|k:s-F8|k:RightArrow|k:RightArrow"),
     "filtered": (_st_filter, "g:B3"),
     "hidden_row": (_st_hidden, "g:B3"),
     "frozen": (None, "g:B2|x:FreezePanes|g:C4"),
@@ -420,6 +422,8 @@ OPS = {
     "table_create": "k:c-T|w:8|k:Enter|w:3",
     "note": "k:s-F2|w:4|t:check this|k:Escape",
     "replace_all": "k:c-H|w:8|t:MSFT|k:Tab|t:IBM|k:a-A|w:6|k:Enter|w:3|k:Escape",
+    # Shift+F10 and a letter: the cell's, row's or column's menu by what is selected (T, Cut, in all three)
+    "menu_key_cut": "k:s-F10|w:6|k:T|w:4|k:Escape",
     "paste_special_dialog": "k:c-C|g:J2|k:c-a-V|w:6|k:Enter",
     "f4_in_edit": "t:=E9|k:F4|k:Enter",  # E9 is the active cell only after a Ctrl+drag copy (ALLOWED: its circular warning)
     "undo3": "k:c-Z|k:c-Z|k:c-Z",
@@ -487,6 +491,8 @@ ALLOWED = [
     ("*", "type_ref_formula", r"circular", "a formula pointing at its own cell is a circular reference, as in Excel"),
     ("*", "f4_in_edit", r"circular", "=$E$9 typed in E9 (the active cell after a Ctrl+drag copy) is its own cell: Excel warns too (seq310230)"),
     ("*", "find", r"couldn't find", "Find searches the selection when several cells are selected: Excel says so too"),
+    ("*", "replace_all", r"All done\. We made \d+ replacements|couldn't find anything to replace",
+     "Replace All reports what it replaced, or that it found nothing, as Excel's Find and Replace does (Alt+A reached the ribbon behind the dialog before)"),
     ("rules", "*", r"must enter a (whole )?number|outside the allowed range|doesn't match", "a value the cell's data validation refuses: Excel stops it too"),
     ("*", "sort_asc", r"can't be applied to the selected range", "Sort on an empty cell: Excel's own message"),
     ("*", "sort_asc", r"shift cells in a table",
@@ -512,6 +518,7 @@ ALLOWED = [
     ("*", "copy_paste_enter", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "cut_paste", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
     ("*", "cut_escape_paste", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
+    ("*", "menu_key_cut", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't cut together"),
     ("*", "paste_values", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "paste_special_dialog", r"can't be used on multiple selections", "a Ctrl+click left areas Excel can't copy together"),
     ("*", "cmd:Select*", r"No cells were found", "Go To Special's kinds with nothing of that kind: Excel's own message"),
@@ -536,7 +543,7 @@ ALLOWED = [
     ("*", "cmd:ImportText", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
     ("*", "cmd:InsertPicture", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
     ("*", "cmd:SheetBackground", r"file dialog was cancelled", "a hidden YCGrid cancels file dialogs (nobody can pick a file)"),
-    ("list", "*", r"isn't in the list", "a value the cell's list validation doesn't hold: Excel stops it too"),
+    ("list", "*", r"isn't in the list|doesn't match the data validation", "a value the cell's list validation doesn't hold: Excel stops it too"),
     ("protected*", "table_create", r"table can't be created", "a table on a protected sheet: Excel refuses too"),
     ("*", "paste*", r"can't do that to a merged cell",
      "a paste onto part of a merged cell (a Merge & Center earlier in a sequence, then the copy pasted over a corner of "

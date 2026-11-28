@@ -486,23 +486,11 @@ void DrawWatchWindow(AppState& s) {
 
 // ---- The range Sort and Remove Duplicates work on ----
 
+// the Sort dialog's My data has headers: Excel's one guess, Create Table's and xlGuess's too (engine::GuessHeaderRow;
+// measured on 13 layouts through the Sort dialog's check box, which agree)
 bool GuessHeader(AppState& s, const model::Sheet& sh, const Rect& a) {
   if (a.Rows() < 2 || !s.snap) return false;
-  // Excel: the first row is a header when it is text over other kinds of values, or formatted unlike the row below
-  const auto& tbl = *s.snap->wb.styles;
-  bool first_text = true, any_text = false, second_nontext = false, styled = false;
-  for (uint32_t c = a.c0; c <= a.c1 && c - a.c0 < 256; ++c) {
-    const auto& v1 = sh.GetValue(a.r0, c);
-    first_text = first_text && (v1.IsString() || v1.IsEmpty());
-    any_text = any_text || v1.IsString();
-    const auto& v2 = sh.GetValue(a.r0 + 1, c);
-    second_nontext = second_nontext || (!v2.IsString() && !v2.IsEmpty());
-    const model::Style& s1 = tbl.Get(sh.GetStyle(a.r0, c));
-    const model::Style& s2 = tbl.Get(sh.GetStyle(a.r0 + 1, c));
-    styled = styled || s1.bold != s2.bold || s1.italic != s2.italic || s1.underline != s2.underline || s1.fill_color != s2.fill_color ||
-             s1.font_color != s2.font_color;
-  }
-  return first_text && any_text && (second_nontext || styled);
+  return engine::GuessHeaderRow(*s.snap->wb.styles, sh, a);
 }
 
 DataRange FindDataRange(AppState& s) {
@@ -858,8 +846,8 @@ void DrawDataDialogs(AppState& s) {
                                               : TR("YCGrid found data next to your selection. Since you have not selected this data, it will not be sorted."));
     ImGui::PopTextWrapPos();
     ImGui::TextUnformatted(TR("What do you want to do?"));
-    ImGui::RadioButton(TR("Expand the selection"), &d.sw_choice, 0);
-    ImGui::RadioButton(TR("Continue with the current selection"), &d.sw_choice, 1);
+    ui::RadioButton(TR("Expand the selection"), &d.sw_choice, 0);
+    ui::RadioButton(TR("Continue with the current selection"), &d.sw_choice, 1);
     // Up / Down choose between the two, as in Excel's option group
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
       if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) d.sw_choice = 1;
@@ -891,10 +879,12 @@ void DrawDataDialogs(AppState& s) {
     const model::Sheet* sh = s.FocusSheet();
     const Rect r = d.rd_rect;
     ImGui::TextWrapped("%s", TR("To delete duplicate values, select one or more columns that contain duplicates."));
-    if (ImGui::Button(TR("Select All"))) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 1);
+    // Excel 16's letters (UI Automation's AccessKey): Select All A, Unselect All U, My data has headers M
+    if (ImGui::Button(TR("Select All")) || DlgKey(ImGuiKey_A)) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 1);
     ImGui::SameLine();
-    if (ImGui::Button(TR("Unselect All"))) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 0);
+    if (ImGui::Button(TR("Unselect All")) || DlgKey(ImGuiKey_U)) std::fill(d.rd_cols.begin(), d.rd_cols.end(), 0);
     ImGui::SameLine();
+    if (DlgKey(ImGuiKey_M)) d.rd_header = !d.rd_header;
     ImGui::Checkbox(TR("My data has headers"), &d.rd_header);
     if (ImGui::BeginChild("##cols", ImVec2(S(380), S(160)), ImGuiChildFlags_Borders)) {
       for (uint32_t c = r.c0; c <= r.c1 && c - r.c0 < d.rd_cols.size(); ++c) {
@@ -964,10 +954,12 @@ void DrawDataDialogs(AppState& s) {
       ImGui::TextWrapped("%s", TR("If this is correct, choose Next, or choose the data type that best describes your data."));
       ImGui::SeparatorText(TR("Original data type"));
       ImGui::TextUnformatted(TR("Choose the file type that best describes your data:"));
-      ImGui::RadioButton(TR("Delimited"), &d.tc_kind, 0);
+      if (DlgKey(ImGuiKey_D)) d.tc_kind = 0;  // Excel's letters: (D)elimited, Fixed (W)idth
+      if (DlgKey(ImGuiKey_W)) d.tc_kind = 1;
+      ui::RadioButton(TR("Delimited"), &d.tc_kind, 0);
       ImGui::SameLine(S(150));
       ImGui::TextDisabled("%s", TR("- Characters such as commas or tabs separate each field."));
-      ImGui::RadioButton(TR("Fixed width"), &d.tc_kind, 1);
+      ui::RadioButton(TR("Fixed width"), &d.tc_kind, 1);
       ImGui::SameLine(S(150));
       ImGui::TextDisabled("%s", TR("- Fields are aligned in columns with spaces between each field."));
       ImGui::SeparatorText(TR("Preview of selected data:"));
@@ -982,6 +974,13 @@ void DrawDataDialogs(AppState& s) {
     } else if (d.tc_step == 1 && d.tc_kind == 0) {
       ImGui::TextWrapped("%s", TR("This screen lets you set the delimiters your data contains. You can see how your text is affected in the preview below."));
       ImGui::SeparatorText(TR("Delimiters"));
+      // Excel's letters: (T)ab, Se(m)icolon, (C)omma, (S)pace, (O)ther, T(r)eat consecutive delimiters as one
+      if (DlgKey(ImGuiKey_T)) d.tc_tab = !d.tc_tab;
+      if (DlgKey(ImGuiKey_M)) d.tc_semi = !d.tc_semi;
+      if (DlgKey(ImGuiKey_C)) d.tc_comma = !d.tc_comma;
+      if (DlgKey(ImGuiKey_S)) d.tc_space = !d.tc_space;
+      if (DlgKey(ImGuiKey_O)) d.tc_other = !d.tc_other;
+      if (DlgKey(ImGuiKey_R)) d.tc_consec = !d.tc_consec;
       ImGui::Checkbox(TR("Tab"), &d.tc_tab);
       ImGui::Checkbox(TR("Semicolon"), &d.tc_semi);
       ImGui::Checkbox(TR("Comma"), &d.tc_comma);
@@ -997,7 +996,7 @@ void DrawDataDialogs(AppState& s) {
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(90));
       ui::NoteUiItem("##t2c_qual", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(90), ImGui::GetFrameHeight())));
-      ImGui::Combo("##t2c_qual", &d.tc_qual, kQual, 3);
+      ui::Combo("##t2c_qual", &d.tc_qual, kQual, 3);
     } else if (d.tc_step == 1) {
       ImGui::TextWrapped("%s", TR("This screen lets you set field widths (column breaks)."));
       DrawBreakRuler(s, d);
@@ -1020,18 +1019,18 @@ void DrawDataDialogs(AppState& s) {
       int& t = d.tc_types[static_cast<size_t>(d.tc_col)];
       int kind = t >= 3 && t <= 8 ? 3 : (t == 2 ? 2 : (t == 1 ? 1 : 0));  // the option buttons' order: General, Text, Date, skip
       ImGui::BeginGroup();
-      if (ImGui::RadioButton(TR("General"), kind == 0)) t = 0;
-      if (ImGui::RadioButton(TR("Text"), kind == 1)) t = 1;
-      if (ImGui::RadioButton(TR("Date:"), kind == 3)) t = d.tc_date;
+      if (ui::RadioButton(TR("General"), kind == 0)) t = 0;
+      if (ui::RadioButton(TR("Text"), kind == 1)) t = 1;
+      if (ui::RadioButton(TR("Date:"), kind == 3)) t = d.tc_date;
       ImGui::SameLine();
       int order = (kind == 3 ? t : d.tc_date) - 3;
       ImGui::SetNextItemWidth(S(80));
       ui::NoteUiItem("##t2c_date", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-      if (ImGui::Combo("##t2c_date", &order, kDateOrders, 6)) {
+      if (ui::Combo("##t2c_date", &order, kDateOrders, 6)) {
         d.tc_date = order + 3;
         t = d.tc_date;
       }
-      if (ImGui::RadioButton(TR("Do not import column (skip)"), kind == 2)) t = 2;
+      if (ui::RadioButton(TR("Do not import column (skip)"), kind == 2)) t = 2;
       ImGui::EndGroup();
       ImGui::SameLine(S(300));
       ImGui::BeginGroup();
@@ -1047,13 +1046,13 @@ void DrawDataDialogs(AppState& s) {
         ImGui::SameLine(S(170));
         ImGui::SetNextItemWidth(S(80));
         ui::NoteUiItem("##t2c_dec", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-        ImGui::Combo("##t2c_dec", &d.tc_dec, kSeps, 4);
+        ui::Combo("##t2c_dec", &d.tc_dec, kSeps, 4);
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted(TR("Thousands separator:"));
         ImGui::SameLine(S(170));
         ImGui::SetNextItemWidth(S(80));
         ui::NoteUiItem("##t2c_th", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(80), ImGui::GetFrameHeight())));
-        ImGui::Combo("##t2c_th", &d.tc_th, kSeps, 4);
+        ui::Combo("##t2c_th", &d.tc_th, kSeps, 4);
         ImGui::Checkbox(TR("Trailing minus for negative numbers"), &d.tc_trail);
         if (ImGui::Button(TR("Reset"))) {
           d.tc_dec = 0;
@@ -1090,6 +1089,7 @@ void DrawDataDialogs(AppState& s) {
               const bool skip = d.tc_types[j] == 2;
               if (skip) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
               if (ImGui::Selectable("##c", d.tc_col == static_cast<int>(j))) d.tc_col = static_cast<int>(j);
+              ui::NoteUiText(cell.c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
               ImGui::SameLine(0, 0);
               ImGui::TextUnformatted(cell.c_str());
               if (skip) ImGui::PopStyleColor();
@@ -1182,8 +1182,8 @@ void DrawDataDialogs(AppState& s) {
   }
   // Group / Ungroup when cells (not whole rows or columns) are selected
   if (BeginDlg(s, Dialog::GroupOutline, d.grp_group ? TR("Group###yc_dlg_group") : TR("Ungroup###yc_dlg_group"), 240)) {
-    ImGui::RadioButton(TR("Rows"), &d.grp_rows, 0);
-    ImGui::RadioButton(TR("Columns"), &d.grp_rows, 1);
+    ui::RadioButton(TR("Rows"), &d.grp_rows, 0);
+    ui::RadioButton(TR("Columns"), &d.grp_rows, 1);
     bool close = false;
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       const Rect r = SelRect(s);
@@ -1829,6 +1829,7 @@ void DrawErrorCheckingWindow(AppState& s) {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   bool open = true;
   if (ImGui::Begin(TR("Error Checking###yc_errorchecking"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape)) open = false;
     const engine::ErrorCheckOptions o = ErrorCheckingOptions();
     const int rule = engine::ErrorCheckRule(s.snap->wb, *sh, g_walk.r, g_walk.c, o);

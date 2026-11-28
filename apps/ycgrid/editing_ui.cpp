@@ -14,6 +14,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <imm.h>
 #include <tlhelp32.h>
@@ -273,7 +274,7 @@ void DrawFillOptions(AppState& s, uint32_t sheet_id, const render::OverlayGeom& 
     for (const auto& o : opts) {
       // the default fill: a single number or text is copied, anything else becomes a series (Excel's choice)
       const int def = lf.series ? 2 : 1;
-      if (ImGui::RadioButton(o.label, lf.type == o.type || (lf.type == 0 && o.type == def))) {
+      if (ui::RadioButton(o.label, lf.type == o.type || (lf.type == 0 && o.type == def))) {
         const int type = o.type;
         const uint32_t sht = lf.sheet;
         const Rect src = lf.src, dest = lf.dest;
@@ -332,7 +333,7 @@ void DrawInsertOptions(AppState& s, uint32_t sheet_id, const render::OverlayGeom
     const char* labels[3] = {cols ? TR("Format Same As Left") : TR("Format Same As Above"), cols ? TR("Format Same As Right") : TR("Format Same As Below"),
                              TR("Clear Formatting")};
     for (int k = 0; k < 3; ++k) {
-      if (!ImGui::RadioButton(labels[k], li.origin == k)) continue;
+      if (!ui::RadioButton(labels[k], li.origin == k)) continue;
       li.origin = k;
       const uint32_t sheet = li.sheet;
       const Rect a = li.rect;

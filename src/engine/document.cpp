@@ -920,12 +920,39 @@ bool Document::SetInput(uint32_t sheet, uint32_t r, uint32_t c, std::string_view
     SetValue(sheet, r, c, Value::String(text), src);
     return true;
   }
+  // a formula typed with a full-width = (an IME in full-width mode) is the formula in half-width (Excel 16, measured)
+  std::string folded;
+  if (text.size() > 3 && static_cast<unsigned char>(text[0]) == 0xEF) {
+    folded = formula::FoldFullWidthFormula(text);
+    text = folded;
+  }
   // typing (or code writing) next to a table grows it; a formula in an empty table column fills the column
   const bool table_rules = PolicyFor(src).table_rules;
-  if (table_rules) AutoExpandTable(sheet, r, c);
+  // ...but a formula that is refused changes nothing, as in Excel: F2, 9, Enter on =SUM(B2:B6) under a table grew
+  // the table over it, its range followed to =SUM(B2:B7), a circular reference, and left an Undo step (basics
+  // seq470822). One with a structured reference ([@Qty]) may need the table grown first to read
+  if (table_rules && text[0] == '=' && text.size() > 1 && text.find('[') == std::string_view::npos) {
+    const formula::ParseResult pre = formula::Parse(text.substr(1), core::CellPos{r, c}, this, r1c1);
+    if (!pre.ok) {
+      if (error) *error = pre.error;
+      return false;
+    }
+  }
+  if (table_rules) {
+    // a formula with a structured reference grows the table at once ([@Qty] beside it reads the grown table); the
+    // rest may wait (defer_table_growth)
+    const bool keep = defer_table_growth;
+    if (text[0] == '=' && text.find('[') != std::string_view::npos) defer_table_growth = false;
+    AutoExpandTable(sheet, r, c, text[0] == '=' && text.size() > 1);
+    defer_table_growth = keep;
+  }
   if (text[0] == '=' && text.size() > 1) {
     if (!SetFormula(sheet, r, c, text.substr(1), error, src, r1c1)) return false;
-    if (table_rules) FillCalculatedColumn(sheet, r, c);
+    if (table_rules) {
+      // the formula's own table loses its name at once; the column's fill may wait as a step of its own
+      FillCalculatedColumn(sheet, r, c, !defer_table_growth);
+      if (defer_table_growth && deferred_calc_.size() < 4096) deferred_calc_.emplace_back(sheet, core::CellPos{r, c});
+    }
     return true;
   }
   if (formula::LooksLikeFormula(text)) {
@@ -1847,6 +1874,17 @@ void Document::ResolveCycles() {
       if (!ksp || !ksp->cse || !tried.insert(k).second) continue;
       if (SettleArrayReadingItself(k)) settled_keys.insert(k);
     }
+    // arrays that read each other's cells, every member of the cycle one: settled together
+    if (settled_keys.empty() && members.size() >= 2 && std::all_of(members.begin(), members.end(), [&](uint64_t k) {
+          const Sheet* ks = S(KeySheet(k));
+          const model::SpillRange* ksp = ks ? ks->SpillOf(KeyRow(k), KeyCol(k)) : nullptr;
+          return ksp && ksp->cse && ksp->rect.r0 == KeyRow(k) && ksp->rect.c0 == KeyCol(k);
+        })) {
+      std::vector<uint64_t> anchors(members.begin(), members.end());
+      std::sort(anchors.begin(), anchors.end());
+      anchors.erase(std::unique(anchors.begin(), anchors.end()), anchors.end());
+      if (SettleArraysTogether(anchors)) settled_keys.insert(anchors.begin(), anchors.end());
+    }
     if (!settled_keys.empty()) std::erase_if(members, [&](uint64_t k) { return settled_keys.count(k) > 0; });
     // an array just entered with Ctrl+Shift+Enter that reads a cycle: each of its values that reads the cycle shows 0,
     // the others are calculated (Excel 16, measured: {=A1:A2+5} with A1 =A1+1 shows 0 and 5), and what reads it after
@@ -2022,6 +2060,121 @@ bool Document::SettleArrayReadingItself(uint64_t key) {
   // its values marked what reads them, itself among them: it is calculated, what reads it isn't yet
   ErasePending(key);
   std::erase(new_pending_, key);
+  return true;
+}
+
+bool Document::SettleArraysTogether(const std::vector<uint64_t>& anchors) {
+  struct Arr {
+    uint64_t key;
+    uint32_t sheet;
+    Rect rect;
+    std::vector<Value> before;
+    std::vector<char> done;
+    Value v;
+    std::shared_ptr<formula::Array> arr;
+    bool blocked, pending;
+  };
+  std::vector<Arr> list;
+  uint64_t cells = 0;
+  for (const uint64_t key : anchors) {
+    const uint32_t sheet = KeySheet(key), r = KeyRow(key), c = KeyCol(key);
+    const Sheet* s = S(sheet);
+    const model::SpillRange* sp = s ? s->SpillOf(r, c) : nullptr;
+    if (!sp || !sp->cse || sp->rect.r0 != r || sp->rect.c0 != c) return false;
+    cells += sp->rect.Count();
+    if (cells > 4096) return false;  // each round calculates all of them: a round a value at most
+    Arr a{key, sheet, sp->rect, {}, std::vector<char>(static_cast<size_t>(sp->rect.Count()), 0), {}, nullptr, false, false};
+    for (uint32_t i = sp->rect.r0; i <= sp->rect.r1; ++i) {
+      for (uint32_t j = sp->rect.c0; j <= sp->rect.c1; ++j) a.before.push_back(s->GetValue(i, j));
+    }
+    list.push_back(std::move(a));
+  }
+  if (list.size() < 2) return false;
+  // a value of a result where UpdateSpill puts it (one row or column repeats, the rest is #N/A, empty is 0)
+  auto value_at = [](const Value& v, const formula::Array* arr, uint32_t i, uint32_t j) -> Value {
+    if (!arr) return v;
+    const uint32_t ii = arr->rows == 1 ? 0 : i, jj = arr->cols == 1 ? 0 : j;
+    if (ii >= arr->rows || jj >= arr->cols) return Value::Error(core::Err::NA);
+    Value x = arr->At(ii, jj);
+    if (x.IsEmpty()) x = Value::Number(0);
+    return x;
+  };
+  auto evaluate = [&](Arr& a) {
+    try {
+      a.v = EvaluateFormulaCell(a.key, &a.arr);
+      return true;
+    } catch (const formula::NeedCell&) {  // it reads a cell still waiting (of a cycle outside these arrays)
+      return false;
+    } catch (const std::exception&) {
+      return false;
+    }
+  };
+  // every cell of them reads as a value nothing calculates to until it is settled
+  const Value unset = Value::Error(core::Err::Blocked);
+  for (Arr& a : list) {
+    a.blocked = cycle_block_.erase(a.key) > 0;
+    a.pending = IsPending(a.key);
+    if (a.pending) ErasePending(a.key);
+    Sheet* ms = M(a.sheet);
+    for (uint32_t i = a.rect.r0; i <= a.rect.r1; ++i) {
+      for (uint32_t j = a.rect.c0; j <= a.rect.c1; ++j) ms->SetValue(i, j, unset);
+    }
+  }
+  bool ok = true;
+  for (size_t left = cells; ok && left > 0;) {
+    size_t now = 0;
+    for (Arr& a : list) {
+      if (std::all_of(a.done.begin(), a.done.end(), [](char x) { return x != 0; })) continue;
+      if (!evaluate(a)) {
+        ok = false;
+        break;
+      }
+      ++stats_.evaluated;
+      Sheet* ms = M(a.sheet);
+      const uint32_t rows = static_cast<uint32_t>(a.rect.Rows()), cols = static_cast<uint32_t>(a.rect.Cols());
+      for (uint32_t i = 0; i < rows; ++i) {
+        for (uint32_t j = 0; j < cols; ++j) {
+          const size_t at = size_t{i} * cols + j;
+          if (a.done[at]) continue;
+          Value x = value_at(a.v, a.arr.get(), i, j);
+          if (x.IsError() && x.error() == core::Err::Blocked) continue;
+          ms->SetValue(a.rect.r0 + i, a.rect.c0 + j, std::move(x));
+          a.done[at] = 1;
+          ++now;
+        }
+      }
+    }
+    if (now == 0) ok = false;  // the rest wait for each other: a circular reference
+    left -= std::min(left, now);
+  }
+  // calculated once more from the values settled, each gives them again
+  for (size_t n = 0; ok && n < list.size(); ++n) {
+    Arr& a = list[n];
+    ok = evaluate(a);
+    const uint32_t rows = static_cast<uint32_t>(a.rect.Rows()), cols = static_cast<uint32_t>(a.rect.Cols());
+    for (uint32_t i = 0; ok && i < rows; ++i) {
+      for (uint32_t j = 0; ok && j < cols; ++j) ok = value_at(a.v, a.arr.get(), i, j).SameAs(S(a.sheet)->GetValue(a.rect.r0 + i, a.rect.c0 + j));
+    }
+  }
+  for (const Arr& a : list) {  // the values from before: StoreResult compares with them and marks what reads them
+    Sheet* ms = M(a.sheet);
+    size_t at = 0;
+    for (uint32_t i = a.rect.r0; i <= a.rect.r1; ++i) {
+      for (uint32_t j = a.rect.c0; j <= a.rect.c1; ++j) ms->SetValue(i, j, a.before[at++]);
+    }
+  }
+  if (!ok) {
+    for (const Arr& a : list) {
+      if (a.blocked) cycle_block_.insert(a.key);
+      if (a.pending) AddPending(a.key);
+    }
+    return false;
+  }
+  for (Arr& a : list) {
+    StoreResult(a.key, std::move(a.v), std::move(a.arr));
+    ErasePending(a.key);
+    std::erase(new_pending_, a.key);
+  }
   return true;
 }
 
@@ -2236,6 +2389,22 @@ void Document::EvaluatePendingSerial(int64_t only_sheet) {
           // it read its own cell: a circular reference, as the NeedCell for it is below
           ++stats_.retries;
           ++stats_.self_reads;
+          // an array entered with Ctrl+Shift+Enter that read only its own cells is settled here when no value of it
+          // waits for itself, as ResolveCycles settles it after the pass, and what waits for it below on the stack
+          // goes on. Left to ResolveCycles, the readers set aside with it were marked again, marked the array again
+          // through what they feed, and met it pending pass after pass: {=A1:B3*2} in C2:D2 kept D2 at 0 after
+          // B1 =VLOOKUP(A1,A1:C9,...) beside {=A1:B3*2} in B3:B5 (doc_fuzz --xlsx seed 24000181430)
+          if (!iterate) {
+            host_->record = nullptr;
+            host_->soft_self = false;
+            host_->ResetSelf();
+            in_progress_.erase(top);
+            if (SettleArrayReadingItself(top)) {
+              stack.pop_back();
+              continue;
+            }
+            in_progress_.insert(top);
+          }
           AbortStack(stack, top);
           continue;
         }

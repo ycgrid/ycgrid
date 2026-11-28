@@ -16,6 +16,27 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   run their commands, with Excel's hint while they are typed.
 - A dialog's range box takes a cell clicked or a range dragged on the sheet while it has the keyboard, as Excel's
   RefEdit (Greater Than's value, a validation list, Goal Seek); its button still works too.
+- Excel's letters in the menus a person opens from the keyboard: Alt+Down, E, a few letters, Enter filters a list
+  (S and O sort, C clears); Shift+F10 (or the Menu key) then V pastes values, D deletes, I inserts; Ctrl+V, Ctrl, V
+  turns a paste into values (each Paste Options picture takes its letter, named in its tip: Values (V)).
+- Inserting a table, a chart or another object opens its tab (Table Design, Chart Design...), and the tab before it
+  comes back when the selection leaves the object, as in Excel.
+- Insert Table Rows Above, Insert Table Columns to the Left, Delete Table Rows and Delete Table Columns: in a table
+  the cell menu's Insert and Delete offer them (Shift+F10, I, A adds a row above), and Ctrl+- and Ctrl+Shift+= act on
+  the table's rows (its columns for a selection taller than wide) without a dialog, moving only the table's cells, as
+  in Excel.
+- Use table names in formulas (File > Options > Formulas, `Application.GenerateTableRefs`, on by default): pointing at
+  a table's cells while typing a formula writes structured references, as in Excel: `=[@Px]*[@Qty]` in the table,
+  `Table1[Px]` for a column's data, `Table1[#All]`, `Table1[[#Headers],[Qty]]`; part of a column or another row stays
+  cells.
+- Scrolled down in a table with its header row out of view, the column headings show the table's column names instead
+  of the letters, as in Excel.
+- AutoFormat As You Type: a web or e-mail address typed into a cell (`http://`, `https://`, `ftp://`, `www.`, `a@b.com`)
+  becomes a link with the Hyperlink style, as in Excel; the first Ctrl+Z takes back the link and keeps the text.
+  File > Options > Proofing turns it off (`Application.AutoFormatAsYouTypeReplaceHyperlinks`).
+- Extend data range formats and formulas: a row typed under a list takes the format the rows above share and, once
+  the cells it reads are typed, their formula (`=B6*C6` under four rows of `=B*C`), as in Excel. File > Options >
+  Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
@@ -40,6 +61,96 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   the ribbon's KeyTips behind it; KeyTips work in the Traditional Chinese UI (Alt, H, L, H, G reached nothing).
 - 12.5% typed into a percent cell by a Chinese IME (the whole text at once) is 12.5%, not the text "12.5%%".
 - `yc.launch(path)` raises when the file can't be opened, instead of handing back a blank workbook.
+- F5, Enter after a Go To selects again everything that was selected (all its areas), not only its active cell.
+- Shift+F2 on a cell with a note goes on typing after the note's text, not in front of it.
+- Function Arguments' OK enters the formula when it was opened while typing (Ctrl+A after =SUM), as Excel's does.
+- Esc in Goal Seek Status and Solver Results puts the original values back, as their Cancel; on Solver's and the
+  Scenario Manager's other pages it goes back a page instead of closing the dialog.
+- In the Traditional Chinese UI, sheets, tables, their headers and PivotTables added later are named in Chinese like
+  the first sheet (Sheet2, Table1 and Column1 were English).
+- A double-click on a chart's column formats its series (Format Data Series), as Excel's, not the single point.
+- Figures docked one after another no longer split a pane down to a few pixels (a splitter dragged there stopped a
+  debug build): a pane too small to split takes the figure as a tab.
+- The Clipboard, Format and Selection panes open beside the sheets instead of floating over their cells.
+- The Sort dialog selects the cells it sorts, without the header row while My data has headers is on.
+- A formula typed with a full-width = (a Chinese IME in full-width mode) is entered as a formula, as in Excel.
+- Typing beside a table grows it only over a line that holds nothing else, as Excel does: a total under the table
+  was taken in and became a circular reference. A refused formula no longer grows the table.
+- A click on a status bar statistic (Sum, Average...) copies its value, as in Excel 365.
+- A hidden YCGrid whose TEMP folder is missing no longer ends while starting.
+- An array formula entered with Ctrl+Shift+Enter that reads its own cells no longer leaves what reads it uncalculated
+  (`{=A1:B3*2}` beside `=VLOOKUP(A1,A1:C9,2,FALSE)` kept 0 where Excel shows #N/A).
+- Tab in a table goes from its last column to the next row's first, and from its last cell adds a row, as in Excel;
+  Tab ending an entry on a protected sheet goes to the next unlocked cell, as Tab on the sheet does.
+- Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PgDn and Ctrl+PgUp move between a dialog's tabs (Format Cells, Find and Replace,
+  Page Setup...).
+- Holding Ctrl and then dragging a sheet tab copies the sheet, as Excel's help describes.
+- Menus over the cells (the filter menu, Paste Options, Auto Fill Options, error checking, Quick Analysis, a
+  PivotTable field's filter, a slicer's menu) keep the UI's size at any zoom.
+- (Select All) in a filter list and Chart Filters shows a mixed box while some values are ticked.
+- Flash Fill takes a word at either end, as Excel does: "2330" out of "Taiwan Semi (2330)" gives "2454" for
+  "MediaTek (2454)".
+- Find All highlights the row clicked.
+- A validation's input message floats over the circles and objects on the cells.
+- Renaming a sheet to a name in use says Excel's message ("That name is already taken. Try a different one.").
+- Excel's letters in the dialogs people drive from the keyboard: Insert and Delete (Ctrl+-, R, Enter deletes the
+  row), Text to Columns, Go To's Special button (Alt+S) and Go To Special (F5, Alt+S, K, Enter selects the blanks; K
+  did nothing, and the = Up Ctrl+Enter after it wrote a formula over the data), Find and Replace (Alt+A replaces all).
+  Alt and a letter in a dialog that leaves the sheet usable stay with the dialog instead of the ribbon behind it.
+- Ribbon drop-downs open under their button: opened from the KeyTips (Alt, H, N) they showed wherever the mouse was.
+  The arrows and Enter pick an entry in them, and that Enter no longer moves the active cell; Alt, H, H and Alt, H,
+  F, C open the color palette instead of applying the last color.
+- Greater Than, Less Than, Equal To and Between start with Excel's values (halfway between the lowest and the highest
+  number; a quarter and three quarters of the way, rounded), and Text That Contains with the active cell's text.
+- Cancelling the Sort dialog puts the selection back, as in Excel; OK keeps the sorted cells selected.
+- Home > Fill > Series from one cell with a Stop value fills down (or across) to it, as in Excel.
+- Ctrl+PgDn and Ctrl+PgUp no longer page the sheet they leave a screen down; Alt+Enter, Ctrl+Enter and Alt+Home
+  outside an entry leave the active cell where it is, as in Excel.
+- Customize Status Bar names Minimum and Maximum in full, as Excel's menu.
+- Alt+Down, Down, Enter on a cell takes the first entry of its pick list: the Down of Alt+Down moved it one further.
+- Ctrl+\ and Ctrl+Shift+| (Row and Column Differences) make the first cell found active, and find none with
+  one cell selected, as in Excel; Ctrl+/ selects an array entered with Ctrl+Shift+Enter from its first cell and says
+  "No cells were found." on a dynamic array's spill, as in Excel.
+- End, Enter goes to the last column of the used area in the row (with Shift, selects up to it), and Escape
+  leaves End mode on, as in Excel.
+- In a table, Ctrl+Space selects the column's data, then the column with its header and totals, then the sheet's
+  column; Shift+Space the table's row before the sheet's; Ctrl+A (and Ctrl+Shift+Space) the data, then the whole
+  table, then the sheet, as in Excel.
+- Ctrl+Enter over a column beside a table, its header cell included, types the data cells as entered: they were
+  all the header's text.
+- A formula in a table keeps its table's name in references other than one column's (`Table1[[#Headers],[Qty]]`,
+  `Table1[[Qty]:[Px]]`), as Excel writes them.
+- A value typed, entered with Ctrl+Enter or filled right beside a table grows it in an Undo step of its own: the first
+  Ctrl+Z takes back the growth and keeps the value, as in Excel (Table AutoExpansion).
+- A formula typed into an empty table column fills it in an Undo step of its own (Calculated Column): the first
+  Ctrl+Z keeps the typed formula, as in Excel; typed beside a table, the fill, the growth and the typing are three steps.
+- A data validation Warning answers No to Enter, as Excel's (back to the entry), instead of taking the value; an alert
+  without a message of its own says Excel's "This value doesn't match the data validation restrictions defined for
+  this cell."
+- A row hidden by a height of 0 (`RowHeight = 0`) is left out of SUBTOTAL at once: the formula kept counting it.
+- Create Table (Ctrl+T) and `ListObjects.Add` guess a header row as Excel does: a list all of text gets a header row
+  added, a header row with a year or set in bold over text is taken as the header.
+- Data > Sort, `Range.Sort(Header=xlGuess)` and `RemoveDuplicates(Header=xlGuess)` guess the header row the same way,
+  as Excel's: a header row with a blank in it is sorted with the data.
+- A formula typed or written right under a table makes that row the table's totals row, as in Excel, and AutoSum there
+  writes `=SUBTOTAL(109,[Qty])`: the table grew over it as data, and `=SUM(C3:C6)` became the circular `=SUM(C3:C7)`.
+  Under a totals row AutoSum proposes `Table1[[#Data],[#Totals],[Qty]]`, as Excel's.
+- A formula typed into a table's totals row stays when an option of the table changes: Banded Rows cleared it.
+- A row a table grows over takes a column's format only when all of the column's data has it, as in Excel.
+- Convert to Range writes the references that replace the table's names with their sheet (`Sheet1!$C3`), as Excel does.
+- Tab in a table's last data cell adds a row above its totals row too, as in Excel: it left the table.
+- Conditional formats and data validation on a table's columns grow with the table when a row is added under it, as in
+  Excel.
+- Go To, the Name Box, `Application.Goto` and `Range()` take a table's name (its data) and its structured references
+  (`Trades[Qty]`, `Trades[#All]`), as in Excel.
+- Conditional formatting and data validation refuse a structured reference in their formulas (`=Trades[Sym]`), as
+  Excel does; `INDIRECT("Trades[Sym]")` and a name on the table still work.
+- A table's totals row shows its totals in the number format the column's data shares ($22.50), as Excel does.
+- Ctrl+Backspace in the cell editor deletes nothing, as in Excel: it deleted the word before the caret.
+- A note made with Shift+F2 and left empty, or emptied in its box, stays on its cell, as in Excel (Delete Note takes it
+  away).
+- The filter menu's search box takes `*` and `?` as Excel does: `t?` finds TE, `*x` finds MTX (the whole value); text
+  without them is still found inside the values.
 
 ## 0.10.3 (2026-11-25)
 

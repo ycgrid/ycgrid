@@ -305,12 +305,12 @@ members = [
 priority = "medium"
 what = "File > Options items (Formulas, Advanced, Save, Data)"
 members = [
-  "Application.GenerateTableRefs", "Application.ExtendList", "Application.DefaultFilePath",
+  "Application.DefaultFilePath",
   "Application.DisplayRecentFiles", "Application.RecentFiles", "Application.DisplayNoteIndicator",
   "Application.DisplayScrollBars", "Application.CopyObjectsWithCells", "Application.ShowToolTips",
   "Application.ChartDataPointTrack", "Application.MeasurementUnit", "Application.RollZoom",
   "Application.DefaultPivotTableLayoutOptions", "Application.DataEntryMode", "Application.WarnOnFunctionNameConflict",
-  "Application.AutoFormatAsYouTypeReplaceHyperlinks", "Application.DisplayClipboardWindow", "Application.ShowDevTools",
+  "Application.DisplayClipboardWindow", "Application.ShowDevTools",
   "Workbook.EnableAutoRecover", "Workbook.ChartDataPointTrack", "Workbook.SaveLinkValues", "Workbook.UpdateLinks",
   "Workbook.CreateBackup", "Workbook.ReadOnlyRecommended", "Workbook.WritePassword", "Workbook.WriteReserved",
   "Workbook.WriteReservedBy", "Window.AutoFilterDateGrouping", "Window.GridlineColorIndex",

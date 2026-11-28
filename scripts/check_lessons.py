@@ -67,6 +67,28 @@ RULES = [
          "rounds opened the picture viewer over the user's screen again and again.",
          r"\bShellExecute(W|ExW)?\s*\(",
          files=["apps/**/*.cpp", "apps/**/*.h", "src/**/*.cpp"]),
+    Rule("temp-folder",
+         "The temp folder comes from TempFolder (settings.h), which never throws: std::filesystem::"
+         "temp_directory_path() throws when %TMP% names a folder that isn't there, and a hidden instance asked it while "
+         "starting, so YCGrid ended with abort() before its first frame (chaos seed 7609 replayed with a missing TMP).",
+         r"\btemp_directory_path\s*\(",
+         files=["apps/**/*.cpp", "apps/**/*.h", "src/**/*.cpp"]),
+    Rule("dlg-tabs",
+         "A dialog's tabs go through BeginDlgTabBar (dialogs.cpp), which gives them Excel's Ctrl+Tab, Ctrl+Shift+Tab, "
+         "Ctrl+PgDn and Ctrl+PgUp: each dialog called ImGui::BeginTabBar itself and none of them took the keys.",
+         r"\bImGui::BeginTabBar\s*\(",
+         files=["apps/**/*.cpp"]),
+    Rule("combo-name",
+         "Combo boxes go through ui::Combo / ui::BeginCombo (yc_ui_items.h), which list them in ui.items by their "
+         "label: ImGui::BeginCombo tells the test hooks none, and most combo boxes (Data Validation's Allow) were "
+         "nameless controls no test could find.",
+         r"\bImGui::(Begin)?Combo\s*\(",
+         files=["apps/**/*.cpp", "src/ui/**/*.cpp", "src/ui/**/*.h"]),
+    Rule("radio-state",
+         "Option buttons go through ui::RadioButton (yc_ui_items.h), which tells ui.items which one is chosen "
+         "(checked): ImGui::RadioButton tells the test hooks nothing, and no test could read a dialog's option.",
+         r"\bImGui::RadioButton\s*\(",
+         files=["apps/**/*.cpp", "src/ui/**/*.cpp", "src/ui/**/*.h"]),
     Rule("py-startfile",
          "Python opens files on the desktop through excel._open_on_desktop, which opens nothing for a script driving a "
          "hidden YCGrid (tests): os.startfile directly opened them on the user's screen.",

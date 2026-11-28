@@ -221,6 +221,42 @@ class DataRound3Test(unittest.TestCase):
         self.assertIn("Sensitivity Report 1", self.sheet_names())
         self.assertIn("Limits Report 1", self.sheet_names())
 
+    def test_esc_in_solver_is_each_pages_cancel(self):
+        # Esc closed the whole Solver from any page and kept the solution: it is the page's Cancel (Add Constraint goes
+        # back to the parameters, Solver Results puts the original values back), as in Excel
+        from yc import excel, ui
+
+        self.ws.Range("A1:B3").Formula = [["x", 1], ["y", 1], ["obj", "=3*B1+2*B2"]]
+        excel.SolverReset()
+        excel.SolverOk(SetCell=self.ws.Range("B3"), MaxMinVal=1, ByChange=self.ws.Range("B1:B2"), Engine=2)
+        excel.SolverAdd(self.ws.Range("B1:B2"), 1, "4")
+        self.keys("g:B3|w:2")
+        ui.command("Solver")
+        self.keys("w:6")
+        self.click("Add", wait=6)
+        self.keys("k:Escape|w:6")
+        self.assertTrue(self.dialog(), "Esc on Add Constraint goes back to Solver Parameters")
+        self.assertIn("Solve", self.labels())
+        self.click("Solve", wait=12)
+        self.assertAlmostEqual(self.ws.Range("B3").Value, 20, places=6)
+        self.keys("k:Escape|w:8")
+        self.assertEqual(self.dialog(), 0)
+        self.assertEqual([self.ws.Range("B1").Value, self.ws.Range("B2").Value], [1, 1], "the original values")
+
+    def test_esc_in_the_scenario_manager_goes_back_a_page(self):
+        from yc import ui
+
+        self.keys("g:B2|w:2")
+        ui.command("ScenarioManager")
+        self.keys("w:6")
+        self.click("Add...", wait=6)
+        self.assertNotIn("Close", self.labels(), "Add Scenario")
+        self.keys("k:Escape|w:6")
+        self.assertTrue(self.dialog(), "Esc on Add Scenario goes back to the Scenario Manager")
+        self.assertIn("Close", self.labels())
+        self.keys("k:Escape|w:6")
+        self.assertEqual(self.dialog(), 0)
+
     def test_solver_load_save_model(self):
         from yc import excel
 

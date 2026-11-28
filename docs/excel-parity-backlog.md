@@ -31,10 +31,16 @@ at the moment (measured against Excel 16 on 2026-11-08), except:
 - Formulas: a name read through a sheet (`Data!Rate`, or `Data!A` a Replace made of `Data!A1`) whose sheet is deleted
   is the workbook's name in Excel 16 (`=SUM(Book1!A:A3)`, #NAME? while no such name exists; measured 2026-11-21);
   YCGrid makes it #REF! (`=SUM(#REF!:A3)`).
-- Data > Data Validation without an error message of its own: YCGrid's Stop alert names the reason ("You must enter a
-  whole number.", "The value is outside the allowed range."); Excel 16 refuses the same entries (measured 2026-11-17)
-  with a text of its own, not yet read (a hidden Excel's alert is a NUIDialog without readable text: measuring it
-  needs a visible Excel).
+- Table Design > Total Row off and on again: Excel 16 brings back a formula typed into the totals row (`=MAX(D3:D6)`,
+  its `totalsRowFunction` "custom"), measured 2026-11-28; YCGrid brings back the functions chosen in the row's lists
+  and the labels, and puts the column's default (`SUBTOTAL(109,...)`) where a typed formula was. Keeping it needs the
+  formula in `TableColumn` (a `.ycg` field) walked by `model/ref_texts.h` as the table's cells move: to decide.
+- Review > New Note (Shift+F2): Excel 16 starts the note's text with the author's name in bold and a line break
+  (`UserName:` then the typing), and `Comment.Text` reads it back with that line (measured by keys 2026-11-28; a note made
+  by `AddComment("abc")` has none, its `Author` still the user). YCGrid keeps the author apart (`CellNote::author`) and
+  draws it in bold on top, so the box looks the same, but `Comment.Text` of a note typed in the UI has no author
+  line and the line can't be edited away. Matching it needs the author line kept as the note's own text, with its
+  bold run, in the model and the `.ycg` file: to decide.
 - Home > Paste > Paste Special with an operation (Add, Subtract, Multiply, Divide) or Skip Blanks over any cell of an array formula
   entered with Ctrl+Shift+Enter: YCGrid refuses it with "You can't change part of an array." (it can't combine
   the array cell by cell). What Excel 16 does there is not measured yet: the probe needs Windows' clipboard
@@ -43,6 +49,10 @@ at the moment (measured against Excel 16 on 2026-11-08), except:
 ## Kept on purpose (YCGrid extras)
 
 These are not differences to fix; they stay:
+
+- `Range.Text` gives a number's formatted text whatever its column's width: Excel's gives what the cell shows
+  there (`1E+09`, `####` in a narrow column, measured 2026-11-27). What fits depends on the window's fonts, zoom and
+  screen scale, and a script reads `Text` for the formatted value; the sheet itself shows Excel's text.
 
 - A CSV's fields are never formulas: `=1+1`, `+1+1`, `-1+1`, `--5` and `@SUM(A1)` open as text, where Excel 16
   calculates them (measured 2026-11-19 over 719 fields, Workbooks.Open): a CSV from outside must not run a
@@ -140,6 +150,9 @@ YCGrid follows US Excel (en-US format codes, US date order). An Excel on a Windo
 things its own way; comparing with it, these are the region, not YCGrid bugs. Don't list them again (measured on
 Excel 16 with Taiwan's regional settings and the Traditional Chinese UI):
 
+- A time typed with the region's AM / PM word after it (`9:30 上午`) is a time in Taiwan's Excel, which takes Windows'
+  own designators there; YCGrid takes US Excel's `AM` / `PM` / `a` / `p` (measured 2026-11-27). The word before the
+  time (`上午 9:30`, as Taiwan's Excel shows times) is text in both.
 - `Application.International` reads what YCGrid reads and writes, US Excel's separators and order (country 1, `.`
   and `,`, month first, currency `$`), where Excel reads the machine's (Taiwan's: 886, year first, General in the UI's language;
   measured 2026-11-22).

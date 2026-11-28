@@ -181,6 +181,70 @@ class ChineseKeyTipsTest(HabitsBase):
         self.assertEqual(ui.state()["selection"], "A1:A3", "the selection put back")
         self.assertNotIn("edit", ui.state(), "one click, no editor")
 
+    def test_a_new_sheet_is_named_in_chinese_too(self):
+        """The first sheet was named in Chinese and every one inserted after it Sheet<n> (Shift+F11, Python's Add)."""
+        from yc import excel
+
+        word = "工作表"
+        before = {excel.Worksheets(i).Name for i in range(1, excel.Worksheets.Count + 1)}
+        self.keys("k:s-F11|w:6")
+        added = [excel.Worksheets(i).Name for i in range(1, excel.Worksheets.Count + 1) if excel.Worksheets(i).Name not in before]
+        self.assertEqual(len(added), 1)
+        self.assertTrue(added[0].startswith(word), ascii(added[0]))
+        excel.Application.DisplayAlerts = False
+        excel.Worksheets(added[0]).Delete()
+
+    def test_insert_function_finds_the_common_function_for_a_chinese_word(self):
+        """A search matches the Chinese descriptions only; alphabetical order picked AVEDEV for average and DSUM for
+        adding up. The common functions come first, as Excel recommends them."""
+        from yc import ui
+
+        for word, fn in (("平均", "AVERAGE"), ("日期", "DATE"), ("sum", "SUM")):
+            self.keys("g:C3|w:2|k:s-F3|w:6")
+            self.keys(f"t:{word}|w:3|k:Enter|w:6")
+            self.assertEqual(((ui.state().get("edit") or {}).get("text") or "").split("(")[0], "=" + fn, word)
+            self.keys("k:Escape|w:4|k:Escape|w:4")
+
+    def test_a_new_table_is_named_in_chinese(self):
+        """Excel's Chinese UI names a table, its generated headers and a PivotTable in Chinese (Table1, Column1 were
+        English), and the names work in structured references."""
+        table, column = "表格", "欄"
+        self.ws.Range("A1:A3").Value = [[1], [2], [3]]
+        lo = self.ws.ListObjects.Add(1, self.ws.Range("A1:A3"), None, 2)  # xlSrcRange, no headers: one is inserted
+        self.assertTrue(lo.Name.startswith(table), ascii(lo.Name))
+        self.assertEqual(self.ws.Range("A1").Value, column + "1")
+        self.ws.Range("C1").Formula = "=SUM(" + lo.Name + "[" + column + "1])"
+        self.assertEqual(self.ws.Range("C1").Value, 6)
+        lo.Unlist()
+
+
+class ContextualTabTest(HabitsBase):
+    """Excel opens the contextual tab of an object just inserted (Table Design after Ctrl+T, Chart Design after
+    Alt+F1) and goes back to the tab before it when the selection leaves the object; a click into it later doesn't
+    switch. The ribbon stayed on Home."""
+
+    def tab(self):
+        from yc import ui
+
+        return (ui.state().get("ribbon") or {}).get("tab_label")
+
+    def test_an_inserted_object_opens_its_tab(self):
+        self.ws.Range("A1:B3").Value = [["a", "b"], [1, 2], [3, 4]]
+        self.keys("g:A1|w:2")
+        self.assertEqual(self.tab(), "Home")
+        self.keys("g:A1:B3|w:2|k:c-T|w:6|k:Enter|w:8")
+        self.assertEqual(self.tab(), "Table Design")
+        self.keys("g:E9|w:2|w:3")
+        self.assertEqual(self.tab(), "Home")
+        self.keys("g:A2|w:2|w:3")
+        self.assertEqual(self.tab(), "Home", "selecting a table cell later doesn't switch")
+        self.keys("g:E9|w:2|g:A1:B3|w:2|k:a-F1|w:10")
+        self.assertEqual(self.tab(), "Chart Design")
+        self.keys("k:Escape|w:3|k:Escape|w:3|g:E9|w:2|w:3")
+        self.assertEqual(self.tab(), "Home")
+        self.ws.ListObjects(1).Unlist()
+        self.ws.ChartObjects(1).Delete()
+
 
 class KeyTipsTest(HabitsBase):
     def test_alt_h_l_opens_conditional_formatting(self):

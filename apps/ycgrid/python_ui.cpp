@@ -662,7 +662,7 @@ void RunImmediate(AppState& s, const std::string& code, bool shown = true) {
     }
     if (trust::CodeDisabled()) dir.clear();  // the project's code is disabled: not even its folder's modules are importable
     if (dir.empty()) {
-      const fs::path scratch = fs::temp_directory_path(ec) / L"YCGrid-immediate";
+      const fs::path scratch = fs::path(TempFolder()) / L"YCGrid-immediate";
       fs::create_directories(scratch, ec);
       dir = scratch.wstring();
     }

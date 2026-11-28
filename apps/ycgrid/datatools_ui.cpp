@@ -139,7 +139,7 @@ std::string CellText(AppState& s, const model::Sheet& sh, uint32_t r, uint32_t c
 bool Combo(const char* id, int* v, const char* const* items, int n, float w) {
   ImGui::SetNextItemWidth(w);
   ui::NoteUiItem(id, ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(w, ImGui::GetFrameHeight())));
-  return ImGui::Combo(id, v, items, n);
+  return ui::Combo(id, v, items, n);
 }
 
 // ---- Subtotal ----
@@ -193,10 +193,11 @@ void DrawSubtotal(AppState& s) {
   ImGui::SetNextItemWidth(w);
   ui::NoteUiItem("##st_group", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(w, ImGui::GetFrameHeight())));
   u.st_group = std::clamp(u.st_group, 0, static_cast<int>(names.size()) - 1);
-  if (ImGui::BeginCombo("##st_group", "")) {
+  if (ui::BeginCombo("##st_group", "")) {
     for (size_t k = 0; k < names.size(); ++k) {
       ImGui::PushID(static_cast<int>(k));
       if (ImGui::Selectable("##g", u.st_group == static_cast<int>(k))) u.st_group = static_cast<int>(k);
+      ui::NoteUiText(names[k].c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
       ImGui::SameLine(0, 0);
       ImGui::TextUnformatted(names[k].c_str());  // the header as it is ("C##1" too)
       ImGui::PopID();
@@ -221,13 +222,18 @@ void DrawSubtotal(AppState& s) {
     }
   }
   ImGui::EndChild();
+  // Excel 16's letters (UI Automation's AccessKey of its Subtotal dialog): Replace current subtotals C, Page break
+  // between groups P, Summary below data S, Remove All R
+  if (DlgKey(ImGuiKey_C)) u.st_replace = !u.st_replace;
+  if (DlgKey(ImGuiKey_P)) u.st_breaks = !u.st_breaks;
+  if (DlgKey(ImGuiKey_S)) u.st_below = !u.st_below;
   ImGui::Checkbox(TR("Replace current subtotals"), &u.st_replace);
   ImGui::Checkbox(TR("Page break between groups"), &u.st_breaks);
   ImGui::Checkbox(TR("Summary below data"), &u.st_below);
   ImGui::Separator();
   const uint32_t sheet = s.focus_sheet;
   const Rect list = u.st_list;
-  if (ImGui::Button(TR("Remove All"), ImVec2(S(90), 0))) {
+  if (ImGui::Button(TR("Remove All"), ImVec2(S(90), 0)) || DlgKey(ImGuiKey_R)) {
     if (!RefuseReadOnlyUi(s)) {
       s.engine->Call([&](Document& d) {
         d.Begin(TR("Remove Subtotals"));
@@ -464,9 +470,9 @@ void DrawForecast(AppState& s) {
   ForecastPreview(s);
   // the chart types (line, column) at the top right
   ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - S(150));
-  if (ImGui::RadioButton(TR("Line"), !u.fc_column)) u.fc_column = false;
+  if (ui::RadioButton(TR("Line"), !u.fc_column)) u.fc_column = false;
   ImGui::SameLine();
-  if (ImGui::RadioButton(TR("Column"), u.fc_column)) u.fc_column = true;
+  if (ui::RadioButton(TR("Column"), u.fc_column)) u.fc_column = true;
   DrawForecastChart(ImVec2(S(620), S(260)));
   ImGui::AlignTextToFramePadding();
   ImGui::TextUnformatted(TR("Forecast End"));
@@ -492,8 +498,8 @@ void DrawForecast(AppState& s) {
     u.fc_conf = std::clamp(u.fc_conf, 1.0f, 99.0f);
     ImGui::EndDisabled();
     ImGui::TextUnformatted(TR("Seasonality"));
-    ImGui::RadioButton(TR("Detect Automatically"), &u.fc_season_mode, 0);
-    ImGui::RadioButton(TR("Set Manually"), &u.fc_season_mode, 1);
+    ui::RadioButton(TR("Detect Automatically"), &u.fc_season_mode, 0);
+    ui::RadioButton(TR("Set Manually"), &u.fc_season_mode, 1);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(80));
     ImGui::BeginDisabled(u.fc_season_mode == 0);
@@ -842,20 +848,20 @@ void DrawImportData(AppState& s) {
   if (!BeginDlg(s, Dialog::ImportData, TR("Import Data###yc_dlg_importdata"), 360)) return;
   bool close = false;
   ImGui::TextUnformatted(TR("Select how you want to view this data in your workbook."));
-  ImGui::RadioButton(TR("Table"), &u.id_view, 0);
+  ui::RadioButton(TR("Table"), &u.id_view, 0);
   ImGui::BeginDisabled();  // these show a query's connection: YCGrid has no Power Query connections
-  ImGui::RadioButton(TR("PivotTable Report"), &u.id_view, 1);
-  ImGui::RadioButton(TR("PivotChart"), &u.id_view, 2);
-  ImGui::RadioButton(TR("Only Create Connection"), &u.id_view, 3);
+  ui::RadioButton(TR("PivotTable Report"), &u.id_view, 1);
+  ui::RadioButton(TR("PivotChart"), &u.id_view, 2);
+  ui::RadioButton(TR("Only Create Connection"), &u.id_view, 3);
   ImGui::EndDisabled();
   ImGui::TextUnformatted(TR("Where do you want to put the data?"));
-  ImGui::RadioButton(TR("Existing worksheet:"), &u.id_where, 0);
+  ui::RadioButton(TR("Existing worksheet:"), &u.id_where, 0);
   ImGui::Indent();
   ImGui::BeginDisabled(u.id_where != 0);
   RangeBox(s, "importdata.cell", u.id_cell, sizeof(u.id_cell), S(260), RangeBox_Cell | RangeBox_Equals, TR("Existing worksheet:"));
   ImGui::EndDisabled();
   ImGui::Unindent();
-  ImGui::RadioButton(TR("New worksheet"), &u.id_where, 1);
+  ui::RadioButton(TR("New worksheet"), &u.id_where, 1);
   ImGui::Separator();
   if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
     if (u.id_where == 1) {

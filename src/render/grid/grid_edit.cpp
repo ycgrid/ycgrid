@@ -629,6 +629,9 @@ bool EditField(EditState& e, const char* id, const ImVec2& size, GridActions& ac
       }
       return p;
     };
+    // Ctrl+Backspace deletes nothing in the cell's editor (Excel 16, measured by keys after F2: "abc def ghi" stays);
+    // InputText took it as delete a word
+    if (ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyAlt) take(ImGuiKey_Backspace);
     // the autocomplete list is open: Up, Down, Tab and Esc go to the list (later handling ignores these keys)
     const bool list_open = !assist.items.empty() && field_active;
     bool list_tab = false, list_esc = false;

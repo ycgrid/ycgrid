@@ -242,11 +242,19 @@ class ChartParityTest(unittest.TestCase):
         self.assertTrue(best, "the columns on the screen")
         x, y = best[0] - 4, best[1]
         self.click_at(x, y)
-        self.keys("w:20")
+        time.sleep(0.6)  # a second click, not a double-click
         self.click_at(x, y)  # again: the point under the mouse
         self.assertEqual(self.format_selection(), "Format Data Point")
         self.close_pane()
-        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:20|c:{x},{y}|w:4|r:|w:6")
+        # a double-click on a column whose series isn't selected formats the series (its second press isn't a second
+        # click: it chose the point, Format Data Point)
+        self.keys("k:Escape|w:2|k:Escape|w:2|g:H30|w:6")
+        self.keys(f"m:{x},{y}|w:3|D:{x},{y}|w:10")
+        self.assertEqual(self.pane_title(), "Format Data Series")
+        self.close_pane()
+        self.keys(f"m:{x},{y}|w:3|c:{x},{y}|w:3")
+        time.sleep(0.6)  # two clicks, not a double-click (that formats the series)
+        self.keys(f"c:{x},{y}|w:4|r:|w:6")
         self.click("Set as Total")
         self.keys("w:4")
         self.assertTrue(ch.SeriesCollection(1).Points(5).IsTotal)

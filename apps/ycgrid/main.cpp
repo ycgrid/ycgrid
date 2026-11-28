@@ -629,8 +629,11 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
     static const int kEnterDir[4] = {1, 3, 2, 4};
     opt.enter_dir = app::Config().move_after_return ? kEnterDir[std::clamp(app::Config().move_after_return_dir, 0, 3)] : 0;
   }
+  // a ribbon drop-down that Enter just closed by picking an entry (Alt, H, N, Down, Enter) keeps that Enter: the
+  // active cell moved down under the new format
+  const bool ribbon_menu_closing = ImGui::GetFrameCount() - ui::ribbon::St().menu_frame <= 1;
   opt.keyboard = g_app.focus_sheet == id && g_app.focus_win == win && KeyboardTarget() && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId) &&
-                 ui::ribbon::St().keytip_level == 0;
+                 ui::ribbon::St().keytip_level == 0 && !ribbon_menu_closing;
   if (g_app.marquee) {
     opt.copy_marquee = &g_app.marquee_rect;
     opt.copy_sheet = g_app.marquee_sheet;
@@ -652,37 +655,44 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
   opt.cell_drag_drop = app::Config().cell_drag_and_drop && !prot.on && g_app.operator_mode;
   opt.resize_cols = !prot.on || prot.format_columns;
   opt.resize_rows = !prot.on || prot.format_rows;
-  if (prot.on) {
-    // Protect Sheet's "Select locked cells" / "Select unlocked cells", and Tab between the unlocked cells (Excel)
-    const model::StyleTable* styles = &g_app.snap->wb.styles.get();
-    const bool sel_locked = prot.select_locked && prot.select_unlocked, sel_unlocked = prot.select_unlocked;
-    opt.unlocked = [sh, styles](uint32_t r, uint32_t c) { return !styles->Get(sh->GetStyle(r, c)).locked; };
-    if (!sel_locked) {
-      opt.selectable = [sh, styles, sel_unlocked](uint32_t r, uint32_t c) { return sel_unlocked && !styles->Get(sh->GetStyle(r, c)).locked; };
-    }
-  }
+  // Protect Sheet's "Select locked cells" / "Select unlocked cells", and Tab between the unlocked cells (Excel)
+  app::ProtectionCellRules(*sh, &g_app.snap->wb.styles.get(), &opt.unlocked, &opt.selectable);
   if (sh->chart_sheet) {
     opt.chart_sheet = true;
     opt.keyboard = false;
     opt.show_headings = false;
   }
   opt.image_for = [](const std::string& url, ImVec2* size) { return g_images ? g_images->Get(url, size) : ImTextureID{}; };
-  opt.point_text = [](uint32_t sheet, uint32_t r, uint32_t c) { return app::GetPivotDataFor(g_app, sheet, r, c); };
+  opt.point_text = [](uint32_t sheet, const core::Rect& r) {
+    if (r.IsCell()) {
+      if (std::string t = app::GetPivotDataFor(g_app, sheet, r.r0, r.c0); !t.empty()) return t;
+    }
+    return app::TableRefFor(g_app, sheet, r);
+  };
   opt.background = app::SheetBackgroundTexture(g_app, id, &opt.background_size);  // Page Layout > Background
   opt.overlay = [id](const render::OverlayGeom& g) {
     app::DrawFocusCell(g_app, id, g);
     app::DrawRuleOverlays(g_app, id, g);
     app::DrawCellTips(g_app, id, g);
     app::DrawAuditOverlay(g_app, id, g);
-    app::DrawErrorCheckButton(g_app, id, g);
+    // the floating buttons and their menus are Excel's UI, not the cells: the UI's font, whatever the zoom (the sheet
+    // draws its overlays in the cells' font, zoomed, and the Paste Options menu's headings grew to 30 pixels at 200%)
+    const auto ui_font = [](auto&& draw) {
+      ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+      draw();
+      ImGui::PopFont();
+    };
+    ui_font([&] { app::DrawErrorCheckButton(g_app, id, g); });
     app::DrawTableOverlay(g_app, id, g);
     app::DrawPageBreakOverlay(g_app, id, g);
     app::DrawStaleOverlay(g_app, id, g);
     app::DrawPivotOverlay(g_app, id, g);
-    app::DrawFillOptions(g_app, id, g);
-    app::DrawPasteOptions(g_app, id, g);
-    app::DrawInsertOptions(g_app, id, g);
-    app::DrawQuickAnalysis(g_app, id, g);
+    ui_font([&] {
+      app::DrawFillOptions(g_app, id, g);
+      app::DrawPasteOptions(g_app, id, g);
+      app::DrawInsertOptions(g_app, id, g);
+      app::DrawQuickAnalysis(g_app, id, g);
+    });
     app::DrawSafetyOverlay(g_app, id, g);
     app::DrawTradingOverlay(g_app, id, g);
     if (!g_app.hide_objects) {  // Ctrl+6 hides them (Workbook.DisplayDrawingObjects = xlHide)
@@ -690,6 +700,7 @@ render::GridResult DrawSheet(uint32_t id, const ImRect& r, render::TabBarIO* tab
       app::DrawSlicers(g_app, id, g);
     }
     app::DrawSelectObjectsOverlay(g_app, id, g);  // Find & Select > Select Objects
+    app::DrawInputMessage(g_app, id, g);  // a validation's input message floats over the cells' circles and objects
     app::DrawPageViews(g_app, id, g);  // Page Layout covers everything else
   };
   auto& view = *wv;
@@ -1222,6 +1233,23 @@ void DrawStatusBar(const ImRect& r, double last_frame_ms) {
   const float rw = ImGui::CalcTextSize(right.c_str()).x;
   const float right_x = zoom_left - rw;
   dl->AddText(ImVec2(right_x, ty), t.statusbar_text, right.c_str());
+  // a click on a statistic copies its value, as Excel's (Sum: 18 puts 18 on the clipboard); each is listed for tests
+  {
+    std::string before;
+    for (int i = 0; i < 6; ++i) {
+      if (!shown[i] || stat_text[i].empty()) continue;
+      const std::string item = std::string(stat_names[i]) + ": " + stat_text[i];
+      const float x0 = right_x + ImGui::CalcTextSize(before.c_str()).x;
+      const ImRect hit(ImVec2(x0, r.Min.y), ImVec2(x0 + ImGui::CalcTextSize(item.c_str()).x, r.Max.y));
+      ui::NoteUiItem(item.c_str(), hit);
+      if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(hit.Min, hit.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        app::SetClipboardTextUtf8(g_app.hwnd, stat_text[i]);
+        g_app.has_clip = false;  // the cells copied before are no longer what a paste pastes
+        g_app.SetStatus(TR("Copied to clipboard"), 2.0);
+      }
+      before += item + "    ";
+    }
+  }
   // right-click: Excel's Customize Status Bar, each statistic with its value
   if (ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(r.Min, r.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) ImGui::OpenPopup("##yc_status_menu");
   if (ImGui::BeginPopup("##yc_status_menu")) {
@@ -1245,7 +1273,9 @@ void DrawStatusBar(const ImRect& r, double last_frame_ms) {
     entry(TR("Error Log"), unseen.c_str(), &c.status_error_log);
     ImGui::Separator();
     bool* flags[6] = {&c.status_average, &c.status_count, &c.status_numerical_count, &c.status_min, &c.status_max, &c.status_sum};
-    for (int i = 0; i < 6; ++i) entry(stat_names[i], stat_text[i].c_str(), flags[i]);
+    // the menu names them in full, the bar in short (Excel: Minimum in the menu, Min: 1 on the bar)
+    const char* menu_names[6] = {TR("Average"), TR("Count"), TR("Numerical Count"), TR("Minimum"), TR("Maximum"), TR("Sum")};
+    for (int i = 0; i < 6; ++i) entry(menu_names[i], stat_text[i].c_str(), flags[i]);
     ImGui::Separator();
     entry(TR("View Shortcuts"), "", &c.status_view_shortcuts);
     entry(TR("Zoom Slider"), "", &c.status_zoom_slider);
@@ -1463,7 +1493,7 @@ void Shortcuts() {
     const ImRect rc = RangeScreenRect(*g_app.FocusSheet(), v, Rect::Cell(v.sel.act_r, v.sel.act_c));
     // a cell scrolled out of view would put the menu off the grid (an OS window elsewhere with viewports on)
     const ImVec2 at(ImClamp(rc.Min.x + rc.GetWidth() * 0.5f, v.cells_rect.Min.x, v.cells_rect.Max.x), ImClamp(rc.Max.y, v.cells_rect.Min.y, v.cells_rect.Max.y));
-    app::OpenCellContextMenuAt(at);
+    app::OpenCellContextMenuAt(at, v.sel.mode == render::SelectMode::Rows ? 1 : v.sel.mode == render::SelectMode::Cols ? 2 : 0);
   }
   // Ctrl+Y and F4: Redo after an Undo, otherwise Repeat (Excel)
   if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || (!on_object && ImGui::IsKeyChordPressed(ImGuiKey_F4))) app::RedoOrRepeat(g_app);
@@ -2529,8 +2559,10 @@ void RenderFrame() {
   if (!g_script.empty()) FeedScript();
   if (g_script_mouse_set) ImGui::GetIO().AddMouseViewportEvent(ScriptViewportAt(g_script_mouse));
   // in a dialog, Tab goes through every control and Space ticks a check box, as in Excel (Enter stays the default
-  // button); elsewhere the keys belong to the grid
-  if (g_app.dialog != app::Dialog::None || app::ContextMenuOpen()) ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  // button); in a drop-down of the ribbon the arrows move and Enter picks (Alt, H, N, Down, Enter); elsewhere the keys
+  // belong to the grid
+  const bool ribbon_menu = ImGui::GetFrameCount() - ui::ribbon::St().menu_frame <= 1;
+  if (g_app.dialog != app::Dialog::None || app::ContextMenuOpen() || ribbon_menu) ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   else ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
   // a dialog or menu open as the frame starts: an Escape now closes it and nothing else (Excel: the first Escape puts
   // the context menu or dialog away, the copied cells stay outlined). Read before NewFrame, where ImGui's keyboard
@@ -2605,6 +2637,14 @@ void RenderFrame() {
       if (w->Active && !(w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip)))
         g_app.window_rects.push_back({w->Name, w->Pos.x, w->Pos.y, w->SizeFull.x, w->SizeFull.y,
                                       (w->Flags & ImGuiWindowFlags_AlwaysAutoResize) != 0, (w->Flags & ImGuiWindowFlags_Popup) != 0});
+      // a dialog sized once (resizable, BeginDlg) that grows a scroll bar has contents taller than it: the Name
+      // Manager's question pushed Close and Yes / No under its edge, and the right-edge check below never saw it
+      if (w->Active && (w->Flags & ImGuiWindowFlags_Modal) && !(w->Flags & ImGuiWindowFlags_AlwaysAutoResize)) {
+        static std::unordered_map<ImGuiID, int> tall_run;
+        int& tr = tall_run[w->ID];
+        tr = !w->Appearing && w->ScrollbarY ? tr + 1 : 0;
+        if (tr >= 3) g_app.clipped_windows.insert(w->Name);
+      }
       if (!w->Active || !(w->Flags & ImGuiWindowFlags_AlwaysAutoResize) || (w->Flags & (ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_Tooltip))) continue;
       auto& [last, run] = widths[w->ID];
       run = w->SizeFull.x < last - 0.25f ? run + 1 : 0;
@@ -2925,8 +2965,13 @@ bool RangeWindowRect(const std::string& addr, float out[4]) {
   Rect r;
   if (!sh || !core::ParseRectA1(addr, &r)) return false;
   auto& v = g_app.FocusView();
-  render::EnsureVisible(*sh, v, r.r0, r.c0);
-  const ImRect rc = RangeScreenRect(*sh, v, r);
+  ImRect rc;
+  // Page Layout view draws the cells on its pages, not where the grid would: a click at the grid's place selected
+  // another cell (ui.cell_rect("D8") clicked B1)
+  if (!(v.page_view == 2 && PageLayoutRangeRect(g_app.focus_sheet, r, &rc))) {
+    render::EnsureVisible(*sh, v, r.r0, r.c0);
+    rc = RangeScreenRect(*sh, v, r);
+  }
   const ImVec2 o = ImGui::GetMainViewport()->Pos;
   out[0] = rc.Min.x - o.x;
   out[1] = rc.Min.y - o.y;
@@ -3007,7 +3052,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     c.show_chart_tip_names = c.show_chart_tip_values = c.calculate_before_save = true;
     // no question over a large paste or fill: tests and agents send keys over whole sheets (a test of the alert turns it on)
     c.large_operation_alert = false;
-    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = true;
+    c.format_stale_values = c.multi_threaded_calc = c.generate_getpivotdata = c.generate_table_refs = c.autoformat_hyperlinks = c.extend_list = true;
     c.large_operation_thousands = 33554;
     c.calc_thread_count = 0;
   }

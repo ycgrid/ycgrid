@@ -285,13 +285,16 @@ class SheetsRound8Test(unittest.TestCase):
         ws.Range("D7:E8").ClearOutline()
         self.assertEqual(self.levels(5, cols=True), [1, 1, 2, 1, 1])
 
-    def test_clear_outline_and_ungroup_keep_collapsed_rows_hidden(self):
+    def test_clear_outline_shows_collapsed_rows_and_ungroup_keeps_them_hidden(self):
+        # Excel 16, measured (Range.ClearOutline, Data > Ungroup > Clear Outline, Alt+Shift+Left, Range.Ungroup):
+        # Clear Outline shows the rows a collapsed group hid, Ungroup leaves them hidden. This test said the rows
+        # stay hidden after Clear Outline without a measurement
         ws = self.ws
         ws.Range("A2:A4").EntireRow.Group()
         ws.Outline.ShowLevels(RowLevels=1)
         ws.Range("A1:A11").ClearOutline()
         self.assertEqual(self.levels(5), [1, 1, 1, 1, 1])
-        self.assertEqual(self.hidden(5), [2, 3, 4])  # Excel: the rows stay hidden
+        self.assertEqual(self.hidden(5), [])
         ws.Range("A2:A4").EntireRow.Hidden = False
         ws.Range("A2:A4").EntireRow.Group()
         ws.Outline.ShowLevels(RowLevels=1)

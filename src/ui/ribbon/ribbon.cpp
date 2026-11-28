@@ -81,9 +81,13 @@ bool g_peek_opened = false;  // the temporary ribbon's popup was opened (it open
 
 Command* Cmd(const std::string& id) { return Commands().Find(id); }
 
+// the label a person sees: an ImGui id after "##" (Group##spark, which keeps two commands' labels apart) is never
+// drawn, as ImGui's own widgets hide it (the Sparkline tab showed "Group##spark")
 std::string LabelOf(const std::string& id) {
   Command* c = Cmd(id);
-  return c ? c->label : id;
+  std::string label = c ? c->label : id;
+  if (const size_t at = label.find("##"); at != std::string::npos) label.resize(at);
+  return label;
 }
 
 const char* IconOf(const Item& it, bool large) {
@@ -149,7 +153,10 @@ std::string FirstLine(const std::string& s) {
 }
 
 // joining a two-line label into one line: CJK characters join directly, otherwise a space is inserted
-std::string OneLine(const std::string& s) {
+// a label as a person sees it on one line: an ImGui id after "##" is never drawn (ImGui's widgets hide it; the ribbon
+// draws its labels itself, and the Sparkline tab showed "Group##spark", its Axis menu "...Sparkline##min")
+std::string OneLine(const std::string& s_in) {
+  const std::string_view s = std::string_view(s_in).substr(0, s_in.find("##"));
   std::string out;
   out.reserve(s.size());
   for (size_t i = 0; i < s.size(); ++i) {
@@ -458,10 +465,18 @@ void DrawKeyTipBadge(const std::string& key, ImVec2 at) {
 }
 
 // after an item is drawn (inside its ID scope): its KeyTip, a drop-down a KeyTip asked for, the right-click menu
+// a drop-down opens under its button, left-aligned with it, as Excel's do: set before the popup's Begin. Without it
+// ImGui opens a popup where the mouse is, and one opened from the KeyTips (Alt, H, N) showed in the screen's corner
+void PopupBelow(const ImRect& r) { ImGui::SetNextWindowPos(ImVec2(r.Min.x, r.Max.y + S(2)), ImGuiCond_Appearing); }
+// called inside every drop-down the ribbon shows
+void NoteMenuShown() { g_state.menu_frame = ImGui::GetFrameCount(); }
+
 void ItemExtras(const Item& it, const ImRect& r, const char* popup, bool* check = nullptr) {
   // a drop-down ("##menu", "##gallery"), a combo box ("##fonts", "##sizes", "##formats") or a plain button
   Seen(it.cmd, r, !popup ? "ribbon" : (std::strcmp(popup, "##menu") == 0 || std::strcmp(popup, "##gallery") == 0) ? "dropdown" : "combo");
   if (!popup) popup = "";
+  // a color button's KeyTip opens its palette, as Excel's (Alt, H, H: Fill Color); a click on its face applies the color
+  if (!*popup && it.kind == ItemKind::ColorSplit && it.color) popup = "##palette";
   if (g_kt_open == it.cmd && *popup) {
     ImGui::OpenPopup(popup);
     g_kt_open.clear();
@@ -910,6 +925,7 @@ void MenuPopup(const char* popup_id, const std::vector<std::string>& menu) {
   }
   if (shown > 24) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, ImGui::GetMainViewport()->Size.y * 0.7f));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     MenuPopupBody(menu);
     ImGui::EndPopup();
   }
@@ -1001,6 +1017,7 @@ namespace {
 void ColorPalettePopup(const char* popup_id, ImU32* color, uint32_t* theme_ref, const std::string& cmd) {
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(S(8), S(8)));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     // Fill Color starts with No Fill, Font Color with Automatic (that is how a fill or a color is taken off)
     const char* none = cmd == "FillColor" ? TR("No Fill") : cmd == "FontColor" ? TR("Automatic") : nullptr;
     uint32_t ref = 0;
@@ -1110,6 +1127,7 @@ void GalleryPopup(const char* popup_id, const std::string& id) {
   // a gallery of pictures taller than the window scrolls (Format as Table)
   if (g_gallery_layouts.count(id)) ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, ImGui::GetMainViewport()->Size.y * 0.75f));
   if (ImGui::BeginPopup(popup_id)) {
+    NoteMenuShown();
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const auto lay = g_gallery_layouts.find(id);
     const int ncols = lay != g_gallery_layouts.end() ? lay->second.cols : kPopupCols;
@@ -1487,6 +1505,7 @@ void DrawLarge(const Item& it, ImRect r) {
     ImGui::SetNextWindowPos(ImVec2(r.Min.x, r.Max.y + S(2)), ImGuiCond_Appearing);
     GalleryPopup("##menu", it.gallery);
   } else {
+    PopupBelow(r);
     MenuPopup("##menu", it.menu);
   }
   ItemExtras(it, r, (split || menu) ? "##menu" : nullptr);
@@ -1564,6 +1583,7 @@ void DrawStackItem(const Item& it, ImRect r, bool labels) {
                 OneLine(LabelOf(it.cmd)).c_str());
   }
   g_menu_ran.clear();
+  PopupBelow(r);
   MenuPopup("##menu", it.menu);
   NoteSplitChoice(it);
   ItemExtras(it, r, (split || menu) ? "##menu" : nullptr);
@@ -1616,7 +1636,9 @@ void DrawFontCombo(const Item& it, ImRect r) {
   DrawCaret(dl, ImVec2(r.Max.x - S(kArrowW) * 0.5f - S(1), r.GetCenter().y), T().btn_text);
   if (h.clicked) ImGui::OpenPopup("##fonts");
   ImGui::SetNextWindowSize(ImVec2(S(280), S(380)));
+  PopupBelow(r);
   if (ImGui::BeginPopup("##fonts")) {
+    NoteMenuShown();
     static char filter[128] = "";
     if (ImGui::IsWindowAppearing()) {
       filter[0] = 0;
@@ -1706,7 +1728,9 @@ void DrawSizeCombo(const Item& it, ImRect r) {
   FillState(dl, ImRect(ra.Min + ImVec2(0, S(1)), ra.Max - ImVec2(S(1), S(1))), ha, false);
   DrawCaret(dl, ra.GetCenter(), T().btn_text);
   if (ha.clicked) ImGui::OpenPopup("##sizes");
+  PopupBelow(r);
   if (ImGui::BeginPopup("##sizes")) {
+    NoteMenuShown();
     static const char* kSizes[] = {"8", "9", "10", "11", "12", "14", "16", "18", "20", "22", "24", "26", "28", "36", "48", "72"};
     for (const char* s : kSizes) {
       if (ImGui::Selectable(s, g_state.font_size == s, 0, ImVec2(S(60), 0))) {
@@ -1732,7 +1756,9 @@ void DrawFormatCombo(const Item& it, ImRect r) {
   dl->PopClipRect();
   DrawCaret(dl, ImVec2(r.Max.x - S(kArrowW) * 0.5f - S(1), r.GetCenter().y), T().btn_text);
   if (h.clicked) ImGui::OpenPopup("##formats");
+  PopupBelow(r);
   if (ImGui::BeginPopup("##formats")) {
+    NoteMenuShown();
     static const char* kFormats[] = {TR("General"), TR("Number"), TR("Currency"), TR("Accounting"), TR("Short Date"), TR("Long Date"), TR("Time"),
                                      TR("Percentage"), TR("Fraction"), TR("Scientific"), TR("Text"), TR("Timestamp (ns)")};
     // each format with the active cell's value in it underneath, as Excel's list shows them
@@ -1813,8 +1839,12 @@ void DrawRowItem(const Item& it, ImRect r, bool compact) {
     else Exec(face.cmd);
   }
   if (ha.clicked) ImGui::OpenPopup(it.kind == ItemKind::ColorSplit ? "##palette" : "##menu");
-  if (it.kind == ItemKind::ColorSplit && it.color) ColorPalettePopup("##palette", it.color, it.theme_ref, it.cmd);
+  if (it.kind == ItemKind::ColorSplit && it.color) {
+    PopupBelow(r);
+    ColorPalettePopup("##palette", it.color, it.theme_ref, it.cmd);
+  }
   g_menu_ran.clear();
+  PopupBelow(r);
   MenuPopup("##menu", it.menu);
   NoteSplitChoice(it);
   ItemExtras(it, r, it.kind == ItemKind::Menu || it.kind == ItemKind::Split ? "##menu" : nullptr);
@@ -1952,7 +1982,7 @@ std::vector<ItemRect> VisibleItems() {
   std::vector<ItemRect> out;
   const int now = ImGui::GetFrameCount();
   for (const auto& [key, s] : g_seen) {
-    if (now - s.frame <= 2) out.push_back(ItemRect{s.cmd, s.rect, s.where});
+    if (now - s.frame <= 2) out.push_back(ItemRect{s.cmd, s.rect, s.where, OneLine(LabelOf(s.cmd))});
   }
   return out;
 }
@@ -2063,17 +2093,39 @@ ContextState& Context() {
 void DrawTabRow(const ImRect& r) {
   ImDrawList* dl = ImGui::GetWindowDrawList();
   g_executed = false;
-  // a contextual tab that went away: back to Home
+  // a contextual tab that went away: back to the tab selected before it opened by itself, else Home
   if (g_state.selected_tab >= 0 && g_state.selected_tab < static_cast<int>(g_tabs.size())) {
     const Tab& sel = g_tabs[static_cast<size_t>(g_state.selected_tab)];
-    if (sel.visible && !*sel.visible) g_state.selected_tab = 1;
+    if (sel.visible && !*sel.visible) {
+      const int before = g_state.tab_before_contextual;
+      const bool usable = before >= 0 && before < static_cast<int>(g_tabs.size()) && !g_tabs[static_cast<size_t>(before)].backstage &&
+                          (!g_tabs[static_cast<size_t>(before)].visible || *g_tabs[static_cast<size_t>(before)].visible);
+      g_state.selected_tab = usable ? before : 1;
+      g_state.tab_before_contextual = -1;
+    }
+  }
+  // an object just inserted brings its contextual tab: selected as it appears, as Excel's (the first one: Chart
+  // Design before Format)
+  g_state.tab_was_visible.resize(g_tabs.size(), 0);
+  for (size_t i = 0; i < g_tabs.size(); ++i) {
+    const bool now = g_tabs[i].visible && *g_tabs[i].visible;
+    if (now && g_tabs[i].visible && !g_state.tab_was_visible[i] && ImGui::GetFrameCount() <= g_state.open_contextual_until) {
+      const int cur = g_state.selected_tab;
+      const bool cur_contextual = cur >= 0 && cur < static_cast<int>(g_tabs.size()) && g_tabs[static_cast<size_t>(cur)].visible;
+      if (!cur_contextual) g_state.tab_before_contextual = cur;
+      g_state.selected_tab = static_cast<int>(i);
+      g_state.open_contextual_until = 0;
+    }
+    g_state.tab_was_visible[i] = now ? 1 : 0;
   }
   g_state.hovered_tile.clear();  // set again by the tile under the mouse (the ribbon body and its popups are drawn after this)
   g_kt_prev = std::move(g_kt);
   g_kt.clear();
   // a modal dialog owns the keyboard: Alt + a letter there is the dialog's (Excel's underlined keys), never the
   // ribbon's KeyTips behind it, which took the letters typed next and ran Home's commands under the dialog
-  if (ImGui::GetTopMostPopupModal()) {  // (the ribbon draws before the dialog: "visible" reads false here)
+  // (the ribbon draws before the dialog: "visible" reads false here; a dialog that isn't modal says it had the keyboard
+  // last frame)
+  if (ImGui::GetTopMostPopupModal() || ImGui::GetFrameCount() - g_state.dialog_keys_frame <= 1) {
     g_state.keytip_level = 0;
     g_state.legacy_keys.clear();
     g_kt_typed.clear();
@@ -3022,8 +3074,11 @@ void BuildDefaultTabs(bool* show_gridlines, bool* show_headings, bool* show_form
     t.groups.push_back({TR("Group##ctx_spark"), icon::SparkLine,
                         {large({btn("SparkAxisMenu", K::Menu)}), stack({btn("SparkGroup"), btn("SparkUngroup"), split("SparkClear", {"SparkClear", "SparkClearGroups"})})},
                         ""});
-    t.groups.back().blocks[0].items[0].menu = {"SparkAxisGeneral", "SparkAxisDate", "SparkAxis", "SparkRightToLeft", "-", "SparkMinAuto", "SparkMinSame",
-                                               "SparkMinCustom", "-", "SparkMaxAuto", "SparkMaxSame", "SparkMaxCustom"};
+    // Excel's headings over the three parts: the two Automatic / Same / Custom sets looked the same without them
+    t.groups.back().blocks[0].items[0].menu = {std::string("~") + TR("Horizontal Axis Options"), "SparkAxisGeneral", "SparkAxisDate", "SparkAxis",
+                                               "SparkRightToLeft", std::string("~") + TR("Vertical Axis Minimum Value Options"), "SparkMinAuto",
+                                               "SparkMinSame", "SparkMinCustom", std::string("~") + TR("Vertical Axis Maximum Value Options"),
+                                               "SparkMaxAuto", "SparkMaxSame", "SparkMaxCustom"};
     g_tabs.push_back(std::move(t));
   }
   {

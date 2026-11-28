@@ -153,6 +153,12 @@ enum class Stage : int { Large = 0, Medium = 1, Small = 2, Collapsed = 3 };
 
 struct State {
   int selected_tab = 1;
+  // an insert command just ran (Ctrl+T, Alt+F1, a shape): the contextual tab its object brings is selected when it
+  // appears within this frame (Excel opens Table Design, Chart Design, Shape Format); and the tab that was selected
+  // before it comes back when the contextual tab goes away
+  int open_contextual_until = 0;
+  int tab_before_contextual = -1;
+  std::vector<char> tab_was_visible;
   bool collapsed = false;      // show tabs only (double-click a tab or Ctrl+F1)
   bool peek = false;           // temporarily expanded while collapsed
   // where the tabs and the collapse arrow were drawn last frame (tests and agents click them: ui.state "ribbon")
@@ -195,6 +201,11 @@ struct State {
   uint32_t menu_color = 0;
   // KeyTips: 0 off, 1 over the tabs (Alt / F10), 2 over the selected tab's commands
   int keytip_level = 0;
+  // the frame a dialog that isn't modal (Find and Replace) last had the keyboard: Alt + a letter is the dialog's then
+  int dialog_keys_frame = -10;
+  // the frame a drop-down of the ribbon (a menu, a gallery, a combo's list) last showed: the arrow keys and Enter move
+  // in it and pick, as in Excel's (Alt, H, N, arrows, Enter), not on the sheet behind it
+  int menu_frame = -10;
   std::string legacy_keys;  // Excel 2003's menu keys typed so far after Alt ("ES"), shown as Excel shows them
   // measurements
   double last_cpu_ms = 0.0;
@@ -217,6 +228,7 @@ struct ItemRect {
   std::string cmd;
   ImRect rect;
   const char* where;  // "ribbon" (a button), "dropdown" (opens a menu or gallery), "combo", "menu", "tile", "backstage"
+  std::string label;  // the text shown for it, on one line (its command's label)
 };
 std::vector<ItemRect> VisibleItems();
 // tabs or groups were added / removed after BuildDefaultTabs (RibbonX): drop the cached layout

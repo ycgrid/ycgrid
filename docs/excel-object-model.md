@@ -15,11 +15,11 @@ macros commonly read or set; **low**: the rest.
 
 ## Summary
 
-1146 of Excel's 1996 members are YCGrid's, 439 are not planned and 411 are open gaps (24 high, 103 medium, 284 low).
+1149 of Excel's 1996 members are YCGrid's, 439 are not planned and 408 are open gaps (24 high, 100 medium, 284 low).
 
 | Object | Excel's members | YCGrid has | Not planned | Gaps: high | medium | low |
 |---|---|---|---|---|---|---|
-| Application | 263 | 110 | 102 | 16 | 28 | 7 |
+| Application | 263 | 113 | 102 | 16 | 25 | 7 |
 | Workbook | 183 | 51 | 96 | 2 | 17 | 17 |
 | Workbooks | 13 | 6 | 5 | 1 | 0 | 1 |
 | Worksheet | 87 | 71 | 10 | 0 | 4 | 2 |
@@ -72,7 +72,7 @@ macros commonly read or set; **low**: the rest.
 | SlicerCache | 29 | 18 | 4 | 0 | 0 | 7 |
 | SparklineGroup | 21 | 17 | 1 | 0 | 0 | 3 |
 | Scenario | 13 | 10 | 1 | 0 | 0 | 2 |
-| **All** | 1996 | 1146 | 439 | 24 | 103 | 284 |
+| **All** | 1996 | 1149 | 439 | 24 | 100 | 284 |
 
 ## Open gaps
 
@@ -91,9 +91,9 @@ macros commonly read or set; **low**: the rest.
 - **Workbooks**: `Close`
 - **Sheets**: `Copy`, `Delete`, `Move`, `PrintOut`, `Visible`
 
-### Medium: File > Options items (Formulas, Advanced, Save, Data) (31)
+### Medium: File > Options items (Formulas, Advanced, Save, Data) (28)
 
-- **Application**: `AutoFormatAsYouTypeReplaceHyperlinks`, `ChartDataPointTrack`, `CopyObjectsWithCells`, `DataEntryMode`, `DefaultFilePath`, `DefaultPivotTableLayoutOptions`, `DisplayClipboardWindow`, `DisplayNoteIndicator`, `DisplayRecentFiles`, `DisplayScrollBars`, `ExtendList`, `GenerateTableRefs`, `MeasurementUnit`, `RecentFiles`, `RollZoom`, `ShowDevTools`, `ShowToolTips`, `WarnOnFunctionNameConflict`
+- **Application**: `ChartDataPointTrack`, `CopyObjectsWithCells`, `DataEntryMode`, `DefaultFilePath`, `DefaultPivotTableLayoutOptions`, `DisplayClipboardWindow`, `DisplayNoteIndicator`, `DisplayRecentFiles`, `DisplayScrollBars`, `MeasurementUnit`, `RecentFiles`, `RollZoom`, `ShowDevTools`, `ShowToolTips`, `WarnOnFunctionNameConflict`
 - **Workbook**: `ChartDataPointTrack`, `CreateBackup`, `EnableAutoRecover`, `ReadOnlyRecommended`, `SaveLinkValues`, `UpdateLinks`, `WritePassword`, `WriteReserved`, `WriteReservedBy`
 - **Window**: `AutoFilterDateGrouping`, `GridlineColorIndex`
 - **AutoCorrect**: `AutoExpandListRange`, `AutoFillFormulasInLists`

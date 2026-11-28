@@ -320,6 +320,9 @@ struct AppState {
   uint32_t marquee_sheet = 0;
   // format painter
   bool format_painter = false, format_painter_sticky = false, painter_armed = false;
+  // columns a number format widened by itself (sheet, column) -> the width it gave: Excel widens a column whose width
+  // nobody set again and again as formats lengthen its numbers; a width set by hand since (another width) stays
+  std::map<std::pair<uint32_t, uint32_t>, int32_t> auto_widened;
   Rect painter_rect{};  // Format Painter's source cells (outlined while it is on)
   int format_category = -1;  // Format Cells opens its Number tab on this category once (More Accounting Formats)
   uint32_t painter_sheet = 0;
@@ -563,6 +566,9 @@ bool EditHasTextSelection(const AppState& s);
 void ApplyStyle(AppState& s, const std::string& label, std::function<void(model::Style&)> fn);
 // the rows of areas that size themselves and need another height once restyle is applied (Wrap Text, a bigger font,
 // a cell style): row -> height in px, to set in the same undo step as the change
+// the columns of areas a number format widens (a number it shows wider than a column nobody sized): column -> width px,
+// to set in the same undo step as the format (Excel 16, measured); noted in AppState::auto_widened
+std::vector<std::pair<uint32_t, int32_t>> ColumnsToWidenForFormat(AppState& s, uint32_t sheet, const std::vector<Rect>& areas, const std::string& code);
 std::vector<std::pair<uint32_t, int32_t>> FitRowsForStyle(AppState& s, uint32_t sheet, const std::vector<Rect>& areas,
                                                           const std::function<void(model::Style&)>& restyle, const std::string* font = nullptr);
 void StartEdit(AppState& s, bool replace, std::string initial, bool in_formula_bar = false);
@@ -609,6 +615,11 @@ void EditInsertText(AppState& s, const std::string& text);  // typed at the care
 std::string NowTimeText();
 void ClearSelection(AppState& s, int what);  // 0 contents, 1 formats, 2 all
 void InsertOrDelete(AppState& s, bool insert, int what);  // what: 0 by selection, 1 entire row, 2 entire column, 3 shift down/up, 4 shift right/left
+// the table the selection (one area) lies in, or null: Insert / Delete then act on its rows or columns, as in Excel
+const model::Table* SelectionTable(AppState& s, Rect* area = nullptr);
+// Insert Table Rows Above / Table Columns to the Left and Delete Table Rows / Columns over the selection's lines of
+// its table (what: 1 rows, 2 columns); false when the selection isn't in a table
+bool TableRowsCols(AppState& s, bool insert, int what);
 void AutoSum(AppState& s, const char* fn);
 // Application.EnableLargeOperationAlert: true when it asked (the operation runs again on Yes)
 bool AskBeforeLargeOperation(AppState& s, uint64_t cells, std::function<void()> again);
@@ -720,7 +731,9 @@ bool NumberFormatPicker(std::string& code);
 bool PaletteColor(const char* label, uint32_t* argb, bool allow_auto, const char* auto_label);  // fx on a cell whose formula is one call (=SUM(A1:A9)): its arguments
 void DrawContextMenus(AppState& s);
 void OpenCellContextMenu();
-void OpenCellContextMenuAt(ImVec2 pos);  // Shift+F10 / the Menu key: at the active cell
+// Shift+F10 / the Menu key: at the active cell; whole rows or columns selected open the row or column menu, as Excel's
+// (kind 1 rows, 2 columns)
+void OpenCellContextMenuAt(ImVec2 pos, int kind = 0);
 bool ContextMenuOpen();                   // a cell, header or sheet tab menu is open
 void OpenColHeaderContextMenu();
 void OpenRowHeaderContextMenu();
@@ -810,10 +823,26 @@ bool DlgOkButton(const char* label, const ImVec2& size);
 // Name Box and the formula bar (ImGui's default corner): centered, along the bottom, or at a side below the ribbon
 enum class WindowPlace { Center, Bottom, Left, Right };
 void PlaceNewWindow(WindowPlace where);
+// a task pane (Clipboard, Format, Selection) docked beside the sheets the first time it shows in a session, as Excel's
+// panes sit beside the grid: floating, the Clipboard pane lay over columns A:D and the cells it was for. Call before
+// its Begin; left of the sheets or right, about `width` pixels wide. Moved or floated later, it stays where it is put
+void DockAsTaskPane(const char* window_title, bool left, float width);
 // a dialog's list (Data Analysis tools, chart types) by keyboard, as in Excel: Up / Down, Home / End, and a letter
 // jumps to the next item starting with it. Call before drawing the list; returns true when the choice moved (scroll
 // it into view: ImGui::SetScrollHereY() when drawing the chosen item)
 bool DlgListKeys(int* sel, int count, const std::function<const char*(int)>& label);
+// a dialog's tab bar: ImGui::BeginTabBar, and Ctrl+Tab / Ctrl+PgDn go to the next tab, Ctrl+Shift+Tab / Ctrl+PgUp to the
+// one before (Excel's dialogs); every dialog's tabs use it
+bool BeginDlgTabBar(const char* id);
+// a check box over several others ((Select All)): ticked when all are, empty when none, mixed otherwise (Excel's filled
+// square); a click on a mixed one ticks it
+bool CheckboxMixed(const char* label, bool* all, bool mixed);
+// an option's letter in a dialog (Excel's underlined one), while the dialog has the keyboard: the letter alone when no
+// text box takes it, or with Alt (Ctrl+-, R, Enter deletes a row; Alt+C ticks Text to Columns' Comma)
+bool DlgKey(ImGuiKey key);
+// a dialog that isn't modal (Find and Replace, Select Data Source, Symbol...) calls this after its Begin: while it has
+// the keyboard, Alt + a letter is the dialog's, never the ribbon's KeyTips behind it (Excel)
+void NoteDialogKeyboard();
 void FinishModalCopy(AppState& s);  // once a frame, after the dialogs
 void RegisterUiCustomCommands(AppState& s);
 void UpdateUiCustom(AppState& s);
@@ -1032,6 +1061,7 @@ void RegisterRuleCommands(AppState& s);
 // mouse, or the open Highlight Cells Rules / Top Bottom dialog's rule; nullptr = none (rules_ui.cpp)
 const model::CfRule* CfPreviewRule(AppState& s, const std::string& hovered);
 void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
+void DrawInputMessage(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
 void DrawRulePopups(AppState& s);
 void DrawRuleDialogs(AppState& s);
 ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32_t c, const std::string& text);
@@ -1042,6 +1072,10 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
 // Use GetPivotData functions: GETPIVOTDATA("Sum of Sales",$A$3,"Region","East") for a PivotTable's value cell
 // pointed at while typing a formula ("" for any other cell, or with the option off)
 std::string GetPivotDataFor(AppState& s, uint32_t sheet, uint32_t r, uint32_t c);
+// Use table names in formulas: Table1[Px], Table1[@Qty]... for the part of a table pointed at while typing a formula
+// ("" for cells that are no such part, or with the option off)
+// formula_row: the row of the formula's cell on that sheet (AutoSum's); -1: the cell being edited
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& r, int64_t formula_row = -1);
 void DrawCellTips(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g);
 void DrawMiscWindows(AppState& s);
 void DrawMiscDialogs(AppState& s);
@@ -1150,6 +1184,10 @@ bool RefuseLockedEdit(AppState& s, uint32_t sheet, uint32_t r, uint32_t c);  // 
 // change the workbook. Called before running it, so a dialog never reads the engine's refusal (0, false, "") as
 // "nothing found" and shows a wrong or blank message box
 bool RefuseReadOnlyUi(AppState& s);
+// a protected sheet's rules for the active cell: which cells are unlocked (Tab goes between them) and, when locked cells
+// can't be selected, which can be; both left empty on a sheet without protection
+void ProtectionCellRules(const model::Sheet& sh, const model::StyleTable* styles, std::function<bool(uint32_t, uint32_t)>* unlocked,
+                         std::function<bool(uint32_t, uint32_t)>* selectable);
 // commands that change the workbook don't run (nor open their dialogs) in read-only mode (safety_ui.cpp)
 bool ReadOnlyRefusesCommand(const std::string& id);
 
@@ -1257,6 +1295,8 @@ std::string QueueUiScript(const std::string& script);  // "" or why the script w
 bool UiScriptBusy();
 // [YC] ui.cell_rect: a range of the active sheet in the window pixels ui.input takes (scrolled into view first)
 bool RangeWindowRect(const std::string& addr, float out[4]);
+// where Page Layout view drew the range last frame (its first cell's page); false: not on a page shown
+bool PageLayoutRangeRect(uint32_t sheet, const Rect& a, ImRect* out);
 // a Windows message box on the UI thread - except in a hidden instance or while an agent's input / macro runs with
 // automatic dialogs, where nobody could answer it: then the text goes to the Immediate window and the Error Log and
 // auto_answer (IDOK, IDYES, IDCANCEL...) is returned at once

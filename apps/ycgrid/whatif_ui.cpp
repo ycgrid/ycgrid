@@ -88,7 +88,11 @@ WhatIfUi& W() {
   return w;
 }
 
-bool BeginDlg(AppState& s, Dialog d, const char* title, float width) {
+// `cancel` given: Esc doesn't close the dialog but sets it, so the dialog does what its Cancel does (Goal Seek Status
+// and Solver Results put the original values back, Solver's other pages go back a page); its close box, which closes
+// it at once, sets it too
+bool BeginDlg(AppState& s, Dialog d, const char* title, float width, bool* cancel = nullptr) {
+  if (cancel) *cancel = false;
   if (s.dialog != d) return false;
   if (s.dialog_open_request) {
     ImGui::OpenPopup(title);
@@ -98,11 +102,18 @@ bool BeginDlg(AppState& s, Dialog d, const char* title, float width) {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   bool open = true;
   if (!BeginModal(title, &open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
+    if (!open && cancel) *cancel = true;  // its close box
     if (!RangePicking() && !ImGui::IsPopupOpen(title)) s.dialog = Dialog::None;
     return false;
   }
-  if (!open || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false))) {
+  const bool esc = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+  if (cancel && esc) {
+    *cancel = true;
+    return true;
+  }
+  if (!open || esc) {
     // the close box or Esc, like Excel's dialogs
+    if (cancel) *cancel = true;
     ImGui::CloseCurrentPopup();
     ImGui::EndPopup();
     s.dialog = Dialog::None;
@@ -291,7 +302,9 @@ void DrawWhatIfDialogs(AppState& s) {
   DrawDataToolDialogs(s);
 
   // Goal Seek
-  if (BeginDlg(s, Dialog::GoalSeek, TR("Goal Seek###yc_goalseek"), 320)) {
+  const bool gs_status = s.dialog == Dialog::GoalSeek && w.gs_done;
+  bool gs_cancel = false;
+  if (BeginDlg(s, Dialog::GoalSeek, TR("Goal Seek###yc_goalseek"), 320, &gs_cancel)) {
     bool close = false;
     if (!w.gs_done) {
       RefField(s, TR("Set cell:"), w.gs_set, sizeof(w.gs_set), 260, RangeBox_Cell);
@@ -326,7 +339,7 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) close = true;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || gs_cancel) close = true;
     } else {
       ImGui::TextUnformatted((std::string(TR("Goal Seeking with Cell ")) + w.gs_set + (w.gs_result.found ? TR(" found a solution.") : TR(" may not have found a solution."))).c_str());
       if (!w.gs_result.error.empty() && !w.gs_result.found) ImGui::TextWrapped("%s", w.gs_result.error.c_str());
@@ -345,12 +358,17 @@ void DrawWhatIfDialogs(AppState& s) {
       ImGui::EndDisabled();
       if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) close = true;
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) {
+      // Cancel, Esc and the close box put the original value back, as Excel's (Esc kept the value found)
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || gs_cancel) {
         if (w.gs_changed) s.engine->Call([](Document& d) { return d.Undo(); });  // back to the original value (only the search's own step)
+        w.gs_changed = false;
         close = true;
       }
     }
     EndDlg(s, close);
+  } else if (gs_cancel && gs_status && w.gs_changed) {
+    s.engine->Call([](Document& d) { return d.Undo(); });  // closed by its box
+    w.gs_changed = false;
   }
 
   // Data Table
@@ -389,7 +407,8 @@ void DrawWhatIfDialogs(AppState& s) {
   }
 
   // Scenario Manager
-  if (BeginDlg(s, Dialog::ScenarioManager, TR("Scenario Manager###yc_scenarios"), 460)) {
+  bool sc_cancel = false;  // Esc: the page's Cancel (back to the list), or Close on the list, as in Excel
+  if (BeginDlg(s, Dialog::ScenarioManager, TR("Scenario Manager###yc_scenarios"), 460, &sc_cancel)) {
     bool close = false;
     const uint32_t sheet = s.focus_sheet;
     const model::Sheet* sh = s.FocusSheet();
@@ -467,7 +486,7 @@ void DrawWhatIfDialogs(AppState& s) {
       }
       ImGui::EndDisabled();
       ImGui::SameLine();
-      if (ImGui::Button(TR("Close"), ImVec2(S(80), 0))) close = true;
+      if (ImGui::Button(TR("Close"), ImVec2(S(80), 0)) || sc_cancel) close = true;
     } else if (w.sc_mode == 1) {
       TextField(TR("Scenario name:"), w.sc_name, sizeof(w.sc_name));
       RefField(s, TR("Changing cells:"), w.sc_cells, sizeof(w.sc_cells), 380);
@@ -511,7 +530,7 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     } else if (w.sc_mode == 2) {
       ImGui::TextUnformatted(TR("Enter values for each of the changing cells."));
       for (size_t i = 0; i < w.sc_cell_list.size(); ++i) {
@@ -529,7 +548,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::BeginGroup();
         const bool ok = DlgOkButton(TR("OK"), ImVec2(S(80), 0));
         ImGui::SameLine();
-        const bool cancel = ImGui::Button(TR("Cancel"), ImVec2(S(80), 0));
+        const bool cancel = ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel;
         ImGui::SameLine();
         const bool add = ImGui::Button(TR("Add"), ImVec2(S(80), 0));
         ImGui::EndGroup();
@@ -595,11 +614,11 @@ void DrawWhatIfDialogs(AppState& s) {
       }
       ImGui::EndDisabled();
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     } else {
       ImGui::SeparatorText(TR("Report type"));
-      ImGui::RadioButton(TR("Scenario summary"), &w.sc_report, 0);
-      ImGui::RadioButton(TR("Scenario PivotTable report"), &w.sc_report, 1);
+      ui::RadioButton(TR("Scenario summary"), &w.sc_report, 0);
+      ui::RadioButton(TR("Scenario PivotTable report"), &w.sc_report, 1);
       RefField(s, TR("Result cells:"), w.sc_results, sizeof(w.sc_results), 380);
       if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
         std::vector<std::pair<uint32_t, Rect>> refs;
@@ -625,7 +644,7 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       ImGui::SameLine();
-      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sc_mode = 0;
+      if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sc_cancel) w.sc_mode = 0;
     }
     EndDlg(s, close);
   }
@@ -636,7 +655,7 @@ void DrawWhatIfDialogs(AppState& s) {
     const char* kFuncs[] = {TR("Sum"), TR("Count"), TR("Average"), TR("Max"), TR("Min"), TR("Product"), TR("Count Numbers"), TR("StdDev"), TR("StdDevp"), TR("Var"), TR("Varp")};
     ImGui::TextUnformatted(TR("Function:"));
     ImGui::SetNextItemWidth(S(200));
-    ImGui::Combo("##cofunc", &w.co_func, kFuncs, 11);
+    ui::Combo("##cofunc", &w.co_func, kFuncs, 11);
     RefField(s, TR("Reference:"), w.co_ref, sizeof(w.co_ref), 300, RangeBox_Sheet);
     ImGui::SameLine();
     if (ImGui::Button(TR("Browse..."))) {
@@ -732,8 +751,8 @@ void DrawWhatIfDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::AdvancedFilter, TR("Advanced Filter###yc_advfilter"), 360)) {
     bool close = false;
     ImGui::TextUnformatted(TR("Action"));
-    ImGui::RadioButton(TR("Filter the list, in-place"), &w.af_action, 0);
-    ImGui::RadioButton(TR("Copy to another location"), &w.af_action, 1);
+    ui::RadioButton(TR("Filter the list, in-place"), &w.af_action, 0);
+    ui::RadioButton(TR("Copy to another location"), &w.af_action, 1);
     RefField(s, TR("List range:"), w.af_list, sizeof(w.af_list));
     RefField(s, TR("Criteria range:"), w.af_crit, sizeof(w.af_crit));
     ImGui::BeginDisabled(w.af_action == 0);
@@ -776,7 +795,9 @@ void DrawWhatIfDialogs(AppState& s) {
                             TR("Save Scenario###yc_solver")};
     const int page = std::clamp(w.sv_page, 0, 5);
     if (s.dialog == Dialog::Solver) ui::NoteWindowTitle(titles[page]);
-    if (BeginDlg(s, Dialog::Solver, titles[page], page == 0 ? 560.0f : 420.0f)) {
+    bool sv_cancel = false;
+    const bool sv_results = s.dialog == Dialog::Solver && page == 1;
+    if (BeginDlg(s, Dialog::Solver, titles[page], page == 0 ? 560.0f : 420.0f, &sv_cancel)) {
       bool close = false;
       const uint32_t sheet = w.sv_sheet;
       auto read_model = [&]() {
@@ -800,11 +821,11 @@ void DrawWhatIfDialogs(AppState& s) {
         RefField(s, TR("Set Objective:"), w.sv_obj, sizeof(w.sv_obj), 260, RangeBox_Cell);
         ImGui::TextUnformatted(TR("To:"));
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Max"), &w.sv.goal, 1);
+        ui::RadioButton(TR("Max"), &w.sv.goal, 1);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Min"), &w.sv.goal, 2);
+        ui::RadioButton(TR("Min"), &w.sv.goal, 2);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Value Of:"), &w.sv.goal, 3);
+        ui::RadioButton(TR("Value Of:"), &w.sv.goal, 3);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(90));
         ImGui::BeginDisabled(w.sv.goal != 3);  // Value Of only counts with its option
@@ -877,7 +898,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(200));
         ui::NoteUiItem("##svmethod", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(200), ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##svmethod", &method, kMethods, 3)) w.sv.method = method + 1;
+        if (ui::Combo("##svmethod", &method, kMethods, 3)) w.sv.method = method + 1;
         ImGui::SameLine();
         if (ImGui::Button(TR("Options"), ImVec2(S(90), 0))) {
           w.sv_opts = w.sv;
@@ -920,7 +941,7 @@ void DrawWhatIfDialogs(AppState& s) {
           }
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Close"), ImVec2(S(90), 0))) {
+        if (ImGui::Button(TR("Close"), ImVec2(S(90), 0)) || sv_cancel) {  // Esc is Close here, as in Excel
           save_model();
           close = true;
         }
@@ -935,7 +956,7 @@ void DrawWhatIfDialogs(AppState& s) {
         ImGui::TextUnformatted(" ");
         ImGui::SetNextItemWidth(S(60));
         ui::NoteUiItem("##crel", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(S(60), ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##crel", &w.sv_crel, kRel, 6)) {
+        if (ui::Combo("##crel", &w.sv_crel, kRel, 6)) {
           static const char* kWords[] = {"", "", "", "integer", "binary", "AllDifferent"};
           if (w.sv_crel >= 3) Copy(w.sv_crhs, sizeof(w.sv_crhs), kWords[w.sv_crel]);  // Excel shows the word in the box
           else if (!std::strcmp(w.sv_crhs, "integer") || !std::strcmp(w.sv_crhs, "binary") || !std::strcmp(w.sv_crhs, "AllDifferent")) w.sv_crhs[0] = 0;
@@ -972,7 +993,7 @@ void DrawWhatIfDialogs(AppState& s) {
           }
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sv_page = 0;
+        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sv_cancel) w.sv_page = 0;  // Esc goes back to the parameters, as Cancel
       } else if (page == 2) {
         // Options: All Methods, GRG Nonlinear, Evolutionary
         model::SolverModel& o = w.sv_opts;
@@ -992,7 +1013,7 @@ void DrawWhatIfDialogs(AppState& s) {
           std::snprintf(b, sizeof(b), "%s", blank_zero && *v == 0 ? "" : std::to_string(*v).c_str());
           if (ImGui::InputText(id, b, sizeof(b), ImGuiInputTextFlags_CharsDecimal)) *v = std::max(0, std::atoi(b));
         };
-        if (ImGui::BeginTabBar("##svopts")) {
+        if (BeginDlgTabBar("##svopts")) {
           if (ImGui::BeginTabItem(TR("All Methods"), nullptr, w.sv_opt_tab == 0 && w.sv_opt_set ? ImGuiTabItemFlags_SetSelected : 0)) {
             num(TR("Constraint Precision:"), "##o_prec", &o.precision, "%g");
             ImGui::Checkbox(TR("Use Automatic Scaling"), &o.auto_scaling);
@@ -1011,9 +1032,9 @@ void DrawWhatIfDialogs(AppState& s) {
           if (ImGui::BeginTabItem(TR("GRG Nonlinear"), nullptr, w.sv_opt_tab == 1 && w.sv_opt_set ? ImGuiTabItemFlags_SetSelected : 0)) {
             num(TR("Convergence:"), "##o_conv", &o.convergence, "%g");
             ImGui::SeparatorText(TR("Derivatives"));
-            ImGui::RadioButton(TR("Forward"), &o.derivatives, 1);
+            ui::RadioButton(TR("Forward"), &o.derivatives, 1);
             ImGui::SameLine();
-            ImGui::RadioButton(TR("Central"), &o.derivatives, 2);
+            ui::RadioButton(TR("Central"), &o.derivatives, 2);
             ImGui::SeparatorText(TR("Multistart"));
             ImGui::Checkbox(TR("Use Multistart"), &o.multistart);
             inum(TR("Population Size:"), "##o_pop", &o.population, false);
@@ -1049,7 +1070,7 @@ void DrawWhatIfDialogs(AppState& s) {
           w.sv_page = 0;
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sv_page = 0;
+        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sv_cancel) w.sv_page = 0;  // Esc goes back to the parameters, as Cancel
       } else if (page == 4) {
         // Load/Save Model: the cells to read a model from, or the first cell to write it to
         ImGui::PushTextWrapPos(S(400));
@@ -1089,7 +1110,7 @@ void DrawWhatIfDialogs(AppState& s) {
           else w.sv_page = 0;
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sv_page = 0;
+        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sv_cancel) w.sv_page = 0;  // Esc goes back to the parameters, as Cancel
       } else if (page == 5) {
         // Save Scenario: the variable cells' values under a name (Scenario Manager lists it)
         TextField(TR("Scenario Name:"), w.sv_scn, sizeof(w.sv_scn), 300);
@@ -1112,16 +1133,16 @@ void DrawWhatIfDialogs(AppState& s) {
           }
         }
         ImGui::SameLine();
-        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) w.sv_page = 1;
+        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sv_cancel) w.sv_page = 1;
       } else {
         // Solver Results: the message, Keep / Restore, the reports, Return to Solver Parameters Dialog
         ImGui::PushTextWrapPos(S(400));
         ImGui::TextUnformatted(w.sv_result.message.c_str());
         ImGui::PopTextWrapPos();
         ImGui::BeginGroup();
-        ImGui::RadioButton(TR("Keep Solver Solution"), w.sv_keep);
+        ui::RadioButton(TR("Keep Solver Solution"), w.sv_keep);
         if (ImGui::IsItemClicked()) w.sv_keep = true;
-        ImGui::RadioButton(TR("Restore Original Values"), !w.sv_keep);
+        ui::RadioButton(TR("Restore Original Values"), !w.sv_keep);
         if (ImGui::IsItemClicked()) w.sv_keep = false;
         ImGui::Dummy(ImVec2(1, S(8)));
         ImGui::Checkbox(TR("Return to Solver Parameters Dialog"), &w.sv_return);
@@ -1168,7 +1189,7 @@ void DrawWhatIfDialogs(AppState& s) {
         };
         if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) finish(w.sv_keep);
         ImGui::SameLine();
-        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0))) finish(false);  // Excel's Cancel restores the original values
+        if (ImGui::Button(TR("Cancel"), ImVec2(S(80), 0)) || sv_cancel) finish(false);  // Excel's Cancel (and Esc) restores the original values
         ImGui::SameLine(S(250));
         if (ImGui::Button(TR("Save Scenario..."), ImVec2(S(150), 0))) {
           w.sv_scn[0] = 0;
@@ -1176,6 +1197,9 @@ void DrawWhatIfDialogs(AppState& s) {
         }
       }
       EndDlg(s, close);
+    } else if (sv_cancel && sv_results && w.sv_changed) {
+      s.engine->Call([](Document& d) { return d.Undo(); });  // Solver Results closed by its box: the original values
+      w.sv_changed = false;
     }
   }
 }

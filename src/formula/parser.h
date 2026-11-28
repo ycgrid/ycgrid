@@ -93,6 +93,10 @@ std::vector<RefSpan> FindRefSpans(std::string_view text, core::CellPos origin, c
 
 // whether it looks like a numeric constant (to decide whether an input is a formula)
 bool LooksLikeFormula(std::string_view text);
+// an entry typed with a full-width = (a Chinese or Japanese IME in full-width mode) is a formula: its full-width
+// letters, digits and marks outside quotes become half-width, what is quoted stays as typed (Excel 16, measured:
+// full-width =A1*2 is =A1*2, ="AB" in full-width keeps the full-width AB). Other text comes back unchanged
+std::string FoldFullWidthFormula(std::string_view text);
 // a name A1 formulas refuse as the start of an R1C1 reference (R2D2, C3PO, R1C1, RC1x; Rx and R0x are names)
 bool IsR1C1LikeName(std::string_view s);
 

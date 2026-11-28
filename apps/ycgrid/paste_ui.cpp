@@ -30,23 +30,24 @@ struct Way {
   const char* cmd;
   const char* label;
   int group;  // 0 Paste, 1 Paste Values, 2 Other Paste Options
+  char key;   // Excel's letter (Values (V)): Ctrl+V, then Ctrl, then V pastes values
 };
 const Way* Ways(size_t* n) {
   static const Way k[] = {
-      {0, "Paste", TR("Paste"), 0},
-      {1, "PasteFormulas", TR("Formulas"), 0},
-      {13, "PasteFormulasNumberFormats", TR("Formulas & Number Formatting"), 0},
-      {9, "PasteKeepSource", TR("Keep Source Formatting"), 0},
-      {3, "PasteNoBorders", TR("No Borders"), 0},
-      {2, "PasteKeepWidths", TR("Keep Source Column Widths"), 0},
-      {4, "PasteTranspose", TR("Transpose"), 0},
-      {5, "PasteValues", TR("Values"), 1},
-      {12, "PasteValuesNumberFormats", TR("Values & Number Formatting"), 1},
-      {6, "PasteValuesSourceFormats", TR("Values & Source Formatting"), 1},
-      {7, "PasteFormats", TR("Formatting"), 2},
-      {8, "PasteLink", TR("Paste Link"), 2},
-      {10, "PasteAsPicture", TR("Picture"), 2},
-      {11, "PasteLinkedPicture", TR("Linked Picture"), 2},
+      {0, "Paste", TR("Paste"), 0, 'P'},
+      {1, "PasteFormulas", TR("Formulas"), 0, 'F'},
+      {13, "PasteFormulasNumberFormats", TR("Formulas & Number Formatting"), 0, 'O'},
+      {9, "PasteKeepSource", TR("Keep Source Formatting"), 0, 'K'},
+      {3, "PasteNoBorders", TR("No Borders"), 0, 'B'},
+      {2, "PasteKeepWidths", TR("Keep Source Column Widths"), 0, 'W'},
+      {4, "PasteTranspose", TR("Transpose"), 0, 'T'},
+      {5, "PasteValues", TR("Values"), 1, 'V'},
+      {12, "PasteValuesNumberFormats", TR("Values & Number Formatting"), 1, 'A'},
+      {6, "PasteValuesSourceFormats", TR("Values & Source Formatting"), 1, 'E'},
+      {7, "PasteFormats", TR("Formatting"), 2, 'R'},
+      {8, "PasteLink", TR("Paste Link"), 2, 'N'},
+      {10, "PasteAsPicture", TR("Picture"), 2, 'U'},
+      {11, "PasteLinkedPicture", TR("Linked Picture"), 2, 'I'},
   };
   *n = std::size(k);
   return k;
@@ -210,7 +211,7 @@ int PasteIconRow(const int* ids, size_t n, int current) {
     if (hovered || w->id == current) dl->AddRectFilled(r.Min, r.Max, hovered ? IM_COL32(0xD5, 0xE8, 0xD4, 255) : IM_COL32(0xE6, 0xE6, 0xE6, 255), S(2));
     if (w->id == current) dl->AddRect(r.Min, r.Max, IM_COL32(0x21, 0x73, 0x46, 255), S(2));
     DrawPasteGlyph(dl, w->id, ImVec2(p.x + S(4), p.y + S(4)), tile - S(8), true);
-    if (hovered) ImGui::SetTooltip("%s", w->label);
+    if (hovered) ImGui::SetTooltip("%s (%c)", w->label, w->key);  // Excel's tip names its letter: Values (V)
     if (clicked) chosen = w->id;
     ImGui::PopID();
   }
@@ -222,6 +223,13 @@ int PasteGallery(int current) {
   size_t n = 0;
   const Way* w = Ways(&n);
   int chosen = -1;
+  // Excel's letters while the gallery has the keyboard (the Paste Options button's, opened by Ctrl after a paste)
+  const ImGuiIO& io = ImGui::GetIO();
+  if (ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !io.KeyCtrl && !io.KeyAlt && !io.KeyShift) {
+    for (size_t i = 0; i < n && chosen < 0; ++i) {
+      if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(ImGuiKey_A + (w[i].key - 'A')), false)) chosen = w[i].id;
+    }
+  }
   static const char* kHeads[] = {TR("Paste"), TR("Paste Values"), TR("Other Paste Options")};
   for (int g = 0; g < 3; ++g) {
     ImGui::TextDisabled("%s", kHeads[g]);

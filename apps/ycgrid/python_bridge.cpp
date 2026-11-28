@@ -17,6 +17,7 @@
 #include "core/decimal.h"
 #include "core/paths.h"
 #include "engine/custom_lists.h"
+#include "model/table.h"
 #include "engine/navigate.h"
 #include "engine/rule_eval.h"
 #include "engine/tile_iter.h"
@@ -112,27 +113,6 @@ Rect Clamp(const model::Sheet& s, Rect r) {
   if (r.r0 > r.r1) r.r0 = r.r1;
   if (r.c0 > r.c1) r.c0 = r.c1;
   return r;
-}
-
-// the hidden rows (columns) of [a, b] that are in a group: Excel keeps them hidden when they leave it (Ungroup,
-// Clear Outline, OutlineLevel = 1), while Document::GroupOutline shows a row that leaves its last group
-std::vector<uint32_t> HiddenGrouped(const model::Sheet& s, bool rows, uint32_t a, uint32_t b) {
-  std::vector<uint32_t> out;
-  const auto& dim = rows ? *s.rows : *s.cols;
-  const auto& lv = dim.Levels();
-  for (auto it = lv.lower_bound(a); it != lv.end() && it->first <= b; ++it) {
-    if (dim.IsHidden(it->first)) out.push_back(static_cast<uint32_t>(it->first));
-  }
-  return out;
-}
-
-void HideAgain(Document& d, uint32_t sheet, bool rows, const std::vector<uint32_t>& hidden) {
-  for (const uint32_t i : hidden) {
-    const model::Sheet* s = d.S(sheet);
-    if (!s || (rows ? *s->rows : *s->cols).IsHidden(i)) continue;
-    if (rows) d.HideRows(sheet, i, i, true);
-    else d.HideCols(sheet, i, i, true);
-  }
 }
 
 MV ValueToMV(const core::Value& v) {
@@ -2307,6 +2287,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       return x;
     });
   }
+  // xlGuess (Range.Sort, RemoveDuplicates): whether the range's first row is its header, Excel's one guess
+  if (m == "range.guess_header") {
+    return eng.Call([&](Document& d) {
+      if (d.auto_calc) d.Recalc();
+      else d.CalcEntered();
+      const model::Sheet* s = d.S(sheet);
+      const MV* rect = p.Get("rect");
+      return MV::Bool(s && rect && engine::GuessHeaderRow(*d.wb().styles, *s, RectOf(*rect)));
+    });
+  }
   if (m == "range.current_region") {
     return eng.Call([&](Document& d) {
       if (d.auto_calc) d.Recalc();  // manual calculation: read what the cells show (Excel), new formulas computed
@@ -2449,10 +2439,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         err = "Unable to get the Ungroup property of the Range class: the rows or columns are in no group";
         return;
       }
-      const std::vector<uint32_t> hidden = group ? std::vector<uint32_t>{} : HiddenGrouped(*s, rows, a, b);
       d.Begin(group ? "Group" : "Ungroup");
-      d.GroupOutline(sheet, rows, a, b, group);
-      HideAgain(d, sheet, rows, hidden);
+      d.GroupOutline(sheet, rows, a, b, group);  // hidden rows that leave their groups stay hidden, as Excel's
       d.Commit();
     });
     if (!err.empty()) return Err(ec, em, "E_APP", err), MV();
@@ -2530,6 +2518,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     if (const MV* set = p.Get("set")) {
       const int lv = static_cast<int>((set->t == MV::T::Double ? static_cast<int64_t>(set->d) : set->i));
       const uint32_t b_in = static_cast<uint32_t>(p.GetInt("b", index));
+      const bool clear = p.GetBool("clear", false);  // Clear Outline rather than OutlineLevel = 1
       if (lv < 1 || lv > model::DimIndex::kMaxOutline + 1) {
         return Err(ec, em, "E_APP", "Unable to set the OutlineLevel property of the Range class: the level goes from 1 to 8"), MV();
       }
@@ -2539,9 +2528,11 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // a whole column's end marker (0xFFFFFFFF) walked four billion lines
         const uint32_t b = std::min<uint32_t>(b_in, rows ? s0->row_limit - 1 : core::kMaxCols - 1);
         if (index > b) return;
-        const std::vector<uint32_t> hidden = HiddenGrouped(*s0, rows, index, b);
-        d.Begin("OutlineLevel");
-        if (lv == 1) {
+        d.Begin(clear ? "Clear Outline" : "OutlineLevel");
+        if (clear) {
+          // Range.ClearOutline: the lines leave every group and collapsed ones are shown (Excel 16, measured)
+          d.ClearOutline(sheet, rows, index, b);
+        } else if (lv == 1) {
           // Clear Outline: only the grouped rows change (a whole sheet's rows are not walked one by one)
           for (int k = 0; k <= model::DimIndex::kMaxOutline; ++k) {
             const model::Sheet* s = d.S(sheet);
@@ -2590,7 +2581,6 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
             for (int k = run.level; k > lv - 1; --k) d.GroupOutline(sheet, rows, run.a, run.b, false);
           }
         }
-        HideAgain(d, sheet, rows, hidden);
         d.Commit();
       });
       return {};
@@ -3278,6 +3268,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         return MV();
       });
     }
+    // a number format that shows numbers wider than their column widens a column nobody sized (Excel 16's
+    // Range.NumberFormat, measured), as the ribbon's formats do
+    std::vector<std::pair<uint32_t, int32_t>> widen;
+    if (pr.Has("numfmt") && pr.GetStr("numfmt") != "General" && !pr.GetStr("numfmt").empty()) {
+      OnUi([&](AppState& s) {
+        widen = ColumnsToWidenForFormat(s, sheet, areas, pr.GetStr("numfmt"));
+        for (const auto& [c, px] : widen) s.auto_widened[{sheet, c}] = px;
+        return MV();
+      });
+    }
     eng.Call([&](Document& d) {
       d.ForeignWrite();
       auto& tbl = d.wb_mut().styles.mut();
@@ -3291,6 +3291,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         });
       }
       for (const auto& [row, h] : fit) d.SetRowHeight(sheet, row, row, h);
+      for (const auto& [c, px] : widen) d.SetColWidth(sheet, c, c, px);
       // a bigger font grows rows without a height of their own, empty cells too (SetFontSize, the ribbon's)
       const model::Sheet* sh = d.S(sheet);
       if (!pr.Has("font_size") || !sh) return;
@@ -4015,7 +4016,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           return x;
         }
       }
-      if (!d.ResolveNameRef(p.GetStr("name"), sheet, &sid, &r, nullptr, at)) return MV();
+      if (!d.ResolveNameRef(p.GetStr("name"), sheet, &sid, &r, nullptr, at)) {
+        // a table and its structured references (Range("Trades[Qty]"), Goto "Trades"): Excel 16's object model takes
+        // them, the table's name alone being its data (measured: Goto "Trades" selects $B$3:$D$6)
+        const std::string text = p.GetStr("name");
+        const size_t br = text.find('[');
+        if (!model::FindTable(d.wb(), std::string_view(text).substr(0, br))) return MV();
+        if (!d.EvaluateRef(sheet, text, &sid, &r)) return MV();
+      }
       MV x = MV::Map();
       x.Set("sheet", MV::Int(sid));
       x.Set("rect", rect4(r));
@@ -4399,7 +4407,10 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         // the headers become the text their cells show: formulas this connection just wrote have their values first
         // (=SUM(B2:B5) became "0" and the next formulas "02", "03"; Excel 16 makes them "70", "2.69", measured)
         if (areas.size() == 1) Settle(d);
-        const uint32_t nid = areas.size() != 1 ? 0 : d.AddTable(sheet, areas[0], p.GetBool("headers", true), p.Has("style") ? p.GetStr("style") : model::DefaultTableStyle(*d.wb().store), &error);
+        // xlGuess: Excel's guess of a header row, the Create Table dialog's (engine::GuessHeaderRow)
+        const bool headers = p.GetBool("guess", false) && areas.size() == 1 && d.S(sheet) ? engine::GuessHeaderRow(*d.wb().styles, *d.S(sheet), areas[0])
+                                                                                            : p.GetBool("headers", true);
+        const uint32_t nid = areas.size() != 1 ? 0 : d.AddTable(sheet, areas[0], headers, p.Has("style") ? p.GetStr("style") : model::DefaultTableStyle(*d.wb().store), &error);
         if (nid && p.Get("name") && !p.GetStr("name").empty()) d.RenameTable(sheet, nid, p.GetStr("name"), &error);
         r = nid ? table_mv(*d.TableById(sheet, nid)) : MV();
       } else if (m == "table.update") {
@@ -4631,6 +4642,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       flag("move_after_return", &c.move_after_return);
       flag("edit_directly_in_cell", &c.edit_directly_in_cell);
       flag("enable_autocomplete", &c.enable_autocomplete);
+      flag("extend_list", &c.extend_list);
       flag("auto_flash_fill", &c.auto_flash_fill);
       flag("show_quick_analysis", &c.show_quick_analysis);
       flag("alert_before_overwriting", &c.alert_before_overwriting);
@@ -4640,6 +4652,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       flag("calculate_before_save", &c.calculate_before_save);
       flag("format_stale_values", &c.format_stale_values);
       flag("generate_getpivotdata", &c.generate_getpivotdata);
+      flag("generate_table_refs", &c.generate_table_refs);
+      flag("autoformat_hyperlinks", &c.autoformat_hyperlinks);
       const bool threads_were = c.multi_threaded_calc;
       const int count_was = c.calc_thread_count;
       flag("multi_threaded_calc", &c.multi_threaded_calc);
@@ -4662,6 +4676,7 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       x.Set("direction", MV::Int(c.move_after_return_dir));
       x.Set("edit_directly_in_cell", MV::Bool(c.edit_directly_in_cell));
       x.Set("enable_autocomplete", MV::Bool(c.enable_autocomplete));
+      x.Set("extend_list", MV::Bool(c.extend_list));
       x.Set("auto_flash_fill", MV::Bool(c.auto_flash_fill));
       x.Set("show_quick_analysis", MV::Bool(c.show_quick_analysis));
       x.Set("alert_before_overwriting", MV::Bool(c.alert_before_overwriting));
@@ -4672,6 +4687,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       x.Set("calculate_before_save", MV::Bool(c.calculate_before_save));
       x.Set("format_stale_values", MV::Bool(c.format_stale_values));
       x.Set("generate_getpivotdata", MV::Bool(c.generate_getpivotdata));
+      x.Set("generate_table_refs", MV::Bool(c.generate_table_refs));
+      x.Set("autoformat_hyperlinks", MV::Bool(c.autoformat_hyperlinks));
       x.Set("multi_threaded_calc", MV::Bool(c.multi_threaded_calc));
       x.Set("calc_thread_count", MV::Int(c.calc_thread_count));
       x.Set("pool_threads", MV::Int(static_cast<int64_t>(core::PoolSize())));

@@ -118,6 +118,14 @@ void ReportError(const std::string& source, const std::string& title, const std:
   Add(ErrorEntry{0, Now(), source, title, text, error});
 }
 
+void ReportRefusal(const std::string& text) {
+  std::lock_guard<std::mutex> lk(g_mu);
+  g_stream_at = -1;
+  ErrorEntry e{0, Now(), "YCGrid", "YCGrid", text, true};
+  e.refusal = true;
+  Add(std::move(e));
+}
+
 void ReportErrorStream(const std::string& source, const std::string& text) {
   if (text.empty()) return;
   std::lock_guard<std::mutex> lk(g_mu);
@@ -330,6 +338,7 @@ io::MV ErrorRequest(const std::string& m, const io::MV& p, std::string* err) {
       x.Set("title", MV::Str(e.title));
       x.Set("text", MV::Str(e.text));
       x.Set("error", MV::Bool(e.error));
+      if (e.refusal) x.Set("refusal", MV::Bool(true));
       a.Push(std::move(x));
     }
     return a;

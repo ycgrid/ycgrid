@@ -7,6 +7,7 @@
 #include "app_state.h"
 #include "core/i18n.h"
 #include "python_bridge.h"
+#include "settings.h"
 
 #include "commands/command_registry.h"
 #include "engine/bind.h"
@@ -17,6 +18,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <chrono>
@@ -447,7 +449,7 @@ void DrawSafetyFrame(AppState& s) {
       ImGui::InputText(TR("Name"), u.p_name, sizeof u.p_name);
       const char* types[] = {TR("Any value"), TR("Number"), TR("Whole number"), TR("Text"), TR("TRUE / FALSE"), TR("One of a list")};
       ImGui::SetNextItemWidth(S(220));
-      ImGui::Combo(TR("Type"), &u.p_type, types, 6);
+      ui::Combo(TR("Type"), &u.p_type, types, 6);
       if (u.p_type == 1 || u.p_type == 2) {
         ImGui::Checkbox(TR("Minimum"), &u.p_has_min);
         ImGui::SameLine(S(120));
@@ -554,7 +556,7 @@ void DrawSafetyFrame(AppState& s) {
       ImGui::InputTextWithHint("##filter", TR("Filter"), u.filter, sizeof u.filter);
       ImGui::SameLine();
       if (ImGui::Button(TR("Export CSV"))) {
-        const std::filesystem::path dir = s.file_path.empty() ? std::filesystem::temp_directory_path() : std::filesystem::path(s.file_path).parent_path();
+        const std::filesystem::path dir = s.file_path.empty() ? std::filesystem::path(TempFolder()) : std::filesystem::path(s.file_path).parent_path();
         std::time_t t = std::time(nullptr);
         std::tm tm{};
         localtime_s(&tm, &t);

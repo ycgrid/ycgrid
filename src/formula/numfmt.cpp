@@ -1339,7 +1339,9 @@ std::string FormatGeneral(double v, int max_chars) {
     small_sci = need > fixed_sig && sci_sig > fixed_sig;
   }
   // scientific notation when too large or too small
-  if (small_sci || av >= 1e11 || av < 1e-9 || (std::floor(av) != av && av >= std::pow(10.0, budget))) {
+  // ...and in a column too narrow for its digits, a whole number too (Excel 16, measured: 1234567890 is 1E+09 in a
+  // column 5 wide and 1.23E+09 in one 8 wide, 100000 1E+05 in 5), where it showed ####
+  if (small_sci || av >= 1e11 || av < 1e-9 || ((std::floor(av) != av || max_chars < 11) && av >= std::pow(10.0, budget))) {
     auto sci = [&](int dec) {
       std::snprintf(buf, sizeof(buf), "%.*E", dec, v);
       std::string s(buf);

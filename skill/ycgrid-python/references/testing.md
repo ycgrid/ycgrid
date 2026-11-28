@@ -93,6 +93,9 @@ finally:
   the settings (`editor.vscode`), as on a machine without VS Code: Alt+F11 then asks "VS Code not found" (Browse...
   takes a path queued with `ui.answer_file_dialogs`, and keeps it in the settings; give the instance its own
   `YCGRID_SETTINGS` file).
+- Nor does it open a link, file or folder on the desktop (a click on a web link, Open Hyperlink, a file's folder):
+  `ui.state()["desktop_open"]` is the last target it would have opened and `["desktop_opens"]` how many times it was
+  asked, so a test of a click that follows a link compares the count before and after.
 - A project from scratch: `python -m yc init <folder>` (run with YCGrid's own Python from `<YCGrid>\python`; the other
   `python -m yc` commands are in [app-development.md](app-development.md) §1).
 
@@ -172,10 +175,11 @@ is none of those below is a key (`k:` by convention). `--keys "..."` on the comm
 - Check a lock both ways: the drag works unlocked, then does nothing locked (a test that only checks "didn't move"
   passes when the drag missed).
 - **Click what a person clicks, found by name**: `ui.ribbon_items()` lists the ribbon buttons, open menu entries
-  (submenus too), gallery tiles and Backstage entries on the screen now, as `{cmd, where, rect}`; `where` is
+  (submenus too), gallery tiles and Backstage entries on the screen now, as `{cmd, where, label, rect}` (label: the text shown); `where` is
   `"ribbon"`, `"dropdown"` (click near its right edge or bottom to open its menu), `"combo"`, `"menu"`, `"submenu"`
   (hover it to open), `"tile"` or `"backstage"`. Click a tab first (positions in `ui.state()["ribbon"]["tabs"]`).
-  `ui.items(window="")` lists the controls drawn in the last frame, `{label, id, window, rect, disabled}`: dialog
+  `ui.items(window="")` lists the controls drawn in the last frame, `{label, id, window, rect, disabled}`, and
+  `checked` (True, False or `"mixed"`) for a check box, an option button (the one chosen is True) or a checkable menu item: dialog
   buttons (`"Replace All"`), check boxes, list entries, sheet tabs (label = the sheet's name), the status bar's REC
   chip (`id == "##rec_chip"`); with a window filter it also lists that window's unlabelled controls (color swatches).
   Clicking these is how `scripts\feature_check.py` reaches every command (§8).

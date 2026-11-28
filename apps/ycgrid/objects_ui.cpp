@@ -12,6 +12,8 @@
 #include "engine/shape_geometry.h"
 #include "formula/datetime.h"
 #include "formula/numfmt.h"
+#include "formula/parser.h"
+#include "model/table.h"
 #include "core/i18n.h"
 
 #include "plot_theme.h"
@@ -419,6 +421,26 @@ bool ResolveRangeText(const model::Workbook& wb, uint32_t default_sheet, std::st
       if (Lower(n.name) == key && (n.sheet_scope < 0 || static_cast<uint32_t>(n.sheet_scope) == default_sheet)) {
         return ResolveRangeText(wb, default_sheet, n.refers_to, sheet, rect, depth + 1);
       }
+    }
+    // a table's name (its data) or a structured reference to it (Trades[Qty], Trades[#All]), as the Name Box and Go To
+    // take them in Excel 16 (measured through Application.Goto): the formula parser reads it, the table resolves it
+    uint32_t tsheet = 0;
+    if (const model::Table* tb = model::FindTable(wb, text.substr(0, text.find('[')), &tsheet)) {
+      const formula::ParseResult pr = formula::Parse(text, core::CellPos{0, 0}, nullptr);
+      uint32_t out_sheet = 0;
+      Rect out{};
+      int e = 1;
+      if (pr.ok && pr.root.kind == formula::NK::StructRef) {
+        const formula::Node& n = pr.root;
+        e = model::ResolveTableRef(wb, tsheet, n.str, static_cast<uint8_t>(n.op), n.kids.size() > 0 ? n.kids[0].str : std::string(),
+                                   n.kids.size() > 1 ? n.kids[1].str : std::string(), 0, 0, &out_sheet, &out);
+      } else if (pr.ok && text.find('[') == std::string_view::npos) {
+        e = model::ResolveTableRef(wb, tsheet, tb->name, 0, std::string(), std::string(), 0, 0, &out_sheet, &out);
+      }
+      if (e != 0) return false;
+      *sheet = out_sheet;
+      *rect = out;
+      return true;
     }
     return false;
   }
@@ -4883,6 +4905,7 @@ void DrawAssignMacro(AppState& s) {
   ImGui::SetNextWindowSize(ImVec2(S(380), S(340)), ImGuiCond_Appearing);
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   if (ImGui::Begin(TR("Assign Macro###yc_assign_macro"), &u.assign_open, ImGuiWindowFlags_NoCollapse)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     ImGui::TextUnformatted(TR("Macro name:"));
     ImGui::SetNextItemWidth(-1);
     ImGui::InputText("##macro", u.assign_buf, sizeof u.assign_buf);
@@ -5717,8 +5740,12 @@ void DrawSheetObjects(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
             const model::ChartElem e = HitChartElem(u.charts[ch->id], io.MousePos, &es, &ep);
             const model::ChartElem cur = ElemOf(me, &ces, &cep);
             using E = model::ChartElem;
-            const bool label_again = was_selected && e == E::DataLabels && ep >= 0 && (cur == E::DataLabels || cur == E::DataLabel) && ces == es;
-            const bool entry_again = was_selected && e == E::Legend && ep >= 0 && (cur == E::Legend || cur == E::LegendEntry);
+            // the second press of a double-click isn't a second click: it formats what the first selected (Excel: a
+            // double-click on a bar opens Format Data Series, on the legend Format Legend); it chose the point and the
+            // pane said Format Data Point
+            const bool again = was_selected && io.MouseClickedCount[ImGuiMouseButton_Left] % 2 == 1;  // a third press is a click again (Windows alternates them)
+            const bool label_again = again && e == E::DataLabels && ep >= 0 && (cur == E::DataLabels || cur == E::DataLabel) && ces == es;
+            const bool entry_again = again && e == E::Legend && ep >= 0 && (cur == E::Legend || cur == E::LegendEntry);
             if (label_again || entry_again) {
               // a second click on the selected data labels or legend: the one label or entry under the mouse; a drag
               // then moves that label away from its point (or the whole legend), as in Excel
@@ -5740,7 +5767,7 @@ void DrawSheetObjects(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
                 u.elem_drag_frame = hh.frame;
               }
               drag = false;
-            } else if (was_selected && e == E::Series && ep >= 0 && (cur == E::Series || cur == E::Point) && ces == es) {
+            } else if (again && e == E::Series && ep >= 0 && (cur == E::Series || cur == E::Point) && ces == es) {
               SelectElem(me, E::Point, es, ep);  // a second click on the selected series: the point under the mouse
             } else if (was_selected && !ch->interactive && (cur == E::Legend || cur == E::PlotArea) &&
                        ElemHandleAt(cur == E::Legend ? u.charts[ch->id].hit.legend : u.charts[ch->id].hit.plot, io.MousePos) >= 0) {
@@ -7195,7 +7222,7 @@ bool EditSeriesFormat(AppState& s, const ChartObj& m, model::ChartSeries& se, co
       if (kTypes[k] == se.type) cur = k;
     }
     ImGui::SetNextItemWidth(S(180));
-    if (ImGui::Combo(TR("Series Chart Type"), &cur, items, 7)) {
+    if (ui::Combo(TR("Series Chart Type"), &cur, items, 7)) {
       se.type = kTypes[cur];
       changed = true;
     }
@@ -7219,7 +7246,7 @@ bool EditTrendline(model::ChartSeries& se, int idx) {
                                             model::TrendKind::Power, model::TrendKind::MovingAverage};
   for (int k = 0; k < 6; ++k) {
     const model::TrendKind kind = kOrder[k];
-    if (ImGui::RadioButton(trends[k + 1], t.kind == kind)) t.kind = kind, changed = true;
+    if (ui::RadioButton(trends[k + 1], t.kind == kind)) t.kind = kind, changed = true;
     if (kind == model::TrendKind::Polynomial && t.kind == kind) {
       ImGui::SameLine();
       changed |= SpinInt(TR("Order"), t.order, 2, 6);
@@ -7230,9 +7257,9 @@ bool EditTrendline(model::ChartSeries& se, int idx) {
     }
   }
   ImGui::SeparatorText(TR("Trendline Name"));
-  if (ImGui::RadioButton(TR("Automatic##trendname"), t.name.empty()) && !t.name.empty()) t.name.clear(), changed = true;
+  if (ui::RadioButton(TR("Automatic##trendname"), t.name.empty()) && !t.name.empty()) t.name.clear(), changed = true;
   bool custom = !t.name.empty();
-  if (ImGui::RadioButton(TR("Custom##trendname"), custom) && !custom) {
+  if (ui::RadioButton(TR("Custom##trendname"), custom) && !custom) {
     t.name = TrendLegendName(t, se.name.empty() || se.name[0] == '=' ? std::string(TR("Series")) : se.name);
     changed = true;
   }
@@ -7302,19 +7329,19 @@ bool EditErrorBarsOf(AppState& s, model::ChartSeries& se, int index, const char*
   const char* dirs[] = {TR("Both"), TR("Plus"), TR("Minus")};
   const int dir = std::clamp(se.err_include, 1, 3) - 1;
   for (int k = 0; k < 3; ++k) {
-    if (ImGui::RadioButton(dirs[k], dir == k)) {
+    if (ui::RadioButton(dirs[k], dir == k)) {
       se.err_include = k + 1;
       changed = true;
     }
   }
   ImGui::SeparatorText(TR("End Style"));
-  if (ImGui::RadioButton(TR("No Cap"), !se.err_cap)) se.err_cap = false, changed = true;
-  if (ImGui::RadioButton(TR("Cap"), se.err_cap)) se.err_cap = true, changed = true;
+  if (ui::RadioButton(TR("No Cap"), !se.err_cap)) se.err_cap = false, changed = true;
+  if (ui::RadioButton(TR("Cap"), se.err_cap)) se.err_cap = true, changed = true;
   ImGui::SeparatorText(TR("Error Amount"));
   const char* errs[] = {TR("None"), TR("Fixed value"), TR("Percentage"), TR("Standard deviation(s)"), TR("Standard error"), TR("Custom")};
   const int e = static_cast<int>(se.err);
   for (int k = 1; k < 6; ++k) {
-    if (ImGui::RadioButton(errs[k], e == k)) {
+    if (ui::RadioButton(errs[k], e == k)) {
       se.err = static_cast<model::ErrorBarKind>(k);
       changed = true;
     }
@@ -7434,7 +7461,7 @@ bool PickFontSize(const char* label, float* size, float default_pt) {
   std::snprintf(now, sizeof now, "%g", cur);
   bool changed = false;
   ImGui::SetNextItemWidth(S(80));
-  if (ImGui::BeginCombo(label, now)) {
+  if (ui::BeginCombo(label, now)) {
     for (float f : kSizes) {
       char b[16];
       std::snprintf(b, sizeof b, "%g", f);
@@ -7457,7 +7484,7 @@ bool EditChartFont(model::ChartFont& f, float default_pt) {
     ImGui::SetNextItemWidth(S(180));
     const ImVec2 at = ImGui::GetCursorScreenPos();
     ui::NoteUiItem(TR("Font"), ImRect(at, at + ImVec2(S(180), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-    if (ImGui::BeginCombo(TR("Font"), now.c_str(), ImGuiComboFlags_HeightLarge)) {
+    if (ui::BeginCombo(TR("Font"), now.c_str(), ImGuiComboFlags_HeightLarge)) {
       if (ImGui::Selectable(TR("(Automatic)"), f.name.empty())) f.name.clear(), changed = true;
       for (const std::string& fam : ui::SystemFontFamilies()) {
         if (ImGui::Selectable(fam.c_str(), fam == f.name)) f.name = fam, changed = true;
@@ -7506,7 +7533,7 @@ bool EditNumberFormat(std::string& code) {
   }
   bool changed = false;
   ImGui::SetNextItemWidth(S(160));
-  if (ImGui::Combo(TR("Category"), &cat, names, kN)) {
+  if (ui::Combo(TR("Category"), &cat, names, kN)) {
     if (kCats[cat].base) code = with_dec(kCats[cat].base, kCats[cat].decimals ? 2 : 0);
     changed = true;
   }
@@ -7577,13 +7604,13 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
     a.major = std::max(0.0, a.major);
     a.minor = std::max(0.0, a.minor);
     ImGui::TextUnformatted(TR("Horizontal axis crosses:"));
-    if (ImGui::RadioButton(TR("Automatic##crosses"), a.crosses == 0)) a.crosses = 0, changed = true;
-    if (ImGui::RadioButton(TR("Axis value"), a.crosses == 1)) a.crosses = 1, changed = true;
+    if (ui::RadioButton(TR("Automatic##crosses"), a.crosses == 0)) a.crosses = 0, changed = true;
+    if (ui::RadioButton(TR("Axis value"), a.crosses == 1)) a.crosses = 1, changed = true;
     if (a.crosses == 1) {
       ImGui::SameLine();
       changed |= EditNum("##crosses_at", a.crosses_at, step > 0 ? step : 1, "%.6g");
     }
-    if (ImGui::RadioButton(TR("Maximum axis value"), a.crosses == 2)) a.crosses = 2, changed = true;
+    if (ui::RadioButton(TR("Maximum axis value"), a.crosses == 2)) a.crosses = 2, changed = true;
     // Display units: the labels divided (Excel's list)
     static const double kUnits[] = {1, 100, 1000, 10000, 100000, 1e6, 1e7, 1e8, 1e9, 1e12};
     const char* unit_names[] = {TR("None"), TR("Hundreds"), TR("Thousands"), "10000", "100000", TR("Millions"), "10000000", "100000000", TR("Billions"), TR("Trillions")};
@@ -7592,7 +7619,7 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
       if (a.display_unit == kUnits[k]) ui = k;
     }
     ImGui::SetNextItemWidth(S(140));
-    if (ImGui::Combo(TR("Display units"), &ui, unit_names, 10)) a.display_unit = kUnits[ui], changed = true;
+    if (ui::Combo(TR("Display units"), &ui, unit_names, 10)) a.display_unit = kUnits[ui], changed = true;
     changed |= ImGui::Checkbox(TR("Logarithmic scale"), &a.log);
     if (a.log) {
       ImGui::SameLine();
@@ -7601,15 +7628,15 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
     changed |= ImGui::Checkbox(TR("Values in reverse order"), &a.reverse);
   } else {
     ImGui::TextUnformatted(TR("Vertical axis crosses:"));
-    if (ImGui::RadioButton(TR("Automatic##vcrosses"), a.crosses != 2)) a.crosses = 0, changed = true;
-    if (ImGui::RadioButton(TR("At maximum category"), a.crosses == 2)) a.crosses = 2, changed = true;
+    if (ui::RadioButton(TR("Automatic##vcrosses"), a.crosses != 2)) a.crosses = 0, changed = true;
+    if (ui::RadioButton(TR("At maximum category"), a.crosses == 2)) a.crosses = 2, changed = true;
     ImGui::TextUnformatted(TR("Axis position:"));
-    if (ImGui::RadioButton(TR("On tick marks"), !a.between)) a.between = false, changed = true;
-    if (ImGui::RadioButton(TR("Between tick marks"), a.between)) a.between = true, changed = true;
+    if (ui::RadioButton(TR("On tick marks"), !a.between)) a.between = false, changed = true;
+    if (ui::RadioButton(TR("Between tick marks"), a.between)) a.between = true, changed = true;
     changed |= ImGui::Checkbox(TR("Categories in reverse order"), &a.reverse);
     ImGui::TextUnformatted(TR("Interval between labels:"));
-    if (ImGui::RadioButton(TR("Automatic##interval"), a.label_interval == 0)) a.label_interval = 0, changed = true;
-    if (ImGui::RadioButton(TR("Specify interval unit"), a.label_interval > 0) && a.label_interval == 0) a.label_interval = 1, changed = true;
+    if (ui::RadioButton(TR("Automatic##interval"), a.label_interval == 0)) a.label_interval = 0, changed = true;
+    if (ui::RadioButton(TR("Specify interval unit"), a.label_interval > 0) && a.label_interval == 0) a.label_interval = 1, changed = true;
     if (a.label_interval > 0) {
       ImGui::SameLine();
       changed |= SpinInt("##interval", a.label_interval, 1, 10000);
@@ -7619,15 +7646,15 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
   const char* ticks[] = {TR("None"), TR("Inside"), TR("Outside"), TR("Cross")};
   int mt = a.major_tick < 0 ? 2 : std::clamp(a.major_tick, 0, 3);
   ImGui::SetNextItemWidth(S(140));
-  if (ImGui::Combo(TR("Major type"), &mt, ticks, 4)) a.major_tick = mt, changed = true;
+  if (ui::Combo(TR("Major type"), &mt, ticks, 4)) a.major_tick = mt, changed = true;
   ImGui::SetNextItemWidth(S(140));
   int mn = std::clamp(a.minor_tick, 0, 3);
-  if (ImGui::Combo(TR("Minor type"), &mn, ticks, 4)) a.minor_tick = mn, changed = true;
+  if (ui::Combo(TR("Minor type"), &mn, ticks, 4)) a.minor_tick = mn, changed = true;
   ImGui::SeparatorText(TR("Labels"));
   const char* lpos[] = {TR("Next to Axis"), TR("High"), TR("Low"), TR("None")};
   int lp = std::clamp(a.label_pos, 0, 3);
   ImGui::SetNextItemWidth(S(140));
-  if (ImGui::Combo(TR("Label Position"), &lp, lpos, 4)) a.label_pos = lp, changed = true;
+  if (ui::Combo(TR("Label Position"), &lp, lpos, 4)) a.label_pos = lp, changed = true;
   if (!value_axis) changed |= SpinInt(TR("Distance from axis"), a.label_offset, 0, 1000);
   if (!value_axis) changed |= ImGui::Checkbox(TR("Multi-level Category Labels"), &a.multi_level);
   ImGui::SeparatorText(TR("Number"));
@@ -7646,11 +7673,11 @@ bool EditAxisFormat(model::ChartAxisFormat& a, bool value_axis, double lo, doubl
   // Fill & Line: the axis line (Automatic, No line, Solid line with its color and width)
   ImGui::SeparatorText(TR("Line##axis"));
   const int lk = a.no_line ? 1 : a.line_color ? 2 : 0;
-  if (ImGui::RadioButton(TR("No line##axis"), lk == 1)) a.no_line = true, changed = true;
+  if (ui::RadioButton(TR("No line##axis"), lk == 1)) a.no_line = true, changed = true;
   ImGui::SameLine();
-  if (ImGui::RadioButton(TR("Solid line##axis"), lk == 2) && lk != 2) a.no_line = false, a.line_color = 0xFFBFBFBFu, changed = true;
+  if (ui::RadioButton(TR("Solid line##axis"), lk == 2) && lk != 2) a.no_line = false, a.line_color = 0xFFBFBFBFu, changed = true;
   ImGui::SameLine();
-  if (ImGui::RadioButton(TR("Automatic##axisline"), lk == 0)) a.no_line = false, a.line_color = 0, changed = true;
+  if (ui::RadioButton(TR("Automatic##axisline"), lk == 0)) a.no_line = false, a.line_color = 0, changed = true;
   if (lk == 2) {
     changed |= PickColor(TR("Color##axisline"), &a.line_color, false);
     float w = a.line_weight > 0 ? a.line_weight : 0.75f;
@@ -7676,9 +7703,9 @@ bool DrawFormatControl(AppState& s, Control& m) {
     ImGui::TextUnformatted(TR("Value"));
     const bool on = model::ControlIsOn(m);
     const bool mixed = m.value == "Mixed" || m.value == "#N/A";
-    if (ImGui::RadioButton(TR("Unchecked"), !on && !mixed)) m.value = "False", changed = true;
-    if (ImGui::RadioButton(TR("Checked"), on)) m.value = "True", changed = true;
-    if (m.kind == K::CheckBox && ImGui::RadioButton(TR("Mixed"), mixed)) m.value = "Mixed", changed = true;
+    if (ui::RadioButton(TR("Unchecked"), !on && !mixed)) m.value = "False", changed = true;
+    if (ui::RadioButton(TR("Checked"), on)) m.value = "True", changed = true;
+    if (m.kind == K::CheckBox && ui::RadioButton(TR("Mixed"), mixed)) m.value = "Mixed", changed = true;
     changed |= EditRefProp(s, TR("Cell link:"), "fc.link." + id, m.linked_cell, RangeBox_Cell);
   } else if (m.kind == K::ComboBox || m.kind == K::ListBox) {
     changed |= EditRefProp(s, TR("Input range:"), "fc.fill." + id, m.list_fill_range);
@@ -7687,9 +7714,9 @@ bool DrawFormatControl(AppState& s, Control& m) {
       changed |= num(TR("Drop down lines"), m.list_rows, 1, 100);
     } else {
       ImGui::TextUnformatted(TR("Selection type"));
-      if (ImGui::RadioButton(TR("Single"), m.multi_select == 0)) m.multi_select = 0, changed = true;
-      if (ImGui::RadioButton(TR("Multi"), m.multi_select == 1)) m.multi_select = 1, changed = true;
-      if (ImGui::RadioButton(TR("Extend"), m.multi_select == 2)) m.multi_select = 2, changed = true;
+      if (ui::RadioButton(TR("Single"), m.multi_select == 0)) m.multi_select = 0, changed = true;
+      if (ui::RadioButton(TR("Multi"), m.multi_select == 1)) m.multi_select = 1, changed = true;
+      if (ui::RadioButton(TR("Extend"), m.multi_select == 2)) m.multi_select = 2, changed = true;
     }
   } else if (m.kind == K::SpinButton || m.kind == K::ScrollBar) {
     int v = static_cast<int>(std::lround(std::strtod(m.value.c_str(), nullptr)));
@@ -7745,7 +7772,7 @@ bool PropBool(const char* id, bool& v) {
   ImGui::SetNextItemWidth(-1);
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem((std::string(id + 2) + "=" + kTF[i]).c_str(), ImRect(at, at + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-  if (ImGui::Combo(id, &i, kTF, 2)) {
+  if (ui::Combo(id, &i, kTF, 2)) {
     v = i == 0;
     return true;
   }
@@ -7757,7 +7784,7 @@ bool PropEnum(const char* id, int& v, const EnumItem* items, int n) {
   // the recorder sees the value as a person reads it ("1 - xlMoveAndSize")
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(EnumText(v, items, n).c_str(), ImRect(at, at + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-  if (ImGui::BeginCombo(id, EnumText(v, items, n).c_str())) {
+  if (ui::BeginCombo(id, EnumText(v, items, n).c_str())) {
     for (int i = 0; i < n; ++i) {
       const std::string t = std::to_string(items[i].value) + " - " + items[i].name;
       if (ImGui::Selectable(t.c_str(), items[i].value == v)) v = items[i].value, changed = true;
@@ -7836,7 +7863,7 @@ bool PropFont(const char* id, Control& m) {
     }
     ImGui::TextUnformatted(TR("Font:"));
     ImGui::SetNextItemWidth(S(220));
-    if (ImGui::BeginCombo("##fname", name.c_str())) {
+    if (ui::BeginCombo("##fname", name.c_str())) {
       for (const std::string& f : ui::SystemFontFamilies()) {
         if (ImGui::Selectable(f.c_str(), f == name)) name = f;
       }
@@ -7845,7 +7872,7 @@ bool PropFont(const char* id, Control& m) {
     ImGui::TextUnformatted(TR("Font style:"));
     const char* kStyles[] = {TR("Regular"), TR("Italic"), TR("Bold"), TR("Bold Italic")};
     ImGui::SetNextItemWidth(S(220));
-    ImGui::Combo("##fstyle", &style, kStyles, 4);
+    ui::Combo("##fstyle", &style, kStyles, 4);
     ImGui::TextUnformatted(TR("Size:"));
     ImGui::SetNextItemWidth(S(220));
     ImGui::InputFloat("##fsize", &size, 1, 2, "%.0f");
@@ -7964,7 +7991,7 @@ bool DrawActiveXGrid(AppState& s, Control& m) {
   ImGui::BeginDisabled();
   ImGui::InputText("##objname", const_cast<char*>(head.c_str()), head.size() + 1, ImGuiInputTextFlags_ReadOnly);
   ImGui::EndDisabled();
-  if (ImGui::BeginTabBar("##proptabs")) {
+  if (BeginDlgTabBar("##proptabs")) {
     if (ImGui::BeginTabItem(TR("Alphabetic"))) tab = 0, ImGui::EndTabItem();
     if (ImGui::BeginTabItem(TR("Categorized"))) tab = 1, ImGui::EndTabItem();
     ImGui::EndTabBar();
@@ -8062,7 +8089,7 @@ void DrawFormatControlDialog(AppState& s) {
   using K = ControlKind;
   Control& m = FC().work;
   const bool form = m.form;
-  if (ImGui::BeginTabBar("##fctabs")) {
+  if (BeginDlgTabBar("##fctabs")) {
     // Font: the form button's text
     if (form && m.kind == K::Button && ImGui::BeginTabItem(TR("Font"))) {
       PropFont("fcfont", m);
@@ -8086,16 +8113,16 @@ void DrawFormatControlDialog(AppState& s) {
       const char* kH[] = {TR("Left"), TR("Center"), TR("Right")};
       const char* kV[] = {TR("Top"), TR("Center"), TR("Bottom")};
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo(TR("Horizontal:"), &m.text_halign, kH, 3);
+      ui::Combo(TR("Horizontal:"), &m.text_halign, kH, 3);
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo(TR("Vertical:"), &m.text_valign, kV, 3);
+      ui::Combo(TR("Vertical:"), &m.text_valign, kV, 3);
       ImGui::SeparatorText(TR("Orientation"));
-      ImGui::RadioButton(TR("Horizontal##orient"), &m.text_orientation, 0);
+      ui::RadioButton(TR("Horizontal##orient"), &m.text_orientation, 0);
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Vertical (stacked)"), &m.text_orientation, 1);
-      ImGui::RadioButton(TR("Upward"), &m.text_orientation, 2);
+      ui::RadioButton(TR("Vertical (stacked)"), &m.text_orientation, 1);
+      ui::RadioButton(TR("Upward"), &m.text_orientation, 2);
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Downward"), &m.text_orientation, 3);
+      ui::RadioButton(TR("Downward"), &m.text_orientation, 3);
       ImGui::Separator();
       ImGui::Checkbox(TR("Automatic size"), &m.auto_size);
       ImGui::EndTabItem();
@@ -8136,9 +8163,9 @@ void DrawFormatControlDialog(AppState& s) {
     }
     if (ImGui::BeginTabItem(TR("Properties"))) {
       ImGui::SeparatorText(TR("Object positioning"));
-      if (ImGui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize;
-      if (ImGui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move;
-      if (ImGui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating;
+      if (ui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize;
+      if (ui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move;
+      if (ui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating;
       ImGui::Separator();
       ImGui::Checkbox(TR("Print object"), &m.print_object);
       ImGui::EndTabItem();
@@ -8190,9 +8217,9 @@ bool DrawFormatShape(ShapeObj& m) {
   const bool line_only = m.kind == ShapeKind::Line || m.kind == ShapeKind::Arrow;
   if (m.kind != ShapeKind::Picture && !line_only) {
     ImGui::SeparatorText(TR("Fill"));
-    if (ImGui::RadioButton(TR("No fill"), !m.fill_visible)) m.fill_visible = false, changed = true;
+    if (ui::RadioButton(TR("No fill"), !m.fill_visible)) m.fill_visible = false, changed = true;
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Solid fill"), m.fill_visible)) m.fill_visible = true, changed = true;
+    if (ui::RadioButton(TR("Solid fill"), m.fill_visible)) m.fill_visible = true, changed = true;
     if (m.fill_visible) {
       changed |= PickColor(TR("Color"), &m.fill_color, false);
       int tr = static_cast<int>(std::lround(m.fill_transparency * 100));
@@ -8201,22 +8228,22 @@ bool DrawFormatShape(ShapeObj& m) {
     }
   }
   ImGui::SeparatorText(TR("Line"));
-  if (ImGui::RadioButton(TR("No line"), !m.line_visible)) m.line_visible = false, changed = true;
+  if (ui::RadioButton(TR("No line"), !m.line_visible)) m.line_visible = false, changed = true;
   ImGui::SameLine();
-  if (ImGui::RadioButton(TR("Solid line"), m.line_visible)) m.line_visible = true, changed = true;
+  if (ui::RadioButton(TR("Solid line"), m.line_visible)) m.line_visible = true, changed = true;
   if (m.line_visible) {
     changed |= PickColor(TR("Color##line"), &m.line_color, false);
     changed |= SpinFloat(TR("Width (pt)"), m.line_weight, 0.25f, 0.25f, 20.0f, "%.2f");
     const char* dashes[] = {TR("Solid"), TR("Dash"), TR("Round Dot"), TR("Square Dot"), TR("Dash Dot"), TR("Long Dash")};
     ImGui::SetNextItemWidth(S(140));
-    changed |= ImGui::Combo(TR("Dash type"), &m.line_dash, dashes, 6);
+    changed |= ui::Combo(TR("Dash type"), &m.line_dash, dashes, 6);
     if (line_only) {
       const char* heads[] = {TR("None##arrow"), TR("Arrow##head")};
       ImGui::SetNextItemWidth(S(140));
-      changed |= ImGui::Combo(TR("Begin Arrow type"), &m.begin_arrow, heads, 2);
+      changed |= ui::Combo(TR("Begin Arrow type"), &m.begin_arrow, heads, 2);
       int end = m.kind == ShapeKind::Arrow ? 1 : m.end_arrow;
       ImGui::SetNextItemWidth(S(140));
-      if (ImGui::Combo(TR("End Arrow type"), &end, heads, 2)) {
+      if (ui::Combo(TR("End Arrow type"), &end, heads, 2)) {
         m.end_arrow = end;
         if (m.kind == ShapeKind::Arrow && end == 0) m.kind = ShapeKind::Line;
         changed = true;
@@ -8236,13 +8263,13 @@ bool DrawFormatShape(ShapeObj& m) {
     const char* hs[] = {TR("Left"), TR("Center"), TR("Right")};
     for (int k = 0; k < 3; ++k) {
       if (k) ImGui::SameLine();
-      if (ImGui::RadioButton((std::string(hs[k]) + "##h").c_str(), m.halign == k)) m.halign = k, changed = true;
+      if (ui::RadioButton((std::string(hs[k]) + "##h").c_str(), m.halign == k)) m.halign = k, changed = true;
     }
     ImGui::TextUnformatted(TR("Vertical"));
     const char* vs[] = {TR("Top##ctx_align"), TR("Middle"), TR("Bottom##ctx_align")};
     for (int k = 0; k < 3; ++k) {
       if (k) ImGui::SameLine();
-      if (ImGui::RadioButton((std::string(vs[k]) + "##v").c_str(), m.valign == k)) m.valign = k, changed = true;
+      if (ui::RadioButton((std::string(vs[k]) + "##v").c_str(), m.valign == k)) m.valign = k, changed = true;
     }
     // Text Box: margins, wrap, autofit (Format Shape > Text Options > Text Box)
     changed |= EditNum(TR("Left margin (pt)"), m.margin_l, 0.5, "%.1f");
@@ -8290,9 +8317,9 @@ bool DrawFormatShape(ShapeObj& m) {
     for (double* v : {&m.crop_l, &m.crop_r, &m.crop_t, &m.crop_b}) *v = std::max(0.0, *v);
   }
   ImGui::SeparatorText(TR("Properties"));
-  if (ImGui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize, changed = true;
-  if (ImGui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move, changed = true;
-  if (ImGui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating, changed = true;
+  if (ui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize, changed = true;
+  if (ui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move, changed = true;
+  if (ui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating, changed = true;
   changed |= ImGui::Checkbox(TR("Print object"), &m.print_object);
   changed |= ImGui::Checkbox(TR("Locked"), &m.locked);
   ImGui::SameLine();
@@ -8368,7 +8395,7 @@ bool NotedCombo(const char* label, const char* id, int* v, const char* const ite
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(label, ImRect(at, at + ImVec2(w, ImGui::GetFrameHeight())));
   ImGui::SetNextItemWidth(w);
-  return ImGui::Combo(id, v, items, n);
+  return ui::Combo(id, v, items, n);
 }
 
 // Excel's 3-D Rotation presets (Format Chart Area > Effects > 3-D Rotation): X / Y rotation and perspective together
@@ -8388,7 +8415,7 @@ bool Pick3DPreset(ChartObj& m) {
   ui::NoteUiItem(TR("Presets"), ImRect(at, at + ImVec2(S(200), ImGui::GetFrameHeight())));
   ImGui::SetNextItemWidth(S(200));
   bool changed = false;
-  if (ImGui::BeginCombo("##rot_presets", TR("Presets"))) {
+  if (ui::BeginCombo("##rot_presets", TR("Presets"))) {
     for (const Preset& p : kPresets) {
       const bool cur = m.view3d && m.rotation == p.rot && m.elevation == p.elev && m.perspective == p.persp;
       if (ImGui::Selectable(p.name, cur)) {
@@ -8415,7 +8442,7 @@ bool EditChartTypeOptions(ChartObj& m, model::ChartSeries& se, const engine::Cha
     if (ImGui::SliderInt(label, v, lo, hi, fmt, ImGuiSliderFlags_AlwaysClamp)) changed = true;
   };
   auto radio = [&](const char* label, int* v, int val) {
-    if (ImGui::RadioButton(label, *v == val) && *v != val) *v = val, changed = true;
+    if (ui::RadioButton(label, *v == val) && *v != val) *v = val, changed = true;
   };
   switch (m.type) {
     case CT::PieOfPie:
@@ -8460,8 +8487,8 @@ bool EditChartTypeOptions(ChartObj& m, model::ChartSeries& se, const engine::Cha
       bool line = (se.box_flags & 8) != 0;
       if (ImGui::Checkbox(TR("Show mean line"), &line)) se.box_flags = line ? (se.box_flags | 8) : (se.box_flags & ~8), changed = true;
       ImGui::TextUnformatted(TR("Quartile Calculation"));
-      if (ImGui::RadioButton(TR("Inclusive median"), se.inclusive_median)) se.inclusive_median = true, changed = true;
-      if (ImGui::RadioButton(TR("Exclusive median"), !se.inclusive_median)) se.inclusive_median = false, changed = true;
+      if (ui::RadioButton(TR("Inclusive median"), se.inclusive_median)) se.inclusive_median = true, changed = true;
+      if (ui::RadioButton(TR("Exclusive median"), !se.inclusive_median)) se.inclusive_median = false, changed = true;
       break;
     }
     case CT::Treemap:
@@ -8536,9 +8563,9 @@ bool EditChartElemFill(ChartObj& m, model::ChartElem el) {
 bool EditDateAxis(ChartObj& m, const engine::ChartValues* vals) {
   bool changed = false;
   ImGui::SeparatorText(TR("Axis Type"));
-  if (ImGui::RadioButton(TR("Automatically select based on data"), m.cat_type == 0) && m.cat_type != 0) m.cat_type = 0, changed = true;
-  if (ImGui::RadioButton(TR("Text axis"), m.cat_type == 1) && m.cat_type != 1) m.cat_type = 1, changed = true;
-  if (ImGui::RadioButton(TR("Date axis"), m.cat_type == 2) && m.cat_type != 2) m.cat_type = 2, changed = true;
+  if (ui::RadioButton(TR("Automatically select based on data"), m.cat_type == 0) && m.cat_type != 0) m.cat_type = 0, changed = true;
+  if (ui::RadioButton(TR("Text axis"), m.cat_type == 1) && m.cat_type != 1) m.cat_type = 1, changed = true;
+  if (ui::RadioButton(TR("Date axis"), m.cat_type == 2) && m.cat_type != 2) m.cat_type = 2, changed = true;
   const DatePlan dp = vals ? PlanDateAxis(m, *vals, vals->cat_vals.size()) : DatePlan{};
   if (!dp.on) return changed;
   // the bounds as dates (each automatic or fixed) and the base / major units
@@ -8596,7 +8623,7 @@ bool PickDash(const char* label, int* dash) {
   ImGui::SetNextItemWidth(S(150));
   const ImVec2 at = ImGui::GetCursorScreenPos();
   ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-  if (!ImGui::Combo(label, &d, names, 6)) return false;
+  if (!ui::Combo(label, &d, names, 6)) return false;
   *dash = d;
   return true;
 }
@@ -8615,12 +8642,12 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
   const CT st = SeriesTypeOf(m, se);
   if (CartesianChart(m.type) && !engine::IsSceneChart(m.type) && !engine::IsHorizontalBar(m.type)) {
     ImGui::SeparatorText(TR("Plot Series On"));
-    if (ImGui::RadioButton(TR("Primary Axis"), se.axis_group == 0)) {
+    if (ui::RadioButton(TR("Primary Axis"), se.axis_group == 0)) {
       se.axis_group = 0;
       changed = true;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Secondary Axis"), se.axis_group == 1)) {
+    if (ui::RadioButton(TR("Secondary Axis"), se.axis_group == 1)) {
       se.axis_group = 1;
       changed = true;
     }
@@ -8636,7 +8663,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
     const int fk = se.no_fill ? 0 : se.fill_type == 1 ? 2 : se.fill_type == 2 ? 3 : se.fill_type == 3 ? 4 : se.color ? 1 : 5;
     const char* fills[] = {TR("No fill"), TR("Solid fill"), TR("Gradient fill"), TR("Picture or texture fill"), TR("Pattern fill"), TR("Automatic##fill")};
     for (int k = 0; k < 6; ++k) {
-      if (ImGui::RadioButton(fills[k], fk == k) && fk != k) {
+      if (ui::RadioButton(fills[k], fk == k) && fk != k) {
         se.no_fill = k == 0;
         se.fill_type = k == 2 ? 1 : k == 3 ? 2 : k == 4 ? 3 : 0;
         if (k == 1 && !se.color) se.color = (static_cast<uint32_t>(engine::ChartPalette(static_cast<size_t>(index))) & 0xFFFFFFu);
@@ -8675,7 +8702,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
             ImGui::SetNextItemWidth(S(150));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-            if (ImGui::Combo(label, &k, items, n)) *v = k, changed = true;
+            if (ui::Combo(label, &k, items, n)) *v = k, changed = true;
           };
           combo(TR("Alignment"), &se.tile_align, aligns, 9);
           combo(TR("Mirror type"), &se.tile_mirror, mirrors, 4);
@@ -8687,7 +8714,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
         ImGui::SetNextItemWidth(S(180));
         const ImVec2 at = ImGui::GetCursorScreenPos();
         ui::NoteUiItem(TR("Pattern"), ImRect(at, at + ImVec2(S(180), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-        if (ImGui::Combo(TR("Pattern"), &pk, pats, model::kChartPatternCount)) se.pattern = pk, changed = true;
+        if (ui::Combo(TR("Pattern"), &pk, pats, model::kChartPatternCount)) se.pattern = pk, changed = true;
         changed |= PickBgr(TR("Foreground"), &se.color);
         changed |= PickBgr(TR("Background"), &se.pattern_back);
       } else {
@@ -8708,15 +8735,15 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
     ImGui::SeparatorText(TR("Border"));
     const bool auto_border = st == CT::Pie || st == CT::Doughnut || st == CT::Bubble;  // these have one by default
     const int bk = se.no_line ? 0 : se.line_color ? 1 : 2;
-    if (ImGui::RadioButton(TR("No line"), bk == 0 || (bk == 2 && !auto_border)) && bk != 0) se.no_line = true, changed = true;
+    if (ui::RadioButton(TR("No line"), bk == 0 || (bk == 2 && !auto_border)) && bk != 0) se.no_line = true, changed = true;
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Solid line"), bk == 1) && bk != 1) {
+    if (ui::RadioButton(TR("Solid line"), bk == 1) && bk != 1) {
       se.no_line = false;
       se.line_color = 0x404040;
       changed = true;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Automatic##border"), bk == 2 && auto_border) && !(bk == 2 && auto_border)) se.no_line = false, se.line_color = 0, changed = true;
+    if (ui::RadioButton(TR("Automatic##border"), bk == 2 && auto_border) && !(bk == 2 && auto_border)) se.no_line = false, se.line_color = 0, changed = true;
     if (bk == 1 || (bk == 2 && auto_border)) {
       changed |= PickBgr(TR("Border color"), &se.line_color);
       float w = se.line_weight > 0 ? se.line_weight : 0.75f;
@@ -8728,15 +8755,15 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
     // Line: No line, Solid line, Automatic; color, width, compound type, dash type, cap and join types, arrows
     ImGui::SeparatorText(TR("Line"));
     const int lk = se.no_line ? 0 : se.color || se.line_color ? 1 : 2;
-    if (ImGui::RadioButton(TR("No line"), lk == 0) && lk != 0) se.no_line = true, changed = true;
+    if (ui::RadioButton(TR("No line"), lk == 0) && lk != 0) se.no_line = true, changed = true;
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Solid line"), lk == 1) && lk != 1) {
+    if (ui::RadioButton(TR("Solid line"), lk == 1) && lk != 1) {
       se.no_line = false;
       if (!se.color) se.color = (static_cast<uint32_t>(engine::ChartPalette(static_cast<size_t>(index))) & 0xFFFFFFu);
       changed = true;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Automatic##line"), lk == 2) && lk != 2) se.no_line = false, se.color = 0, se.line_color = 0, changed = true;
+    if (ui::RadioButton(TR("Automatic##line"), lk == 2) && lk != 2) se.no_line = false, se.color = 0, se.line_color = 0, changed = true;
     changed |= PickBgr(TR("Color"), &se.color);
     if (!se.no_line) {
       float w = se.line_weight > 0 ? se.line_weight : 1.5f;
@@ -8749,7 +8776,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
         ImGui::SetNextItemWidth(S(150));
         const ImVec2 at = ImGui::GetCursorScreenPos();
         ui::NoteUiItem(label, ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-        if (ImGui::Combo(label, &k, items, n)) *v = k, changed = true;
+        if (ui::Combo(label, &k, items, n)) *v = k, changed = true;
       };
       const char* compounds[] = {TR("Single"), TR("Double"), TR("Thick Thin"), TR("Thin Thick"), TR("Triple")};
       combo(TR("Compound type"), &se.compound, compounds, 5);
@@ -8770,7 +8797,7 @@ bool EditSeriesBlock(AppState& s, ObjSel o, const ChartObj& m, model::ChartSerie
     ImGui::SetNextItemWidth(S(150));
     const ImVec2 at = ImGui::GetCursorScreenPos();
     ui::NoteUiItem(TR("Marker"), ImRect(at, at + ImVec2(S(150), ImGui::GetFrameHeight())));  // combos report no label (AGENTS.md)
-    if (ImGui::Combo(TR("Marker"), &mk, markers, 8)) {
+    if (ui::Combo(TR("Marker"), &mk, markers, 8)) {
       se.marker = mk - 1;
       changed = true;
     }
@@ -8867,7 +8894,7 @@ bool EditDataLabels(AppState& s, const ChartObj& m, model::ChartSeries& se, int 
     if (se.label_sep == kSeps[k]) si = k;
   }
   ImGui::SetNextItemWidth(S(120));
-  if (ImGui::Combo(TR("Separator"), &si, sep_names, 5)) se.label_sep = kSeps[si], changed = true;
+  if (ui::Combo(TR("Separator"), &si, sep_names, 5)) se.label_sep = kSeps[si], changed = true;
   // Label Position: the places this kind of chart offers
   std::vector<std::pair<int, const char*>> places;
   if (engine::IsBarType(st)) {
@@ -8883,7 +8910,7 @@ bool EditDataLabels(AppState& s, const ChartObj& m, model::ChartSeries& se, int 
     const int def = engine::IsBarType(st) ? (engine::IsStackedType(st) ? 0 : 3) : pie ? 8 : 5;
     const int cur = se.label_pos >= 0 ? se.label_pos : def;
     for (const auto& [v, name] : places) {
-      if (ImGui::RadioButton(name, cur == v)) se.label_pos = v, changed = true;
+      if (ui::RadioButton(name, cur == v)) se.label_pos = v, changed = true;
     }
   }
   ImGui::SeparatorText(TR("Number"));
@@ -9188,7 +9215,7 @@ void DrawChartFiltersMenu(AppState& s, ObjSel o, const ChartObj& ch) {
     ImGui::Spacing();
     ImGui::TextUnformatted(TR("CATEGORIES"));
     bool all_on = ch.hidden_cats.empty();
-    if (ImGui::Checkbox(TR("(Select All)"), &all_on)) {
+    if (CheckboxMixed(TR("(Select All)"), &all_on, !all_on && ch.hidden_cats.size() < v.cats.size())) {
       const int n = static_cast<int>(v.cats.size());
       PostChartEdit(s, o, TR("Chart Filters"), [all_on, n](ChartObj& c) {
         c.hidden_cats.clear();
@@ -9236,7 +9263,7 @@ bool& StylesFlyoutOpening() {  // the flyout opens on its Style tab, as Excel's 
 
 void DrawChartStylesMenu(AppState& s, ObjSel o, const ChartObj& ch) {
   if (!ImGui::BeginPopupEx(kChartStylePopup, kPopupFlags)) return;
-  if (ImGui::BeginTabBar("##chart_style_tabs")) {
+  if (BeginDlgTabBar("##chart_style_tabs")) {
     const bool opening = StylesFlyoutOpening();
     StylesFlyoutOpening() = false;
     if (ImGui::BeginTabItem(TR("Style"), nullptr, opening ? ImGuiTabItemFlags_SetSelected : 0)) {
@@ -9360,7 +9387,7 @@ std::vector<std::pair<model::ChartElem, int>> ChartElemList(const ChartObj& m) {
 void ChartElemCombo(ObjSel o, const ChartObj& m, model::ChartElem el, int es, int ep, const char* id, float width) {
   using E = model::ChartElem;
   ImGui::SetNextItemWidth(width);
-  if (ImGui::BeginCombo(id, ChartElemName(m, el, es, ep).c_str(), ImGuiComboFlags_HeightLarge)) {
+  if (ui::BeginCombo(id, ChartElemName(m, el, es, ep).c_str(), ImGuiComboFlags_HeightLarge)) {
     const auto items = ChartElemList(m);
     for (size_t k = 0; k < items.size(); ++k) {
       ImGui::PushID(static_cast<int>(k));
@@ -9408,6 +9435,7 @@ void DrawPropertiesWindow(AppState& s) {
   ui::NoteWindowTitle(wtitle);  // ui.windows() shows the title of now (Format Shape after Format Chart Area)
   ImGui::SetNextWindowSize(ImVec2(S(300), S(460)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Right);
+  DockAsTaskPane(wtitle.c_str(), false, S(300));  // Excel's Format pane is on the right of the sheets
   if (!ImGui::Begin(wtitle.c_str(), &u.show_props)) {
     ImGui::End();
     return;
@@ -9457,17 +9485,17 @@ void DrawPropertiesWindow(AppState& s) {
       if (m.type != ChartType::Histogram && m.type != ChartType::Pareto) return;
       ImGui::SeparatorText(TR("Bins"));
       const int mode = m.bins_by_category ? 3 : m.bin_width > 0 ? 1 : m.bin_count > 0 ? 2 : 0;
-      if (ImGui::RadioButton(TR("By Category"), mode == 3)) {
+      if (ui::RadioButton(TR("By Category"), mode == 3)) {
         m.bins_by_category = true;
         changed = true;
       }
-      if (ImGui::RadioButton(TR("Automatic##bins"), mode == 0)) {
+      if (ui::RadioButton(TR("Automatic##bins"), mode == 0)) {
         m.bin_width = 0;
         m.bin_count = 0;
         m.bins_by_category = false;
         changed = true;
       }
-      if (ImGui::RadioButton(TR("Bin width"), mode == 1) && mode != 1) {
+      if (ui::RadioButton(TR("Bin width"), mode == 1) && mode != 1) {
         m.bin_count = 0;
         m.bin_width = 1;
         m.bins_by_category = false;
@@ -9480,7 +9508,7 @@ void DrawPropertiesWindow(AppState& s) {
           changed = true;
         }
       }
-      if (ImGui::RadioButton(TR("Number of bins"), mode == 2) && mode != 2) {
+      if (ui::RadioButton(TR("Number of bins"), mode == 2) && mode != 2) {
         m.bin_width = 0;
         m.bin_count = 10;
         m.bins_by_category = false;
@@ -9530,8 +9558,8 @@ void DrawPropertiesWindow(AppState& s) {
         changed |= ImGui::Checkbox(TR("Show##chart_title"), &m.has_title);
         title_text("chart.titlelink", m.title);
         ImGui::SeparatorText(TR("Title Options"));
-        if (ImGui::RadioButton(TR("Above Chart"), !m.title_overlay)) m.title_overlay = false, changed = true;
-        if (ImGui::RadioButton(TR("Centered Overlay"), m.title_overlay)) m.title_overlay = true, changed = true;
+        if (ui::RadioButton(TR("Above Chart"), !m.title_overlay)) m.title_overlay = false, changed = true;
+        if (ui::RadioButton(TR("Centered Overlay"), m.title_overlay)) m.title_overlay = true, changed = true;
         if (m.title_rect.on && ImGui::Button(TR("Reset Position##title"))) m.title_rect = {}, changed = true;
         fill_border(m.title_fill, m.title_line);
         ImGui::SeparatorText(TR("Font"));
@@ -9553,7 +9581,7 @@ void DrawPropertiesWindow(AppState& s) {
         ImGui::SeparatorText(TR("Legend Position"));
         static const int kOrder[] = {2, 3, 1, 0, 4};  // Top, Left, Right, Bottom, Top Right (Excel's list)
         for (int p : kOrder) {
-          if (ImGui::RadioButton(LegendPosName(p), m.legend_pos == p)) {
+          if (ui::RadioButton(LegendPosName(p), m.legend_pos == p)) {
             m.legend_pos = p;
             m.has_legend = true;
             m.legend_rect = {};
@@ -9694,7 +9722,7 @@ void DrawPropertiesWindow(AppState& s) {
         int t = static_cast<int>(m.type);
         ImGui::TextUnformatted(TR("Chart Type"));
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::Combo("##type", &t, kNames, model::kChartTypeCount)) {
+        if (ui::Combo("##type", &t, kNames, model::kChartTypeCount)) {
           const ChartType nt = static_cast<ChartType>(t);
           s.engine->PostUser(TR("Change Chart Type"), [o, nt](Document& d) { d.UpdateChart(o.sheet, o.id, [&d, nt](ChartObj& x) { ChangeChartType(d.wb(), x, nt); }); });
         }
@@ -9753,9 +9781,9 @@ void DrawPropertiesWindow(AppState& s) {
         }
         changed |= ImGui::Checkbox(TR("Lock aspect ratio"), &m.lock_aspect);
         ImGui::SeparatorText(TR("Properties"));
-        if (ImGui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize, changed = true;
-        if (ImGui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move, changed = true;
-        if (ImGui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating, changed = true;
+        if (ui::RadioButton(TR("Move and size with cells"), m.placement == Placement::MoveAndSize)) m.placement = Placement::MoveAndSize, changed = true;
+        if (ui::RadioButton(TR("Move but don't size with cells"), m.placement == Placement::Move)) m.placement = Placement::Move, changed = true;
+        if (ui::RadioButton(TR("Don't move or size with cells"), m.placement == Placement::FreeFloating)) m.placement = Placement::FreeFloating, changed = true;
         changed |= ImGui::Checkbox(TR("Print object"), &m.print_object);
         changed |= ImGui::Checkbox(TR("Locked"), &m.locked);
         break;
@@ -10017,7 +10045,7 @@ void DrawPanel(AppState& s, const model::Panel& p) {
       tmp.list_fill_range = pc.list_fill_range;
       const std::vector<std::string> list = ControlItems(s, s.focus_sheet, tmp);
       ImGui::SetNextItemWidth(-1);
-      if (ImGui::BeginCombo("##c", value.c_str())) {
+      if (ui::BeginCombo("##c", value.c_str())) {
         for (size_t i = 0; i < list.size(); ++i) {
           ImGui::PushID(static_cast<int>(i));
           if (ImGui::Selectable(list[i].empty() ? " " : list[i].c_str(), list[i] == value)) {
@@ -10057,7 +10085,7 @@ void DrawPanel(AppState& s, const model::Panel& p) {
       } else {
         for (size_t i = 0; i < list.size(); ++i) {
           ImGui::PushID(static_cast<int>(i));
-          if (ImGui::RadioButton(list[i].empty() ? " " : list[i].c_str(), list[i] == value) && list[i] != value) {
+          if (ui::RadioButton(list[i].empty() ? " " : list[i].c_str(), list[i] == value) && list[i] != value) {
             PanelValue(s, p, pc, list[i]);
             PanelEvent(s, p, pc, "Change");
           }
@@ -10289,7 +10317,7 @@ void DrawFormBody(AppState& s, const model::Panel& p) {
       };
       if (pc.type == "combobox") {
         ImGui::SetNextItemWidth(w);
-        if (ImGui::BeginCombo("##c", value.c_str())) {
+        if (ui::BeginCombo("##c", value.c_str())) {
           for (size_t i = 0; i < list.size(); ++i) {
             ImGui::PushID(static_cast<int>(i));
             if (ImGui::Selectable(list[i].empty() ? " " : list[i].c_str(), list[i] == value)) pick(i);
@@ -10316,7 +10344,7 @@ void DrawFormBody(AppState& s, const model::Panel& p) {
     } else if (pc.type == "optionbutton") {
       // one option button; the others of its group (GroupName, or all the form's ungrouped ones) turn off
       const bool on = value == "1" || Lower(value) == "true";
-      if (ImGui::RadioButton(caption.c_str(), on) && !on) {
+      if (ui::RadioButton(caption.c_str(), on) && !on) {
         const std::string pn = p.name, cn = pc.name, grp = pc.group;
         s.engine->Post([pn, cn, grp](Document& d) {
           d.UpdatePanel(pn, [&](model::Panel& x) {
@@ -11524,15 +11552,15 @@ void DrawMoveChartDialog(AppState& s) {
   }
   ImGui::TextUnformatted(TR("Choose where you want the chart to be placed:"));
   ImGui::Spacing();
-  ImGui::RadioButton(TR("New sheet:"), &g_move_choice, 0);
+  ui::RadioButton(TR("New sheet:"), &g_move_choice, 0);
   ImGui::SameLine(S(130));
   ImGui::SetNextItemWidth(S(240));
   if (ImGui::InputText("##newsheet", g_move_name, sizeof g_move_name)) g_move_choice = 0;
-  ImGui::RadioButton(TR("Object in:"), &g_move_choice, 1);
+  ui::RadioButton(TR("Object in:"), &g_move_choice, 1);
   ImGui::SameLine(S(130));
   ImGui::SetNextItemWidth(S(240));
   g_move_target = std::clamp(g_move_target, 0, std::max(0, static_cast<int>(targets.size()) - 1));
-  if (ImGui::BeginCombo("##target", targets.empty() ? "" : targets[static_cast<size_t>(g_move_target)]->name.c_str())) {
+  if (ui::BeginCombo("##target", targets.empty() ? "" : targets[static_cast<size_t>(g_move_target)]->name.c_str())) {
     for (size_t i = 0; i < targets.size(); ++i) {
       if (ImGui::Selectable(targets[i]->name.c_str(), static_cast<int>(i) == g_move_target)) {
         g_move_target = static_cast<int>(i);
@@ -11850,6 +11878,7 @@ void DrawSelectionPane(AppState& s) {
   const model::Sheet* sh = s.FocusSheet();
   ImGui::SetNextWindowSize(ImVec2(S(260), S(360)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Right);
+  DockAsTaskPane(TR("Selection###yc_selpane"), false, S(260));  // beside the sheets, as Excel's
   if (!ImGui::Begin(TR("Selection###yc_selpane"), &g_selection_pane)) {
     ImGui::End();
     return;
@@ -11988,12 +12017,13 @@ void DrawObjectPasteSpecial(AppState& s) {
   ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   bool open = true, ok = false;
   if (ImGui::Begin(TR("Paste Special###yc_obj_paste_special"), &open, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoSavedSettings)) {
+    NoteDialogKeyboard();  // Alt + a letter is the dialog's, not the ribbon's
     if (ImGui::IsWindowAppearing()) ImGui::SetWindowFocus();
     ImGui::TextUnformatted(TR("As:"));
     const char* what = !Clip().charts.empty() ? TR("YCGrid Chart Object") : TR("YCGrid Drawing Object");
-    if (ImGui::RadioButton(what, as == 0)) as = 0;
+    if (ui::RadioButton(what, as == 0)) as = 0;
     ImGui::BeginDisabled(!picture_ok);
-    if (ImGui::RadioButton(TR("Picture (PNG)"), as == 1)) as = 1;
+    if (ui::RadioButton(TR("Picture (PNG)"), as == 1)) as = 1;
     ImGui::EndDisabled();
     ImGui::Separator();
     ok = ImGui::Button(TR("OK"), ImVec2(S(90), 0)) || (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter));
@@ -12053,7 +12083,7 @@ void UpdateShapeContext(AppState& s) {
       if (!ch) {
         ImGui::BeginDisabled();
         ImGui::SetNextItemWidth(r.GetWidth());
-        if (ImGui::BeginCombo("##ribbon_chart_elem", "")) ImGui::EndCombo();
+        if (ui::BeginCombo("##ribbon_chart_elem", "")) ImGui::EndCombo();
         ImGui::EndDisabled();
         return;
       }

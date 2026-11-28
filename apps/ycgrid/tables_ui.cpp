@@ -109,12 +109,8 @@ void OpenCreate(AppState& s, const std::string& style) {
   if (r.IsCell()) r = engine::CurrentRegion(*sh, r.r0, r.c0);
   TablesUi& u = T();
   std::snprintf(u.range, sizeof(u.range), "%s", RangeText(r).c_str());
-  // a first row of text is the header (like Excel's guess)
-  u.headers = true;
-  for (uint32_t c = r.c0; c <= r.c1; ++c) {
-    const auto& v = sh->GetValue(r.r0, c);
-    if (!v.IsEmpty() && !v.IsString()) u.headers = false;
-  }
+  // Excel's guess of a header row (engine::GuessHeaderRow, as ListObjects.Add's xlGuess)
+  u.headers = engine::GuessHeaderRow(*s.snap->wb.styles, *sh, r);
   u.style = style;
   s.OpenDialog(Dialog::CreateTable);
 }
@@ -486,6 +482,7 @@ void DrawTableDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::CreateTable, TR("Create Table###yc_dlg_createtable"), 340)) {
     ImGui::TextUnformatted(TR("Where is the data for your table?"));
     RangeBox(s, "table.create", u.range, sizeof(u.range), 0, RangeBox_Equals, TR("Where is the data for your table?"));
+    if (DlgKey(ImGuiKey_M)) u.headers = !u.headers;  // Excel 16's letter (UI Automation's AccessKey)
     ImGui::Checkbox(TR("My table has headers"), &u.headers);
     bool close = false;
     const bool ok_pressed = DlgOkButton(TR("OK"), ImVec2(S(80), 0));

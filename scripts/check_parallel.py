@@ -152,9 +152,23 @@ def run_job(name: str, cmd: list[str], cwd: str, results: dict, lock: threading.
         except subprocess.TimeoutExpired:
             rc = -9
             log.write("\n[check_parallel] timed out after 60 minutes\n")
+    # a YCGrid that crashed or hung wrote its dump into the job's TEMP folder (ycgrid-dumps), which goes with the job:
+    # keep the dumps of a failed job beside its log, so scripts\dump_stack.py can read the stack (three jobs lost their
+    # YCGrid in one run and nothing was left to say why)
+    dumps = []
+    if rc != 0:
+        keep = os.path.join(tempfile.gettempdir(), "yc_check_dumps", "".join(ch if ch.isalnum() else "_" for ch in name))
+        for root, _dirs, files in os.walk(tmp):
+            for f in files:
+                if f.lower().endswith(".dmp"):
+                    os.makedirs(keep, exist_ok=True)
+                    shutil.copy2(os.path.join(root, f), keep)
+                    dumps.append(os.path.join(keep, f))
     shutil.rmtree(tmp, ignore_errors=True)
     with lock:
         results[name] = (rc, time.time() - t0)
+        for dmp in dumps:
+            print(f"[check]      dump kept: {dmp}", flush=True)
         print(f"[check] {'ok  ' if rc == 0 else 'FAIL'} {name} ({time.time() - t0:.0f} s)" + ("" if rc == 0 else f"  -> {log_path(name)}"), flush=True)
 
 

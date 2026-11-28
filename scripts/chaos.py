@@ -65,6 +65,7 @@ class Chaos:
         self.logf = open(os.path.join(self.out, "actions.log"), "w", encoding="utf-8")
         self.problems: list[tuple[str, str]] = []
         self.seen_err = 0
+        self.clipped_seen = set()  # dialogs reported as cutting themselves off (once each)
         self.figs: list = []
         self.yc = yc
         # a debug build calculates and draws up to a hundred times slower than the release one (160,000 volatile formulas
@@ -215,6 +216,12 @@ class Chaos:
             return
         if time.time() - t0 > 2.0 * self.slow_scale:
             self.slow("SLOW", f"ui.state took {time.time() - t0:.1f}s after {tag}", mark)
+        # a dialog that hid part of itself under its edge (it scrolled) or cut its contents on the right, once each
+        # (the Name Manager's question, Insert Function's description and Function Arguments' help hid OK and Cancel)
+        for name in st.get("clipped_windows") or []:
+            if name not in self.clipped_seen:
+                self.clipped_seen.add(name)
+                self.problem("CLIPPED_DIALOG", f"{name} cut off part of itself after {tag}")
         for _ in range(3):  # a dialog, a menu or Backstage left open: the user presses Escape
             rb = st.get("ribbon") or {}
             if not (st.get("dialog") or rb.get("popup_open") or rb.get("backstage")):
@@ -237,6 +244,9 @@ class Chaos:
             # script still running in it (an example from the ribbon) is cut short, as a person saving then would see
             # (chaos seed 7145: backtest_report and a Save As right after it)
             expected = expected or (tag == "save as" and "The Python host is stopping" in txt)
+            # what a protected sheet or workbook refused (the protection chaos turned on), noted in the Error Log since
+            # 2026-11-25 where Excel shows a message box (chaos seed 7718 counted 21 of them as problems)
+            expected = expected or bool(e.get("refusal"))
             # the hang watchdog's 10 s on a debug build is a fraction of a second released (seed 5562: Ctrl+D over
             # 8 million cells, a 0.65 s frame released, 11 s on debug); a real freeze still shows as UNRESPONSIVE
             title = str(e.get("title", ""))
@@ -513,6 +523,14 @@ class Chaos:
                       "right": (g[2] - 22, (g[1] + g[3]) / 2), "top": ((g[0] + g[2]) / 2, g[1] + 22)}[side]
             self.hand_drag(w["rect"][0] + 60, w["rect"][1] + 12, tx, ty)
             return f"dock Error Log {side} -> docked={bool((win('yc_errors') or {}).get('docked'))}"
+        if w.get("floating"):
+            # in a group that floats over the sheets: alone there, it is out of the dock already, and a drag of its tab
+            # moves the group, as ImGui moves a node of one window (seed 7639 reported it stuck)
+            wr = w["rect"]
+            mates = [x for x in ui.windows() if x.get("docked") and x.get("floating") and "yc_errors" not in x["name"] and x.get("rect")
+                     and x["rect"][0] < wr[2] and wr[0] < x["rect"][2] and x["rect"][1] < wr[3] and wr[1] < x["rect"][3]]
+            if not mates:
+                return "Error Log floats alone in its group"
         tab = w.get("tab") or [w["rect"][0], w["rect"][1], w["rect"][0] + 100, w["rect"][1] + 26]
         # what floats over the sheets: a floating window, or a group of docked windows floating as one
         over = [x for x in ui.windows() if x.get("visible", True) and (not x.get("docked") or x.get("floating"))
@@ -554,13 +572,17 @@ class Chaos:
             # one comes out, and a point near the sheets' edge then lay on the tab bar of a figure docked under them,
             # where it docks as a tab (seed 5679: the sheets were 50 px tall); sheets too short to aim at: double-click
             g = grid["rect"]
-            floating = [x["rect"] for x in over]
+            # and not over itself, docked beside the sheets or in a group floating over them: dropped back on its own place
+            # it docks there again (seed 7828 inside its floating group, 7839 on its node left of the sheets)
+            floating = [x["rect"] for x in over] + ([w["rect"]] if w.get("rect") else [])
             dy = min(max(g[1] + 60, ty + 150), g[3] - 60, 860)
             for px, py in [(g[0] + min(60, (g[2] - g[0]) / 5), dy), (g[2] - min(60, (g[2] - g[0]) / 5), dy),
                            (g[0] + min(60, (g[2] - g[0]) / 5), g[3] - 60), (g[2] - min(60, (g[2] - g[0]) / 5), g[3] - 60)]:
-                if g[3] - g[1] < 160:
+                if g[3] - g[1] < 160 or g[2] - g[0] < 400:  # too narrow too: the node's own docking targets cover it (seed 7839)
                     break
-                if g[0] <= px <= g[2] and g[1] + 60 <= py <= g[3] - 60 and not any(r[0] <= px <= r[2] and r[1] <= py <= r[3] for r in floating):
+                # (and 100 px clear of the window's sides: ImGui docks a window dropped there at that side of the whole
+                # dock space, seed 7839 dropped it 50 px from the left and it docked on the left again)
+                if g[0] <= px <= g[2] and 100 <= px <= WINDOW[0] - 100 and g[1] + 60 <= py <= g[3] - 60 and not any(r[0] <= px <= r[2] and r[1] <= py <= r[3] for r in floating):
                     drop = (px, py)
                     break
             if drop is None:

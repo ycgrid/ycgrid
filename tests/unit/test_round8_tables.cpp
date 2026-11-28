@@ -8,9 +8,12 @@
 
 #include "test_helpers.h"
 
+#include "engine/navigate.h"
 #include "io/content_dump.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 using yc::core::Rect;
 
@@ -256,9 +259,18 @@ TEST_CASE("Round8 tables: references to a deleted column or table are #REF!") {
   c.Set("E2", "=ROWS(Table1)");
   REQUIRE(c.d.DeleteTable(c.sheet(), cid, true));
   c.d.Recalc();
-  CHECK(c.F("E1") == "=SUM($B$2:$B$4)");
-  CHECK(c.F("E2") == "=ROWS($A$2:$C$4)");  // #NAME?
+  // named with their sheet, as Excel 16 writes them (measured: Trades[Qty] is Sheet1!$C$3:$C$6, [@Qty] Sheet1!$C3)
+  const std::string sn = c.d.S(c.sheet())->name;
+  CHECK(c.F("E1") == "=SUM(" + sn + "!$B$2:$B$4)");
+  CHECK(c.F("E2") == "=ROWS(" + sn + "!$A$2:$C$4)");  // #NAME?
   CHECK(c.N("E2") == 3);
+  yctest::Doc a;
+  const uint32_t aid = SalesTable(a);
+  a.Set("C2", "=[@Qty]*2");
+  REQUIRE(a.d.DeleteTable(a.sheet(), aid, true));
+  a.d.Recalc();
+  CHECK(a.F("C2") == "=" + a.d.S(a.sheet())->name + "!$B2*2");
+  CHECK(a.N("C2") == 2);
 }
 
 TEST_CASE("Round8 tables: Resize moves the totals row and continues calculated columns") {
@@ -524,20 +536,24 @@ TEST_CASE("Round8 tables: the cells a table grows over take its formats, and onl
   numfmt("C5", "0%");  // a format of its own, under the table
   t.Set("C3", "=B3*7");
   t.Set("C4", "=B4*7");  // C2 holds a value: not a calculated column
+  // a formula under the table makes its row the totals row, the cell keeping its own 0% (Excel 16, measured
+  // 2026-11-28 with these steps through Range.Formula: A1:C5, ShowTotals, C5 shows 600%); then A6 under the totals row
+  // grows nothing
   t.Set("C5", "=B4*2");  // 6
   t.d.Recalc();
   REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
-  CHECK(t.T("C5") == "6.00");  // the last row's 0.00 over its own 0%
+  CHECK(TableOf(t, id).totals);
+  CHECK(t.T("C5") == "600%");
   t.Set("A6", "d");
   t.d.Recalc();
-  REQUIRE(TableOf(t, id).range == Rect{0, 0, 5, 2});
-  CHECK(t.V("C6").IsEmpty());  // =B4*7 in C3:C4 only: nothing continues
+  REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
+  CHECK(t.V("C6").IsEmpty());
   // beside it: the header is the text of what was typed in the cell's own format, then takes the header's format
   numfmt("C1", "0.00");
   numfmt("D1", "0%");
   t.Set("D1", "12.5");
   t.d.Recalc();
-  REQUIRE(TableOf(t, id).range == Rect{0, 0, 5, 3});
+  REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 3});
   CHECK(t.V("D1").IsString());
   CHECK(t.T("D1") == "1250%");
   const auto& st = t.d.wb().styles->Get(t.d.S(t.sheet())->GetStyle(0, 3));
@@ -583,4 +599,351 @@ TEST_CASE("Round8 tables: a table growing down takes in the ranges that end at i
   t.d.Recalc();
   CHECK(t.F("G1") == "=SUM(B2:C3)");
   CHECK(t.N("G7") == 2);
+}
+
+TEST_CASE("Round8: a formula refused under a table changes nothing, the table's size and the formula's range included") {
+  // F2, 9, Enter on =SUM(B2:B4) right under a table: the entry is refused (extra content after the formula), and the
+  // table grew over it first, its range followed to =SUM(B2:B5), a circular reference, with an Undo step (basics
+  // seq470822). Excel leaves everything as it was
+  yctest::Doc t;
+  t.Set("A1", "Item");
+  t.Set("B1", "Qty");
+  for (int i = 2; i <= 4; ++i) {
+    t.Set(("A" + std::to_string(i)).c_str(), "x");
+    t.Set(("B" + std::to_string(i)).c_str(), std::to_string(i));
+  }
+  t.Set("B5", "=SUM(B2:B4)");  // before the table: typed under it, it would grow the table
+  std::string err;
+  const uint32_t id = t.d.AddTable(t.sheet(), Rect{0, 0, 3, 1}, true, "", &err);
+  REQUIRE(id);
+  t.d.Recalc();
+  t.d.ClearUndo();
+  const size_t depth = t.d.UndoDepth();
+  t.d.Begin("typing");
+  std::string why;
+  CHECK_FALSE(t.d.SetInput(t.sheet(), 4, 1, "=SUM(B2:B4)9", &why));
+  t.d.Commit();
+  t.d.Recalc();
+  CHECK_FALSE(why.empty());
+  CHECK(t.F("B5") == "=SUM(B2:B4)");
+  CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 3);
+  CHECK(t.d.circular_cells.empty());
+  CHECK(t.d.UndoDepth() == depth);
+}
+
+TEST_CASE("Round8: typing beside a table grows it only over a line that holds nothing else") {
+  // Excel 16, measured (keys posted to its sheet window): 9 typed in C7 under A1:C6 grows the table while row 7 is
+  // empty, and doesn't while B7 holds =SUM(B2:B6), 5 or text; the same for D2 beside it with D4 holding something
+  auto make = [](yctest::Doc& t, const char* other, const char* text) {
+    t.Set("A1", "Item");
+    t.Set("B1", "Qty");
+    t.Set("C1", "Price");
+    for (int i = 2; i <= 6; ++i) {
+      const std::string row = std::to_string(i);
+      t.Set(("A" + row).c_str(), "x");
+      t.Set(("B" + row).c_str(), std::to_string(i));
+      t.Set(("C" + row).c_str(), std::to_string(i * 10));
+    }
+    if (other) t.Set(other, text);
+    std::string err;
+    const uint32_t id = t.d.AddTable(t.sheet(), Rect{0, 0, 5, 2}, true, "", &err);
+    REQUIRE(id);
+    return id;
+  };
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, nullptr, nullptr);
+    t.Set("C7", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 6);
+  }
+  for (const char* text : {"=SUM(B2:B6)", "5", "note"}) {
+    yctest::Doc t;
+    const uint32_t id = make(t, "B7", text);
+    t.Set("C7", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.r1 == 5);
+    CHECK(t.F("B7") == text);
+    CHECK(t.d.circular_cells.empty());
+  }
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, nullptr, nullptr);
+    t.Set("D2", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.c1 == 3);
+  }
+  {
+    yctest::Doc t;
+    const uint32_t id = make(t, "D4", "5");
+    t.Set("D2", "9");
+    CHECK(t.d.TableById(t.sheet(), id)->range.c1 == 2);
+  }
+}
+
+TEST_CASE("A formula in a table drops its own name only from one-column references", "[table][round8]") {
+  // Excel 16, measured by keys posted to its sheet window: in a table, Table1[@Qty] reads [@Qty] and Table1[Qty]
+  // reads [Qty]; Table1[@[Name]:[Qty]], Table1[[Qty]:[Price]] and Table1[[#Headers],[Qty]] keep the name
+  yctest::Doc t;
+  SalesTable(t);
+  t.Set("C2", "=Table1[@Qty]*2");
+  CHECK(t.F("C2") == "=[@Qty]*2");
+  t.Set("C3", "=SUM(Table1[Qty])");
+  CHECK(t.F("C3") == "=SUM([Qty])");
+  t.Set("C2", "=Table1[[#Headers],[Qty]]");
+  CHECK(t.F("C2") == "=Table1[[#Headers],[Qty]]");
+  t.Set("C3", "=COUNTA(Table1[@[Name]:[Qty]])");
+  CHECK(t.F("C3") == "=COUNTA(Table1[@[Name]:[Qty]])");
+  t.Set("C4", "=SUM(Table1[[Name]:[Qty]])");
+  CHECK(t.F("C4") == "=SUM(Table1[[Name]:[Qty]])");
+}
+
+TEST_CASE("A table's growth after typing beside it is an Undo step of its own", "[table][round8]") {
+  // Excel 16, measured by keys: x typed under a table grows it, and the first Ctrl+Z takes back the growth only (x
+  // stays), the second the typing; a formula grows it at once (its structured references read the grown table)
+  yctest::Doc t;
+  const uint32_t id = SalesTable(t);  // A1:C4
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 4, 0, "d"));
+  t.d.Commit();
+  CHECK(TableOf(t, id).range.r1 == 3);  // not yet
+  t.d.GrowDeferredTables();
+  CHECK_FALSE(t.d.defer_table_growth);
+  CHECK(TableOf(t, id).range.r1 == 4);
+  CHECK(t.d.UndoDepth() == 2);
+  REQUIRE(t.d.Undo());
+  CHECK(TableOf(t, id).range.r1 == 3);
+  CHECK(t.V("A5").str() == "d");
+  REQUIRE(t.d.Undo());
+  CHECK(t.V("A5").IsEmpty());
+  // a formula beside it: the growth waits too, a step of its own
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 0, 3, "=1+1"));
+  t.d.Commit();
+  CHECK(TableOf(t, id).range.c1 == 2);
+  t.d.GrowDeferredTables();
+  CHECK(TableOf(t, id).range.c1 == 3);
+  CHECK(t.d.UndoDepth() == 2);
+}
+
+TEST_CASE("A calculated column's fill is an Undo step of its own after the typing", "[table][round8]") {
+  // Excel 16, measured by keys: =C3*D3 typed into an empty table column fills it; the first Ctrl+Z takes back the
+  // fill (the typed cell keeps its formula), the second the typing. Beside the table: fill, growth, typing
+  yctest::Doc t;
+  t.Set("A1", "Name");
+  t.Set("B1", "Qty");
+  t.Set("C1", "Price");
+  t.Set("D1", "Amt");
+  for (int i = 2; i <= 4; ++i) {
+    t.Set(("A" + std::to_string(i)).c_str(), "x");
+    t.Set(("B" + std::to_string(i)).c_str(), std::to_string(i));
+    t.Set(("C" + std::to_string(i)).c_str(), "10");
+  }
+  std::string err;
+  REQUIRE(t.d.AddTable(t.sheet(), Rect{0, 0, 3, 3}, true, "TableStyleMedium2", &err));
+  t.d.Recalc();
+  t.d.ClearUndo();
+  t.d.defer_table_growth = true;
+  t.d.Begin("typing");
+  REQUIRE(t.d.SetInput(t.sheet(), 1, 3, "=B2*C2"));
+  t.d.Commit();
+  CHECK(t.F("D3").empty());  // not yet
+  t.d.GrowDeferredTables();
+  CHECK(t.F("D3") == "=B3*C3");
+  CHECK(t.d.UndoDepth() == 2);
+  REQUIRE(t.d.Undo());
+  CHECK(t.F("D2") == "=B2*C2");
+  CHECK(t.F("D3").empty());
+  REQUIRE(t.d.Undo());
+  CHECK(t.F("D2").empty());
+}
+
+TEST_CASE("Create Table guesses a header row as Excel does", "[table][round8]") {
+  // Excel 16, measured on each layout through its Create Table dialog (the check box read through UI Automation) and
+  // ListObjects.Add(xlGuess), which agree: B2:D6, the first row B2:D2
+  struct Layout {
+    const char* what;
+    std::vector<std::vector<const char*>> rows;  // B..D, rows 2..6; "" blank, "=..." a formula, "#bold" the row bold
+    bool header;
+  };
+  const std::vector<Layout> layouts = {
+      {"text over numbers", {{"Sym", "Qty", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, true},
+      {"all numbers", {{"4", "6", "8"}, {"6", "9", "12"}, {"8", "12", "16"}, {"10", "15", "20"}, {"12", "18", "24"}}, false},
+      {"all text", {{"a", "b", "c"}, {"d", "e", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, false},
+      {"a year among the headers", {{"Sym", "2024", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, true},
+      {"one number under text", {{"a", "b", "c"}, {"d", "5", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"a number three rows down", {{"a", "b", "c"}, {"d", "e", "f"}, {"g", "5", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"a number over text", {{"a", "5", "c"}, {"d", "e", "f"}, {"g", "h", "i"}, {"j", "k", "l"}, {"m", "n", "o"}}, true},
+      {"text over dates", {{"Sym", "Day", "Px"}, {"S3", "=DATE(2026,1,3)", "p"}, {"S4", "=DATE(2026,1,4)", "p"}, {"S5", "=DATE(2026,1,5)", "p"}, {"S6", "=DATE(2026,1,6)", "p"}}, true},
+      {"a blank header", {{"Sym", "", "Px"}, {"S3", "3", "6"}, {"S4", "4", "8"}, {"S5", "5", "10"}, {"S6", "6", "12"}}, false},
+      {"blanks in the second row", {{"Sym", "Qty", "Px"}, {"x", "", ""}, {"4", "4", "8"}, {"5", "5", "10"}, {"6", "6", "12"}}, false},
+  };
+  for (const Layout& l : layouts) {
+    yctest::Doc t;
+    for (size_t i = 0; i < l.rows.size(); ++i) {
+      for (size_t j = 0; j < l.rows[i].size(); ++j) {
+        if (!*l.rows[i][j]) continue;
+        const std::string a = std::string(1, static_cast<char>('B' + j)) + std::to_string(i + 2);
+        t.Set(a.c_str(), l.rows[i][j]);
+      }
+    }
+    t.d.Recalc();
+    INFO(l.what);
+    CHECK(yc::engine::GuessHeaderRow(*t.d.wb().styles, *t.d.S(t.sheet()), Rect{1, 1, 5, 3}) == l.header);
+  }
+  // all text, the first row bold: a header
+  yctest::Doc t;
+  for (int r = 2; r <= 6; ++r) {
+    for (char c = 'B'; c <= 'D'; ++c) t.Set((std::string(1, c) + std::to_string(r)).c_str(), std::string(1, c) + std::to_string(r));
+  }
+  t.d.ModifyStyle(t.sheet(), Rect{1, 1, 1, 3}, [](yc::model::Style& x) { x.bold = true; });
+  CHECK(yc::engine::GuessHeaderRow(*t.d.wb().styles, *t.d.S(t.sheet()), Rect{1, 1, 5, 3}));
+}
+
+TEST_CASE("AutoFormat As You Type knows a typed address as Excel does", "[hyperlink][round8]") {
+  // Excel 16, measured by keys: each typed text and the link it got (Hyperlinks(1).Address), or none
+  using yc::engine::AutoLinkAddress;
+  CHECK(AutoLinkAddress("http://example.com") == "http://example.com/");
+  CHECK(AutoLinkAddress("https://example.com") == "https://example.com/");
+  CHECK(AutoLinkAddress("ftp://example.com") == "ftp://example.com/");
+  CHECK(AutoLinkAddress("http://example.com/a/b") == "http://example.com/a/b");
+  CHECK(AutoLinkAddress("http://example.com.tw:8080") == "http://example.com.tw:8080/");
+  CHECK(AutoLinkAddress("www.example.com") == "http://www.example.com/");
+  CHECK(AutoLinkAddress("www.example.com/x") == "http://www.example.com/x");
+  CHECK(AutoLinkAddress("mailto:a@b.com") == "mailto:a@b.com");
+  CHECK(AutoLinkAddress("a@b.com") == "mailto:a@b.com");
+  CHECK(AutoLinkAddress("a@b") == "mailto:a@b");
+  CHECK(AutoLinkAddress("example.com").empty());
+  CHECK(AutoLinkAddress("http:/x").empty());
+  CHECK(AutoLinkAddress("buy 2 @ 150").empty());  // a space: not an address
+  CHECK(AutoLinkAddress("").empty());
+}
+
+TEST_CASE("A row typed under a list takes its formats and formulas as Excel's", "[extendlist][round8]") {
+  // Excel 16, measured by keys (Extend data range formats and formulas, its default): a header in row 1, the list in
+  // rows 2..last, then a value typed in the next row
+  auto list = [](yctest::Doc& t, int last, const char* formula, std::initializer_list<int> without) {
+    t.Set("A1", "Sym");
+    t.Set("B1", "Qty");
+    t.Set("C1", "Px");
+    t.Set("D1", "Amt");
+    for (int r = 2; r <= last; ++r) {
+      const std::string n = std::to_string(r);
+      t.Set(("A" + n).c_str(), "s" + n);
+      t.Set(("B" + n).c_str(), n);
+      t.Set(("C" + n).c_str(), std::to_string(r * 10));
+      if (std::find(without.begin(), without.end(), r) == without.end()) t.Set(("D" + n).c_str(), std::string(formula) + n + (formula[1] == 'L' ? ")" : ""));
+    }
+    t.d.Recalc();
+  };
+  auto type = [](yctest::Doc& t, const char* a, const char* text) {
+    const yc::core::CellPos p = yctest::Doc::P(a);
+    REQUIRE(t.d.SetInput(t.sheet(), p.row, p.col, text));
+    t.d.ExtendList(t.sheet(), p.row, p.col);
+  };
+  {
+    yctest::Doc t;  // =LEN(A) in 5 of 5 rows: A7 typed fills D7
+    list(t, 6, "=LEN(A", {});
+    type(t, "A7", "x");
+    CHECK(t.F("D7") == "=LEN(A7)");
+  }
+  {
+    yctest::Doc t;  // 4 of 5, the row above among them: filled
+    list(t, 6, "=LEN(A", {3});
+    type(t, "A7", "x");
+    CHECK(t.F("D7") == "=LEN(A7)");
+  }
+  {
+    yctest::Doc t;  // 4 of 5 but not the row above: no
+    list(t, 6, "=LEN(A", {6});
+    type(t, "A7", "x");
+    CHECK(t.F("D7").empty());
+  }
+  {
+    yctest::Doc t;  // 3 of 5: no
+    list(t, 6, "=LEN(A", {3, 5});
+    type(t, "A7", "x");
+    CHECK(t.F("D7").empty());
+  }
+  {
+    yctest::Doc t;  // three rows only: no; four rows: yes
+    list(t, 4, "=LEN(A", {});
+    type(t, "A5", "x");
+    CHECK(t.F("D5").empty());
+    yctest::Doc u;
+    list(u, 5, "=LEN(A", {});
+    type(u, "A6", "x");
+    CHECK(u.F("D6") == "=LEN(A6)");
+  }
+  {
+    yctest::Doc t;  // =B*C waits for both B and C of the new row
+    list(t, 5, "=B", {});
+    for (int r = 2; r <= 5; ++r) t.Set(("D" + std::to_string(r)).c_str(), "=B" + std::to_string(r) + "*C" + std::to_string(r));
+    type(t, "B6", "7");
+    CHECK(t.F("D6").empty());
+    type(t, "C6", "3");
+    CHECK(t.F("D6") == "=B6*C6");
+  }
+  {
+    yctest::Doc t;  // a gap row under the list: no
+    list(t, 6, "=LEN(A", {});
+    type(t, "A8", "x");
+    CHECK(t.F("D8").empty());
+  }
+  // formats: a run of three or more rows above that share one
+  auto bold = [](yctest::Doc& t, std::initializer_list<int> rows) {
+    for (int r : rows) t.d.ModifyStyle(t.sheet(), Rect{static_cast<uint32_t>(r - 1), 0, static_cast<uint32_t>(r - 1), 0}, [](yc::model::Style& x) { x.bold = true; });
+  };
+  auto is_bold = [](yctest::Doc& t, const char* a) {
+    const yc::core::CellPos p = yctest::Doc::P(a);
+    return t.d.wb().styles->Get(t.d.S(t.sheet())->GetStyle(p.row, p.col)).bold;
+  };
+  for (const auto& [rows, want] : std::vector<std::pair<std::vector<int>, bool>>{
+           {{2, 3, 4, 5, 6}, true}, {{2, 3, 4, 5}, true}, {{4, 5, 6}, true}, {{2, 4, 6}, false}, {{4, 6}, false}}) {
+    yctest::Doc t;
+    list(t, 6, "=LEN(A", {});
+    for (int r : rows) bold(t, {r});
+    type(t, "A7", "x");
+    INFO(rows.size());
+    CHECK(is_bold(t, "A7") == want);
+  }
+}
+
+TEST_CASE("A row a table grows over takes a column's format only when all its data shares it", "[table][round8]") {
+  // Excel 16, measured through Range.Formula: Name / Qty / Price in A1:C4, 0.00 on some of C2:C4, C5 with or without
+  // its own 0%, then 6 written in C5: 0.00 only when C2:C4 all have it, else C5 keeps what it had
+  struct Case {
+    std::vector<const char*> fmt;
+    bool own;
+    const char* shown;
+  };
+  for (const Case& k : std::vector<Case>{{{"C2", "C3", "C4"}, true, "6.00"}, {{"C3", "C4"}, true, "600%"}, {{"C2", "C4"}, true, "600%"},
+                                         {{"C4"}, true, "600%"}, {{"C4"}, false, "6"}, {{"C3", "C4"}, false, "6"}, {{"C2", "C3", "C4"}, false, "6.00"}}) {
+    yctest::Doc t;
+    const uint32_t id = SalesTable(t);
+    auto numfmt = [&](const char* a1, const char* code) {
+      const auto p = t.P(a1);
+      t.d.ModifyStyle(t.sheet(), Rect::Cell(p.row, p.col), [&](yc::model::Style& s) { s.numfmt = t.d.wb_mut().styles.mut().InternString(code); });
+    };
+    for (const char* a : k.fmt) numfmt(a, "0.00");
+    if (k.own) numfmt("C5", "0%");
+    t.Set("C5", "6");
+    t.d.Recalc();
+    INFO(k.fmt.size() << (k.own ? " own" : ""));
+    REQUIRE(TableOf(t, id).range == Rect{0, 0, 4, 2});
+    CHECK(t.T("C5") == k.shown);
+  }
+}
+
+TEST_CASE("A rule's formula with a structured reference is known for Excel's refusal", "[table][round8]") {
+  // Excel 16 refuses Validation.Add(xlValidateList, ..., "=Trades[Sym]") and FormatConditions.Add(..., "=[@Qty]>3"),
+  // takes INDIRECT("Trades[Sym]") and a name on Trades[Qty] (measured through COM)
+  using yc::engine::HasStructuredRef;
+  CHECK(HasStructuredRef("=Trades[Sym]"));
+  CHECK(HasStructuredRef("=[@Qty]>3"));
+  CHECK(HasStructuredRef("C3>SUM(Trades[Qty])"));
+  CHECK_FALSE(HasStructuredRef("=INDIRECT(\"Trades[Sym]\")"));
+  CHECK_FALSE(HasStructuredRef("=$A$1:$A$5"));
+  CHECK_FALSE(HasStructuredRef("Buy,Sell"));
 }

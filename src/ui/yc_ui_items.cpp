@@ -16,6 +16,8 @@ struct Entry {
   bool disabled = false;
   bool clipped = false;  // out of its window's view this frame: not listed
   bool fallback = false;  // in ImGui's implicit Debug window, shown only when something is drawn into it
+  bool mixed = false;     // drawn with ImGuiItemFlags_MixedValue ((Select All) over some ticked items)
+  int checked = -1;       // UiItem::checked
 };
 std::unordered_map<ImGuiID, Entry> g_items;
 bool g_on = false;
@@ -55,6 +57,7 @@ void NoteUiItem(const char* label, const ImRect& rect) {
   e.frame = g->FrameCount;
   e.disabled = false;
   e.clipped = false;
+  e.checked = -1;
 }
 
 void NoteUiText(const char* text, const ImRect& rect) {
@@ -72,6 +75,7 @@ void NoteUiText(const char* text, const ImRect& rect) {
   e.frame = g->FrameCount;
   e.disabled = false;
   e.clipped = false;
+  e.checked = -1;
 }
 
 namespace {
@@ -108,6 +112,23 @@ std::string LiveWindowTitle(const char* name) {
   return name;
 }
 
+void NoteItemChecked(ImGuiID id, bool checked) {
+  ImGuiContext* g = ImGui::GetCurrentContext();
+  if (!g_on || !g) return;
+  auto it = g_items.find(id);
+  if (it == g_items.end() || it->second.frame != g->FrameCount) return;  // not added this frame (clipped by the window)
+  it->second.checked = checked ? 1 : 0;
+}
+
+void NameUiItem(ImGuiID id, const char* label) {
+  ImGuiContext* g = ImGui::GetCurrentContext();
+  if (!g_on || !g || !label) return;
+  auto it = g_items.find(id);
+  if (it == g_items.end() || it->second.frame != g->FrameCount) return;  // not added this frame (clipped by the window)
+  it->second.label = Visible(label);
+  it->second.raw = label;
+}
+
 namespace {
 bool FallbackShown() {
   for (const ImGuiWindow* w : ImGui::GetCurrentContext()->Windows) {
@@ -133,7 +154,7 @@ std::vector<UiItem> UiItems(bool all) {
       ++it;
       continue;
     }
-    if (all || !it->second.raw.empty()) out.push_back(UiItem{it->second.label, it->second.raw, it->second.window, it->second.rect, it->second.disabled});
+    if (all || !it->second.raw.empty()) out.push_back(UiItem{it->second.label, it->second.raw, it->second.window, it->second.rect, it->second.disabled, it->second.checked});
     ++it;
   }
   return out;
@@ -149,11 +170,13 @@ void ImGuiTestEngineHook_ItemAdd(ImGuiContext* ctx, ImGuiID id, const ImRect& bb
   if (e.frame != ctx->FrameCount) {
     e.label.clear();
     e.raw.clear();
+    e.checked = -1;
   }
   e.rect = bb;
   e.window = yc::ui::WindowName(ctx->CurrentWindow);
   e.frame = ctx->FrameCount;
   e.disabled = item_data && (item_data->ItemFlags & ImGuiItemFlags_Disabled);
+  e.mixed = item_data && (item_data->ItemFlags & ImGuiItemFlags_MixedValue);
   e.fallback = ctx->CurrentWindow && ctx->CurrentWindow->IsFallbackWindow;
   // ImGui calls this before its own clipping test, and a clipped check box still reports its label (ItemInfo): a
   // control scrolled or clipped out of its window's view is not one a person can click, so it isn't listed
@@ -162,7 +185,7 @@ void ImGuiTestEngineHook_ItemAdd(ImGuiContext* ctx, ImGuiID id, const ImRect& bb
   if (ctx->CurrentWindow && !e.clipped) e.rect.ClipWithFull(ctx->CurrentWindow->ClipRect);
 }
 
-void ImGuiTestEngineHook_ItemInfo(ImGuiContext* ctx, ImGuiID id, const char* label, ImGuiItemStatusFlags) {
+void ImGuiTestEngineHook_ItemInfo(ImGuiContext* ctx, ImGuiID id, const char* label, ImGuiItemStatusFlags flags) {
   if (!yc::ui::g_on) return;
   // usually after ItemAdd; tab items report before it (ItemAdd keeps a label given in the same frame)
   auto& e = yc::ui::g_items[id];
@@ -173,6 +196,7 @@ void ImGuiTestEngineHook_ItemInfo(ImGuiContext* ctx, ImGuiID id, const char* lab
   }
   e.label = yc::ui::Visible(label);
   e.raw = label ? label : "";
+  if (flags & ImGuiItemStatusFlags_Checkable) e.checked = e.mixed ? 2 : (flags & ImGuiItemStatusFlags_Checked) ? 1 : 0;
 }
 
 void ImGuiTestEngineHook_Log(ImGuiContext*, const char*, ...) {}

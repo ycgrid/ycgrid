@@ -95,6 +95,7 @@ class FormatsTest(unittest.TestCase):
 
         r = self.ws.Range("B2")
         r.Clear()
+        self.ws.Columns("B").ColumnWidth = 8.43  # a format before may have widened it (as Excel's do)
         r.NumberFormat = fmt
         r.Value2 = value
         self.keys("g:B2|w:2")
@@ -141,14 +142,16 @@ class FormatsTest(unittest.TestCase):
         self.assertEqual(self.decimals("General", 2.5e-10, -1), "0E+00")
         self.assertEqual(self.decimals("General", 1e20, 1), "0.0E+00")
         self.assertEqual(self.decimals("General", 1e20, -1), "General")
-        self.assertEqual(self.decimals("General", 123456789012, 1), "0.000000E+00")
-        self.assertEqual(self.decimals("General", 123456789012, -1), "0.0000E+00")
+        # from what General shows at the column's width: 1.23E+11 in a default column (Excel 16, measured)
+        self.assertEqual(self.decimals("General", 123456789012, 1), "0.000E+00")
+        self.assertEqual(self.decimals("General", 123456789012, -1), "0.0E+00")
         for v in (1, 100, 0):
             self.assertEqual(self.decimals("General", v, -1), "General", v)
         self.assertEqual(self.decimals("General", "abc", 1), "General")
         self.assertEqual(self.decimals("General", "abc", -1), "General")
-        # what already matched Excel stays
-        for v, inc, dec in ((1.5, "0.00", "0"), (0.333333333333333, "0.0000000000", "0.00000000"), (1234.5678, "0.00000", "0.000"),
+        # Excel 16 at a default column's width, each value in a column of its own (measured): 0.333333 and 1234.568 are
+        # what General shows there
+        for v, inc, dec in ((1.5, "0.00", "0"), (0.333333333333333, "0.0000000", "0.00000"), (1234.5678, "0.0000", "0.00"),
                             (-2.25, "0.000", "0.0"), (0.1, "0.00", "0"), (1e-05, "0.000000", "0.0000"), (1, "0.0", None)):
             self.assertEqual(self.decimals("General", v, 1), inc, v)
             if dec:

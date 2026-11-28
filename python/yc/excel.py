@@ -1256,6 +1256,28 @@ class _Application:
         self._edit_options(generate_getpivotdata=bool(v))
 
     @property
+    def GenerateTableRefs(self):  # noqa: N802
+        """File > Options > Formulas > Use table names in formulas: pointing at a table's column, row or header while
+        typing a formula writes Table1[Px], Table1[@Qty]... instead of the cells' address. xlGenerateTableRefsStruct (1)
+        when on, xlGenerateTableRefsA1 (0) when off, as Excel's."""
+        return 1 if self._edit_options()["generate_table_refs"] else 0
+
+    @GenerateTableRefs.setter
+    def GenerateTableRefs(self, v):  # noqa: N802
+        self._edit_options(generate_table_refs=bool(v))
+
+    @property
+    def AutoFormatAsYouTypeReplaceHyperlinks(self):  # noqa: N802
+        """AutoCorrect > AutoFormat As You Type > Internet and network paths with hyperlinks: a web address
+        (http://, https://, ftp://, www.) or an e-mail address typed into a cell becomes a link, in an Undo step of its
+        own (Excel's default: on). Only typing: Range.Value from Python never makes one."""
+        return bool(self._edit_options()["autoformat_hyperlinks"])
+
+    @AutoFormatAsYouTypeReplaceHyperlinks.setter
+    def AutoFormatAsYouTypeReplaceHyperlinks(self, v):  # noqa: N802
+        self._edit_options(autoformat_hyperlinks=bool(v))
+
+    @property
     def AlertBeforeOverwriting(self):  # noqa: N802
         """Ask before cells dragged onto others replace what they hold (File > Options > Advanced)."""
         return bool(self._edit_options()["alert_before_overwriting"])
@@ -1307,6 +1329,17 @@ class _Application:
     @EnableAutoComplete.setter
     def EnableAutoComplete(self, v):  # noqa: N802
         self._edit_options(enable_autocomplete=bool(v))
+
+    @property
+    def ExtendList(self):  # noqa: N802
+        """File > Options > Advanced > Extend data range formats and formulas: a value typed in the row under a list
+        takes the format three or more rows above share, and the row's empty cells take the formula four of the five
+        rows above hold, once every cell of the row it reads holds something (as Excel's). Typing only."""
+        return bool(self._edit_options()["extend_list"])
+
+    @ExtendList.setter
+    def ExtendList(self, v):  # noqa: N802
+        self._edit_options(extend_list=bool(v))
 
     @property
     def FlashFill(self):  # noqa: N802
@@ -2545,14 +2578,12 @@ _TABLE_SORTS = {}
 
 
 def _guess_header(sheet, a):
-    """Excel's xlGuess: the first row is a header when it is all text over a row with something else."""
+    """Excel's xlGuess, the one the Sort and Create Table dialogs make (measured on 13 layouts): no blank in the first
+    two rows, and some column whose first cell is text over a number below it, or a number over text, or a first row
+    formatted apart from the second."""
     if a[2] <= a[0]:
         return False
-    first = _rq("range.get", sheet=sheet, rect=[a[0], a[1], a[0], a[3]])["values"]
-    second = _rq("range.get", sheet=sheet, rect=[a[0] + 1, a[1], a[0] + 1, a[3]])["values"]
-    row1 = [v for v in (first[0] if first else []) if v is not None]
-    row2 = [v for v in (second[0] if second else []) if v is not None]
-    return bool(row1) and all(isinstance(v, str) for v in row1) and any(not isinstance(v, str) for v in row2)
+    return bool(_rq("range.guess_header", sheet=sheet, rect=list(a)))
 
 
 _SORTS = {}
@@ -6731,11 +6762,10 @@ class _ListObjects:
         if a[0] == a[2] and a[1] == a[3]:
             a = rng.CurrentRegion._a
         headers = XlListObjectHasHeaders != xlNo
-        if XlListObjectHasHeaders == xlGuess:
-            first = Range._from(self._sheet, [(a[0], a[1], a[0], a[3])]).Value
-            row = first[0] if isinstance(first, VArray) else [first]
-            headers = all(isinstance(v, str) for v in row if v is not None)
-        t = _rq("table.add", sheet=self._sheet, rect=list(a), headers=headers, **({} if TableStyleName is None else {"style": str(getattr(TableStyleName, "Name", TableStyleName))}))
+        # xlGuess: YCGrid guesses as Excel does (the Create Table dialog's guess: a blank in the first two rows says no
+        # header; text over a number below, or a first row formatted apart, says one)
+        guess = {"guess": True} if XlListObjectHasHeaders == xlGuess else {}
+        t = _rq("table.add", sheet=self._sheet, rect=list(a), headers=headers, **guess, **({} if TableStyleName is None else {"style": str(getattr(TableStyleName, "Name", TableStyleName))}))
         if not t:
             raise ApplicationDefinedError("A table can't be created here")
         return ListObject(self._sheet, t["id"])
@@ -7854,13 +7884,14 @@ class Range:
 
     def ClearOutline(self):  # noqa: N802
         """Remove the row and column groups of the range's rows and columns; one cell clears the whole sheet's outline,
-        as Data > Ungroup > Clear Outline does in Excel. Hidden rows and columns stay hidden."""
+        as Data > Ungroup > Clear Outline does in Excel. Collapsed rows and columns are shown again (Excel 16, measured;
+        Ungroup and OutlineLevel = 1 keep them hidden)."""
         a = self._a
         if a[0] == a[2] and a[1] == a[3]:
             a = (0, 0, ROW_END, MAX_COLS - 1)
         r1 = a[2] if a[2] != ROW_END else self.Worksheet.RowLimit - 1
-        _rq("outline.level", sheet=self._sheet, rows=True, index=a[0], b=r1, set=1)
-        _rq("outline.level", sheet=self._sheet, rows=False, index=a[1], b=a[3], set=1)
+        _rq("outline.level", sheet=self._sheet, rows=True, index=a[0], b=r1, set=1, clear=True)
+        _rq("outline.level", sheet=self._sheet, rows=False, index=a[1], b=a[3], set=1, clear=True)
 
     @property
     def ListObject(self):  # noqa: N802

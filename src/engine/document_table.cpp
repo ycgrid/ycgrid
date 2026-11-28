@@ -149,7 +149,7 @@ std::string Document::TableCantHold(uint32_t sheet, const Rect& rect, uint32_t t
 
 std::string Document::NextTableName() const {
   for (int n = 1;; ++n) {
-    const std::string name = "Table" + std::to_string(n);
+    const std::string name = TR("Table") + std::to_string(n);  // in the UI's language, as Excel's
     if (ValidTableName(name, 0, nullptr)) return name;
   }
 }
@@ -197,7 +197,7 @@ void Document::SyncTableHeaders(uint32_t sheet) {
       bool generated = false;
       if (name.empty()) {
         // the first ColumnN no header has (a column added to Name, Qty, Price is Column1)
-        do name = "Column" + std::to_string(counter++);
+        do name = TR("Column") + std::to_string(counter++);  // in the UI's language, as Excel's
         while (taken(name));
         generated = true;
       } else if (used_set.count(UpperAscii(name))) {
@@ -549,7 +549,8 @@ bool Document::DeleteTable(uint32_t sheet, uint32_t id, bool keep_look) {
           auto absolute = [&](uint32_t ts, const Rect& rr, bool this_row) {
             formula::Node ref;
             ref.kind = formula::NK::Ref;
-            ref.ref.sheet = ts == sh.id ? -1 : static_cast<int32_t>(ts);
+            // named with its sheet, its own too, as Excel 16 writes it (measured: [@Qty] becomes Sheet1!$C3)
+            ref.ref.sheet = static_cast<int32_t>(ts);
             ref.ref.r0 = this_row ? formula::RefCoord{0, false} : formula::RefCoord{rr.r0, true};
             ref.ref.r1 = this_row ? formula::RefCoord{0, false} : formula::RefCoord{rr.r1, true};
             ref.ref.c0 = formula::RefCoord{rr.c0, true};
@@ -716,7 +717,9 @@ bool Document::UpdateTable(uint32_t sheet, uint32_t id, const std::function<void
     SyncTableHeaders(sheet);
     if (after.filter_button && !S(sheet)->autofilter->on) SetAutoFilter(sheet, after.range);
   }
-  if (after.totals) WriteTotalsRow(sheet, id);
+  // the totals row's cells are written when it comes, not at every change of the table: a formula typed into it
+  // (=MAX(C3:C6)) was cleared by Banded Rows
+  if (after.totals && !before.totals) WriteTotalsRow(sheet, id);
   RebuildAll();
   changes_.push_back(CellChange{sheet, before.range.Union(after.range), kSrcUser});
   wb_.dirty = true;
@@ -740,6 +743,16 @@ void Document::WriteTotalsRow(uint32_t sheet, uint32_t id) {
       }
       // the table's own column, without its name, as Excel writes it: =SUBTOTAL(109,[Price])
       SetFormula(sheet, r, c, "SUBTOTAL(" + std::to_string(col.totals_func) + ",[" + esc + "])", nullptr, kSrcCalc);
+      // shown in the column's number format, the one its data rows share (Excel 16, measured: under 0.00, $#,##0.00 or
+      // 0% the totals cell takes it; a SUBTOTAL typed there infers none, so it is the totals row's own)
+      const Rect d = copy.Data();
+      const Sheet* ss = S(sheet);
+      if (d.r0 <= d.r1 && ss && !wb_.styles->Get(ss->GetStyle(r, c)).numfmt) {
+        const uint32_t fmt = wb_.styles->Get(ss->GetStyle(d.r0, c)).numfmt;
+        bool shared = fmt != 0;
+        for (uint32_t rr = d.r0 + 1; rr <= d.r1 && shared; ++rr) shared = wb_.styles->Get(ss->GetStyle(rr, c)).numfmt == fmt;
+        if (shared) ModifyStyle(sheet, Rect::Cell(r, c), [fmt](model::Style& st) { st.numfmt = fmt; });
+      }
     } else if (!col.totals_label.empty()) {
       SetValue(sheet, r, c, Value::String(col.totals_label), kSrcCalc);
     } else {
@@ -760,9 +773,129 @@ bool Document::SetTableTotal(uint32_t sheet, uint32_t id, uint32_t column, int f
 
 // typing next to a table makes it bigger (Excel's AutoCorrect "include new rows and columns in table"); a block
 // written below or right of it (a paste, Python's Range.Value) grows it once to take the whole block
-void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
+void Document::ExtendList(uint32_t sheet, uint32_t r, uint32_t c) {
+  const Sheet* s = S(sheet);
+  if (!s || r < 2 || s->IsEmptyCell(r, c) || TableAt(sheet, r, c)) return;  // a table has rules of its own
+  // the list: the columns the row above and the new row fill around the typed cell, and the rows above up to a blank
+  // one, five at most. Only these rows are read: a CurrentRegion under a million-row list walked all of it per Enter
+  auto filled = [&](uint32_t rr, uint32_t cc) { return !s->IsEmptyCell(rr, cc); };
+  uint32_t c0 = c, c1 = c;
+  while (c0 > 0 && c - c0 < 255 && (filled(r - 1, c0 - 1) || filled(r, c0 - 1))) --c0;
+  while (c1 + 1 < core::kMaxCols && c1 - c < 255 && (filled(r - 1, c1 + 1) || filled(r, c1 + 1))) ++c1;
+  auto row_empty = [&](uint32_t rr) {
+    for (uint32_t cc = c0; cc <= c1; ++cc) {
+      if (filled(rr, cc)) return false;
+    }
+    return true;
+  };
+  if (row_empty(r - 1)) return;  // nothing right above: not the row under a list
+  if (r + 1 < s->row_limit && !row_empty(r + 1)) return;  // typed inside a list: nothing extends
+  uint32_t top = r - 1;
+  while (top > 0 && r - top < 5 && !row_empty(top - 1)) --top;  // the five rows above, up to a blank one
+  const Rect reg{top, c0, r, c1};
+  // the typed cell's format: a run of three or more rows above that share one (A2:A4 bold over A5, A6: bold), the
+  // nearest one; rows that differ in between break a run (A2, A4, A6 bold: none)
+  if (s->GetOwnStyle(r, c) == 0) {
+    int64_t run = 0, run_end = -1;
+    uint32_t style = 0;
+    for (int64_t rr = int64_t{r} - 1; rr >= int64_t{top}; --rr) {
+      const uint32_t st = s->GetStyle(static_cast<uint32_t>(rr), c);
+      if (run > 0 && st == style) {
+        ++run;
+      } else {
+        if (run >= 3) break;
+        run = 1, style = st, run_end = rr;
+      }
+    }
+    if (run >= 3 && style != 0) Paste(sheet, r, c, Copy(sheet, Rect::Cell(static_cast<uint32_t>(run_end), c)), PasteMode::Formats);
+  }
+  // the formulas of the row above, into the row's empty cells
+  for (uint32_t k = reg.c0; k <= reg.c1; ++k) {
+    s = S(sheet);
+    if (k == c || !s->IsEmptyCell(r, k)) continue;
+    const uint32_t fid = s->GetFormula(r - 1, k);
+    if (!fid) continue;
+    uint32_t same = 0;
+    for (uint32_t rr = top; rr < r; ++rr) same += s->GetFormula(rr, k) == fid ? 1 : 0;
+    if (same < 4) continue;
+    const formula::CompiledFormula* f = Formula(fid);
+    if (!f) continue;
+    // every cell of the new row it reads holds something (=B6*C6 waits for C6; $F$1 and other rows don't count)
+    bool ready = true;
+    formula::Node probe = f->root;
+    formula::ForEachRef(probe, [&](formula::RefSpec& ref) {
+      if (!ready || !ref.HasCells() || ref.sheet >= 0 || ref.whole_cols || ref.whole_rows || ref.r0.abs || ref.r0.v != 0) return;
+      if (ref.is_range && (ref.r1.abs || ref.r1.v != 0)) return;
+      const int64_t a = ref.c0.Resolve(k), b = ref.is_range ? ref.c1.Resolve(k) : a;
+      for (int64_t cc = std::min(a, b); cc <= std::max(a, b) && ready; ++cc) {
+        if (cc < 0 || cc >= static_cast<int64_t>(core::kMaxCols) || s->IsEmptyCell(r, static_cast<uint32_t>(cc))) ready = false;
+      }
+    });
+    if (ready) Paste(sheet, r, k, Copy(sheet, Rect::Cell(r - 1, k)), PasteMode::Formulas);
+  }
+}
+
+void Document::GrowDeferredTables() {
+  defer_table_growth = false;
+  const std::vector<std::pair<uint32_t, core::CellPos>> calc = std::move(deferred_calc_);
+  deferred_calc_.clear();
+  const std::vector<std::pair<uint32_t, Rect>> list = std::move(deferred_growth_);
+  deferred_growth_.clear();
+  if (!list.empty()) GrowTables(list);
+  if (calc.empty()) return;
+  Begin(TR("Calculated Column"));
+  for (const auto& [sheet, p] : calc) FillCalculatedColumn(sheet, p.row, p.col);
+  Commit();
+}
+
+void Document::GrowTables(const std::vector<std::pair<uint32_t, Rect>>& list) {
+  Begin(TR("Table AutoExpansion"));
+  for (const auto& [sheet, w] : list) {
+    // the cells the write wrote are its own, whichever of its parts noted them (Ctrl+Enter: the active cell, then the
+    // fill over the others)
+    std::vector<Rect> written;
+    for (const auto& [sh2, w2] : list) {
+      if (sh2 == sheet) written.push_back(w2);
+    }
+    growth_written_ = &written;
+    AutoExpandTable(sheet, w);
+    growth_written_ = nullptr;
+  }
+  Commit();
+}
+
+void Document::AutoExpandTable(uint32_t sheet, const Rect& w, bool formula) {
   const Sheet* s = S(sheet);
   if (!s || s->tables->empty() || ProtectionApplies(sheet)) return;
+  // a formula in the row under a table (typed, Alt+= or Range.Formula) makes that row the table's totals row, with
+  // nothing else written in it; a value grows the data (Excel 16, measured: =SUM(C3:C6) in C7 under B2:D6 is a
+  // totals row, 5 a data row). Grown as data, the SUM's range followed to C3:C7, a circular reference
+  if (formula && w.r0 == w.r1) {
+    for (const Table& t : *s->tables) {
+      if (t.totals || w.r0 != t.range.r1 + 1 || w.c0 < t.range.c0 || w.c1 > t.range.c1) continue;
+      if (!t.header && t.range.r0 == t.range.r1) continue;  // a table of one row keeps it as data
+      // never over what a table can't hold: another table's header in that row made two tables overlap
+      // (doc_fuzz --xlsx seed 24004181633), as the growth as data asks too
+      if (!TableCantHold(sheet, Rect{t.range.r0, t.range.c0, w.r0, t.range.c1}, t.id).empty()) return;
+      // nor over a row that holds something besides the formula, as a growth as data doesn't (measured for data)
+      bool other = false;
+      for (uint32_t cc = t.range.c0; cc <= t.range.c1 && !other; ++cc) other = !w.Contains(w.r0, cc) && !s->IsEmptyCell(w.r0, cc);
+      if (other) break;
+      const Rect old = t.range;
+      NoteStructural();
+      Table* mt = MutTable(sheet, t.id);
+      mt->range.r1 = w.r0;
+      mt->totals = true;
+      RebuildAll();
+      changes_.push_back(CellChange{sheet, Rect{old.r0, old.c0, w.r0, old.c1}, kSrcUser});
+      wb_.dirty = true;
+      return;
+    }
+  }
+  if (defer_table_growth) {
+    if (deferred_growth_.size() < 4096) deferred_growth_.emplace_back(sheet, w);
+    return;
+  }
   for (const Table& t : *s->tables) {
     const bool below = !t.totals && w.r0 == t.range.r1 + 1 && w.c0 >= t.range.c0 && w.c0 <= t.range.c1;
     const bool right = w.c0 == t.range.c1 + 1 && w.r0 >= t.range.r0 && w.r0 <= t.range.r1;
@@ -770,6 +903,28 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
     Rect nr = t.range;
     if (below) nr.r1 = w.r1;
     else nr.c1 = std::min(w.c1, core::kMaxCols - 1);
+    // only over a line that holds nothing besides what is written (Excel 16, measured): 9 typed in C7 under a table
+    // doesn't grow it while B7 holds =SUM(B2:B6), 5 or any text, nor in D2 beside it while D4 does. Grown, the table
+    // took the SUM in and its range followed to =SUM(B2:B7), a circular reference (basics seq470822). A spill's
+    // values are TakeSpillsUnder's
+    {
+      const Rect band = below ? Rect{t.range.r1 + 1, t.range.c0, nr.r1, t.range.c1} : Rect{t.range.r0, t.range.c1 + 1, t.range.r1, nr.c1};
+      bool other = false;
+      auto counts = [&](uint32_t rr, uint32_t cc) {
+        if (other || w.Contains(rr, cc)) return;
+        if (growth_written_ && std::any_of(growth_written_->begin(), growth_written_->end(), [&](const Rect& x) { return x.Contains(rr, cc); })) return;
+        uint32_t ar = 0, ac = 0;
+        if (!s->spills->empty() && s->SpillAt(rr, cc, &ar, &ac) && (ar != rr || ac != cc)) return;
+        other = true;
+      };
+      ForEachCellInTiles(s->values, band, [&](uint32_t rr, uint32_t cc, const model::ValueTile& vt, uint32_t idx) {
+        if (vt.Occupied(idx)) counts(rr, cc);
+      });
+      ForEachCellInTiles(s->meta, band, [&](uint32_t rr, uint32_t cc, const model::MetaTile& mt, uint32_t idx) {
+        if (mt.formula[idx]) counts(rr, cc);
+      });
+      if (other) continue;
+    }
     // it doesn't grow over what a table can't hold: a typed formula beside it took in part of an array, whose value
     // became a header (doc_fuzz seed 10312766)
     if (!TableCantHold(sheet, nr, t.id).empty()) return;
@@ -801,6 +956,13 @@ void Document::AutoExpandTable(uint32_t sheet, const Rect& w) {
           if (!below && !(had_header && r == nr.r0)) continue;
           const uint32_t st = below ? ms->GetStyle(old.r1, c) : ms->GetStyle(r, old.c1);
           if (ms->GetStyle(r, c) == st) continue;
+          // under it, only a format every data row of the column shares: 0.00 in C2:C4 makes the new C5 0.00, in C3:C4
+          // only it leaves C5 as it was, its own 0% or General (Excel 16, measured through Range.Formula and by keys)
+          if (below) {
+            bool shared = true;
+            for (uint32_t rr = body0; rr < old.r1 && shared; ++rr) shared = ms->GetStyle(rr, c) == st;
+            if (!shared) continue;
+          }
           // a header's format waits until its text is made from what the write put there (SyncTableHeaders, at the end
           // of the write: the grow comes before the write)
           if (!below && had_header && r == nr.r0) grown_header_styles_.push_back({sheet, r, c, st});
@@ -906,15 +1068,39 @@ void Document::GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_
     });
     model::EditObjectRefTexts(sc, [&](std::string& t) { text(t, core::CellPos{0, 0}, own); });
   }
+  // the ranges conditional formats and validation apply to grow too when they end at its last row inside its columns
+  // (Excel 16, measured by keys: a rule on C3:C6 under a growth to row 7 applies to C3:C7, one on C3:C5 stays)
+  if (Sheet* ms = M(sheet)) {
+    auto grow_rects = [&](std::vector<Rect>& v) {
+      bool ch = false;
+      for (Rect& x : v) {
+        if (x.r1 == old_last && x.r0 >= first && x.c0 >= c0 && x.c1 <= c1) x.r1 = new_last, ch = true;
+      }
+      return ch;
+    };
+    if (!ms->cond_formats->empty()) {
+      auto rules = *ms->cond_formats;
+      bool ch = false;
+      for (auto& rule : rules) ch = grow_rects(rule.ranges) || ch;
+      if (ch) ms->cond_formats.mut() = std::move(rules), any = true;
+    }
+    if (!ms->validations->empty()) {
+      auto rules = *ms->validations;
+      bool ch = false;
+      for (auto& rule : rules) ch = grow_rects(rule.ranges) || ch;
+      if (ch) ms->validations.mut() = std::move(rules), any = true;
+    }
+  }
   // the step's Undo takes back what read the old range too, with the whole version (AutoExpandTable rebuilds the index
   // and calculates again after it)
   if (any) NoteTouched();
 }
 
-// a formula typed into a table names that table without its name, as Excel writes it (=Table1[@Qty] there is
-// =[@Qty]); typed into an empty table column it fills the whole column (a calculated column), and typed over a
+// a formula typed into a table names one of that table's columns without its name, as Excel writes it
+// (=Table1[@Qty] there is =[@Qty], Table1[Qty] is [Qty]); the other forms keep it: Table1[@[Sym]:[Qty]],
+// Table1[[Qty]:[Px]], Table1[[#Headers],[Qty]] (Excel 16, measured by keys); typed into an empty table column it fills the whole column (a calculated column), and typed over a
 // calculated column it replaces the column's formula in every row (Excel's default)
-void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
+void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c, bool fill) {
   const Table* t = TableAt(sheet, r, c);
   if (!t) return;
   const uint32_t fid = S(sheet)->GetFormula(r, c);
@@ -923,7 +1109,9 @@ void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
     formula::Node root = f->root;
     bool changed = false;
     ForEachStructRef(root, [&](formula::Node& n) {
-      if (!n.str.empty() && IEq(n.str, own)) {
+      const uint8_t items = static_cast<uint8_t>(n.op);
+      const bool one_column = n.kids.size() >= 2 && !n.kids[0].str.empty() && n.kids[1].str.empty() && (items == 0 || items == 16);
+      if (one_column && !n.str.empty() && IEq(n.str, own)) {
         n.str.clear();
         changed = true;
       }
@@ -936,6 +1124,7 @@ void Document::FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c) {
     t = TableAt(sheet, r, c);
     if (!t) return;
   }
+  if (!fill) return;
   const Sheet* s = S(sheet);
   Rect d = t->Data();
   d.r1 = std::min(d.r1, s->row_limit - 1);  // a table kept to the end marker: the sheet's rows

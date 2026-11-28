@@ -13,6 +13,7 @@
 
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "yc_ui_items.h"
 
 #include <algorithm>
 #include <cctype>
@@ -176,6 +177,8 @@ bool Draw(AppState& s, const char* key, char* buf, size_t size, std::string* str
   } else if (ImGui::InputText("##rb", buf, size, tf, tf ? NoteCaret : nullptr, &key_id)) {
     changed = true;
   }
+  // every range box is "##rb" to ImGui: tests also find it by its key ("##rb.dv.source"), the boxes of one dialog apart
+  ui::NoteUiItem((std::string("##rb.") + key).c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
   // Excel's RefEdit: while the box has the keyboard, a click on the sheet picks the cells there (a drag a range), the
   // dialog staying open; only the button did, and a cell clicked for Greater Than's value changed nothing
   static std::map<ImGuiID, int> active_at;

@@ -646,7 +646,9 @@ class Document : public formula::SheetResolver {
   bool SetSheetBackground(uint32_t sheet, std::string image);
 
   // ---- Notes and hyperlinks ----
-  void SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text);  // empty text = delete
+  // empty text deletes the note, unless keep_empty: a note emptied in its box, or made and left empty, stays (Excel 16,
+  // measured by keys: Shift+F2, Backspace over all of it, Escape keeps the note)
+  void SetNote(uint32_t sheet, uint32_t r, uint32_t c, const std::string& author, const std::string& text, bool keep_empty = false);
   // a note's box: its size, place and Format Comment look (false: no note there)
   bool SetNoteLook(uint32_t sheet, uint32_t r, uint32_t c, const model::CellNote::Look& look);
   // fonts inside a cell's text (runs that change nothing remove the entry); the cell keeps its value
@@ -751,7 +753,9 @@ class Document : public formula::SheetResolver {
   uint32_t TextToColumns(uint32_t sheet, const Rect& src, uint32_t dest_r, uint32_t dest_c, const TextToColumnsOptions& o);
   // outline: group (level + 1) or ungroup rows / columns a..b; show levels; collapse / expand the group around index
   void GroupOutline(uint32_t sheet, bool rows, uint32_t a, uint32_t b, bool group);
-  void ClearOutline(uint32_t sheet, bool rows);
+  // Clear Outline: the lines of [a, b] (all of them by default) leave every group and are shown (Excel 16, measured:
+  // Range.ClearOutline and Data > Ungroup > Clear Outline both show collapsed rows; Ungroup keeps them hidden)
+  void ClearOutline(uint32_t sheet, bool rows, uint32_t a = 0, uint32_t b = 0xFFFFFFFFu);
   // Data > Outline settings: summary rows below detail, summary columns right of detail, automatic styles
   void SetOutlineSettings(uint32_t sheet, bool summary_below, bool summary_right, bool automatic_styles);
   int AutoOutline(uint32_t sheet, const Rect& area);  // groups the rows / columns SUM and SUBTOTAL formulas add up; returns the groups made
@@ -1037,6 +1041,13 @@ class Document : public formula::SheetResolver {
   // parameter cells: the user changes them only by typing (the UI checks and confirms, then sets param_commit for
   // that one edit); Python changes them freely. Every change of their values goes to the change log.
   bool param_commit = false;
+  // What a table does by itself after a write is a step of its own, for the UI's typing, Ctrl+Enter and Fill Right:
+  // its growth (Table AutoExpansion), then a formula filling its empty column (Calculated Column); Excel 16's first
+  // Ctrl+Z takes back the column's fill, the next the growth, the next the typing (measured by keys; Ctrl+D takes
+  // growth and fill back at once). Set around the write; GrowDeferredTables makes what was noted meanwhile
+  bool defer_table_growth = false;
+  void GrowDeferredTables();
+  void GrowTables(const std::vector<std::pair<uint32_t, Rect>>& writes);  // one step: each write's growth
   std::string audit_user;  // who the user changes of this window are logged as
   const model::ParameterDef* ParameterAt(uint32_t sheet, uint32_t r, uint32_t c) const;
   bool SetParameter(model::ParameterDef def, std::string* error);  // adds, or replaces the one of the same cell
@@ -1239,13 +1250,27 @@ class Document : public formula::SheetResolver {
   // changed it); the formulas changed are put back on their cells (`skip`: a sheet whose cells are left alone)
   void RewriteThreeDCells(uint32_t id, const std::function<bool(formula::RefSpec&)>& fix, uint32_t skip);
   void ForEachReferenceText(const std::function<void(std::string&)>& fn);  // names, charts, rules and validation
-  void AutoExpandTable(uint32_t sheet, uint32_t r, uint32_t c) { AutoExpandTable(sheet, Rect::Cell(r, c)); }
-  void AutoExpandTable(uint32_t sheet, const Rect& w);  // w: the cells being written
+  void AutoExpandTable(uint32_t sheet, uint32_t r, uint32_t c, bool formula = false) { AutoExpandTable(sheet, Rect::Cell(r, c), formula); }
+  // w: the cells being written; formula: a formula is (one under a table makes its row the totals row)
+  void AutoExpandTable(uint32_t sheet, const Rect& w, bool formula = false);
   // a table on `sheet` (columns c0..c1, first row first) grew down from its last row old_last to new_last: the ranges
   // that end at old_last inside it grow with it (cell formulas, names, rules, objects)
   void GrowRangesWithTable(uint32_t sheet, uint32_t first, uint32_t old_last, uint32_t new_last, uint32_t c0, uint32_t c1);
-  void FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c);
+  // fill: also fill the column (a calculated column); without it only the formula's own table loses its name
+  void FillCalculatedColumn(uint32_t sheet, uint32_t r, uint32_t c, bool fill = true);
+
+ public:
+  // Extend data range formats and formulas (Application.ExtendList), after a value typed at (r, c) in the row under a
+  // list (Excel 16, measured by keys on 30 layouts): the typed cell takes the format of a run of three or more rows
+  // that share it among the five above; an empty cell of the row takes the formula of the row above when four of the
+  // five rows above (the row above among them) hold it and every cell of the new row it reads holds something
+  void ExtendList(uint32_t sheet, uint32_t r, uint32_t c);
+
+ private:
   bool syncing_tables_ = false;
+  std::vector<std::pair<uint32_t, Rect>> deferred_growth_;  // defer_table_growth's writes beside a table
+  std::vector<std::pair<uint32_t, core::CellPos>> deferred_calc_;  // and its formulas that may fill a table column
+  const std::vector<Rect>* growth_written_ = nullptr;  // GrowDeferredTables: every cell its write wrote, on that sheet
   // header cells a table grew over and the format each takes once SyncTableHeaders made it text: {sheet, r, c, style}
   std::vector<std::array<uint32_t, 4>> grown_header_styles_;
 
@@ -1435,6 +1460,10 @@ class Document : public formula::SheetResolver {
   // an array entered with Ctrl+Shift+Enter that met itself as a cycle by reading its own cells: calculated when no
   // value of it reads itself (true), as in Excel; else its cells are as they were (false)
   bool SettleArrayReadingItself(uint64_t anchor);
+  // several arrays entered with Ctrl+Shift+Enter that read each other's cells (and nothing else of the cycle): their
+  // values settled together, each read of the others' cells waiting until that value is set (doc_fuzz --xlsx seed
+  // 24002581569: B3 {=A1:B3*2} and A2:A4 {=A1:B3*2} met as a cycle in one order of calculation, not in another)
+  bool SettleArraysTogether(const std::vector<uint64_t>& anchors);
   void RecalcOnly(uint32_t sheet, const Rect& rect, bool every_formula);  // RecalcSheet / RecalcRange
   std::unordered_map<uint64_t, uint32_t> pending_tiles_;  // tile key -> number of pending cells
   // (sheet << 32 | column) -> number of pending cells: a range of a column beside pending ones in the same tiles

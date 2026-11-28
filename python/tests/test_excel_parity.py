@@ -274,6 +274,12 @@ class ExcelParityTest(unittest.TestCase):
         self.keys(f"m:{int(r[0]) + 10},{int((r[1] + r[3]) / 2)}|w:2|c:{int(r[0]) + 10},{int((r[1] + r[3]) / 2)}|w:3|k:c-A|t:12|w:2|k:Enter|w:10")
         self.keys("k:Enter|w:6")
         self.assertAlmostEqual(self.ws.Range("A1").Value, 4, places=4)
+        # Esc in Goal Seek Status is its Cancel: the original value comes back (it kept the value found)
+        self.keys("g:B1|w:2|k:LeftAlt|w:2|t:A|w:3|t:W|w:4|t:G|w:8|k:Tab|w:2|t:30|k:Tab|w:2|t:A1|w:2|k:Enter|w:10")
+        self.assertAlmostEqual(self.ws.Range("A1").Value, 10, places=4)
+        self.keys("k:Escape|w:6")
+        self.assertEqual(self.dialog(), 0)
+        self.assertAlmostEqual(self.ws.Range("A1").Value, 4, places=4)
 
 
     def test_function_arguments_box_per_argument(self):
@@ -314,6 +320,9 @@ class ExcelParityTest(unittest.TestCase):
         self.keys("k:LeftCtrl|w:4")
         self.click("Transpose")
         self.assertEqual((self.ws.Range("A3").Value, self.ws.Range("A4").Formula), (2, "=A3*10"))
+        # Ctrl+V, Ctrl, V: Excel's letters in the options (Values (V)) did nothing
+        self.keys("k:Escape|w:3|g:A1:B1|w:2|k:c-C|w:2|g:A7|w:2|k:c-V|w:6|k:LeftCtrl|w:4|k:V|w:6")
+        self.assertEqual((self.ws.Range("B7").Formula, self.ws.Range("B7").Value), ("20", 20))
 
     def test_dropping_cells_onto_data_asks_first(self):
         from yc import ui
@@ -470,6 +479,8 @@ class ExcelParityTest(unittest.TestCase):
         self.click("Next >")  # step 2 of Excel's wizard: the break lines
         ruler = [i for i in ui.items("") if i["id"] == "##ruler"]
         self.assertTrue(ruler, "the ruler is shown")
+        # the recorder names the dialog by the title it shows now, not the first one (it said Step 1 of 3)
+        self.assertIn("Convert Text to Columns Wizard - Step 2 of 3", {i.get("window") for i in ui.items("")})
         ui.screenshot(os.path.join(os.environ.get("TEMP", "."), "yc_ttc.png"), max_width=1600)
         self.click("Finish")
         self.assertEqual([self.ws.Range(c).Value for c in ("A1", "B1")], ["AA", "BB12345"], "split at the suggested break")
@@ -504,6 +515,11 @@ class ExcelParityTest(unittest.TestCase):
         self.keys(f"m:{x},{y}|w:2|c:{x},{y}|w:4")
         c = self.ws.Range("B3").Comment
         self.assertIn("first line more", c.Text() if callable(getattr(c, "Text", None)) else c.Text)
+        # ...and the caret starts after the note's text, as Excel's: without Ctrl+End the typing went before it
+        # (once another box had had the keyboard, a cell's entry here: ImGui keeps the last box's caret otherwise)
+        self.keys("g:D9|w:2|t:x|k:Enter|w:3|g:B3|w:2|k:s-F2|w:6|t: again|w:2|k:Escape|w:4")
+        c = self.ws.Range("B3").Comment
+        self.assertEqual(c.Text() if callable(getattr(c, "Text", None)) else c.Text, "first line more again")
         # Escape also ends the editing and keeps what was typed
         self.keys("g:C4|w:2|k:s-F2|w:4|t:kept|k:Escape|w:4")
         c = self.ws.Range("C4").Comment
@@ -548,10 +564,10 @@ class ExcelParityTest(unittest.TestCase):
         r = self._status_bar()
         x, y = int(r[0] + (r[2] - r[0]) * 0.5), int((r[1] + r[3]) / 2)
         self.keys(f"m:{x},{y}|w:2|r:|w:4")
-        self.click("Max")
+        self.click("Maximum")  # the menu names it in full, the bar in short, as Excel's
         self.assertIn("Max: 9", ui.state()["status_stats"])
         self.keys(f"m:{x},{y}|w:2|r:|w:4")
-        self.click("Max")  # and off again (the next tests see the default)
+        self.click("Maximum")  # and off again (the next tests see the default)
         self.assertNotIn("Max", ui.state()["status_stats"])
 
     def test_status_bar_zoom_slider(self):
@@ -717,6 +733,14 @@ class ExcelParityTest(unittest.TestCase):
         copy = excel.Worksheets(at)  # the copy went just before the tab it was dropped on
         self.assertEqual(copy.Range("A1").Value, "copied")
         self.assertNotEqual(copy.Name, self.ws.Name)
+        # Ctrl held before the press, as Excel's help says it (hold Ctrl, drag the tab): only Ctrl at the drop copied
+        self.ws.Activate()
+        self.keys("w:4")
+        x0, y0 = self._tab(self.ws.Name)
+        x1, y1 = self._tab(first)
+        self.keys(f"H:ctrl|m:{x0},{y0}|w:2|p:{x0},{y0}|w:2|m:{x0 - 20},{y0}|w:2|m:{x1},{y1}|w:3|u:|w:2|h:|w:4|m:2,2|w:2")
+        self.assertEqual(excel.Worksheets.Count, n + 2)
+        self.assertEqual([s.Name for s in excel.ActiveWindow.SelectedSheets], [excel.ActiveSheet.Name], "the copy alone is selected")
 
     def test_undo_list_undoes_several_actions(self):
         # Excel: the arrow beside Undo lists the actions; choosing the third undoes the last three

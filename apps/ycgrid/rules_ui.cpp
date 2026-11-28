@@ -7,6 +7,7 @@
 // - ribbon commands and dialogs: highlight rules, top/bottom N, data bars, color scales, formula rules, rules manager, data validation
 #include "app_state.h"
 #include "core/i18n.h"
+#include "core/utf8.h"
 
 #include "commands/command_registry.h"
 #include "engine/navigate.h"
@@ -33,6 +34,16 @@
 
 namespace yc::app {
 
+// the filter menu's search box (Excel 16, measured through its menu): text without a wildcard is found inside a value
+// (tx finds TXF, MTX, txo); with * or ? it is the whole value (t? finds TE, not TXF; *x finds MTX)
+static bool SearchMatches(const std::string& q, const std::string& value) {
+  if (q.empty()) return true;
+  const std::string v = engine::Lower(value);
+  if (q.find_first_of("*?") == std::string::npos) return v.find(q) != std::string::npos;
+  size_t start = 0, len = 0;
+  return engine::WildFind(q, v, 0, true, &start, &len);
+}
+
 using engine::Document;
 using ui::S;
 
@@ -50,6 +61,7 @@ struct FilterUi {
   std::vector<double> serials;  // each value's number: a date column's list is grouped Year > Month > Day, as Excel's
   bool blanks_present = false, blanks_checked = true;
   char search[128] = {};
+  bool focus_search = false;  // E pressed in the menu: the search box takes the keyboard
   // while searching (Excel): the results are ticked on their own, and OK shows only them (or adds them to the filter)
   std::string searched;
   std::vector<char> found_checked;
@@ -437,11 +449,29 @@ void DrawFilterPopup(AppState& s) {
   // Excel words the sort by the column's kind of data
   const char* asc = f.col_date ? TR("Sort Oldest to Newest") : f.col_num ? TR("Sort Smallest to Largest") : TR("Sort A to Z");
   const char* desc = f.col_date ? TR("Sort Newest to Oldest") : f.col_num ? TR("Sort Largest to Smallest") : TR("Sort Z to A");
-  if (ImGui::Selectable(asc)) {
+  // Excel's letters in the menu (its underlined ones, the same in every language; read through UI Automation's
+  // AccessKey in Excel 16): S sorts ascending, O descending, T and I open Sort by Color and Filter by Color, C clears
+  // the column's filter, F opens Number / Text / Date Filters, E goes to the search box (Alt+Down, E, a few letters,
+  // Enter is how people filter from the keyboard). Only while that menu itself has the keyboard: not in the search
+  // box, and a submenu's letters only while it is open
+  const ImGuiIO& kio = ImGui::GetIO();
+  // the letter that opens a submenu is not also the submenu's (F opens Number Filters, whose F is Custom Filter)
+  static int opened_frame = -1;
+  auto menu_letter = [&](ImGuiKey k) {
+    return ImGui::GetFrameCount() != opened_frame && ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl &&
+           !kio.KeyAlt && !kio.KeyShift && ImGui::IsKeyPressed(k, false);
+  };
+  const bool letters = ImGui::IsWindowFocused() && !ImGui::IsAnyItemActive() && !kio.KeyCtrl && !kio.KeyAlt && !kio.KeyShift;
+  auto letter = [&](ImGuiKey k) { return letters && ImGui::IsKeyPressed(k, false); };
+  const bool colors = !f.fills.empty() || !f.fonts.empty();
+  if (colors && letter(ImGuiKey_T)) ImGui::OpenPopup(TR("Sort by Color")), opened_frame = ImGui::GetFrameCount();
+  if ((colors || !f.icons.empty()) && letter(ImGuiKey_I)) ImGui::OpenPopup(TR("Filter by Color")), opened_frame = ImGui::GetFrameCount();
+  if (letter(ImGuiKey_E)) f.focus_search = true;
+  if (ImGui::Selectable(asc) || letter(ImGuiKey_S)) {
     SortRange(s, f.sheet, data, col, false, 0, 0, f.table);
     ImGui::CloseCurrentPopup();
   }
-  if (ImGui::Selectable(desc)) {
+  if (ImGui::Selectable(desc) || letter(ImGuiKey_O)) {
     SortRange(s, f.sheet, data, col, true, 0, 0, f.table);
     ImGui::CloseCurrentPopup();
   }
@@ -476,7 +506,7 @@ void DrawFilterPopup(AppState& s) {
   std::string header = engine::DisplayTextOf(sh->GetValue(frange.r0, col), "General");
   if (header.empty()) header = core::ColumnName(col);
   for (size_t at = header.find("##"); at != std::string::npos; at = header.find("##", at + 3)) header.replace(at, 2, "# #");  // ## is ImGui's id marker
-  if (ImGui::Selectable((TR("Clear Filter From \"") + header + TR("\"##ctx_filter")).c_str())) {
+  if (ImGui::Selectable((TR("Clear Filter From \"") + header + TR("\"##ctx_filter")).c_str()) || (filtered && letter(ImGuiKey_C))) {
     model::FilterColumn fc;
     fc.field = f.field;
     PostFilterColumn(s, TR("Clear Filter"), f.sheet, f.table, fc);
@@ -549,12 +579,16 @@ void DrawFilterPopup(AppState& s) {
     apply(fc);
   };
   const char* menu = f.col_date ? TR("Date Filters") : f.col_num ? TR("Number Filters") : TR("Text Filters");
+  if (letter(ImGuiKey_F)) ImGui::OpenPopup(menu), opened_frame = ImGui::GetFrameCount();
   if (ImGui::BeginMenu(menu)) {
+    // the submenu's letters (Excel 16's AccessKey); a letter two entries share (O in Number Filters, A in Date
+    // Filters) only moves Excel's highlight, so it runs nothing here
+    auto key = [&](ImGuiKey k) { return k != ImGuiKey_None && menu_letter(k); };
     if (f.col_date) {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Before..."))) custom(4);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Before...")) || key(ImGuiKey_B)) custom(4);
       if (ImGui::MenuItem(TR("After..."))) custom(2);
-      if (ImGui::MenuItem(TR("Between..."))) custom(3, 5, true);
+      if (ImGui::MenuItem(TR("Between...")) || key(ImGuiKey_W)) custom(3, 5, true);
       ImGui::Separator();
       static const std::pair<const char*, int> kDyn[] = {
           {TR("Tomorrow"), 3}, {TR("Today"), 1}, {TR("Yesterday"), 2}, {nullptr, 0},
@@ -562,9 +596,16 @@ void DrawFilterPopup(AppState& s) {
           {TR("Next Month"), 9}, {TR("This Month"), 7}, {TR("Last Month"), 8}, {nullptr, 0},
           {TR("Next Quarter"), 12}, {TR("This Quarter"), 10}, {TR("Last Quarter"), 11}, {nullptr, 0},
           {TR("Next Year"), 15}, {TR("This Year"), 13}, {TR("Last Year"), 14}, {nullptr, 0}, {TR("Year to Date"), 16}};
-      for (const auto& [label, code] : kDyn) {
+      // Tomorrow T, Today O, Yesterday D, Next Week K, This Week H, Last Week L, Next Month M, This Month S, Last
+      // Month N, Next Quarter Q, This Quarter U, Last Quarter R, Next Year X, This Year I, Last Year Y (Year to Date
+      // shares A with After)
+      static const ImGuiKey kDynKey[] = {ImGuiKey_T, ImGuiKey_O, ImGuiKey_D, ImGuiKey_None, ImGuiKey_K, ImGuiKey_H, ImGuiKey_L, ImGuiKey_None,
+                                         ImGuiKey_M, ImGuiKey_S, ImGuiKey_N, ImGuiKey_None, ImGuiKey_Q, ImGuiKey_U, ImGuiKey_R, ImGuiKey_None,
+                                         ImGuiKey_X, ImGuiKey_I, ImGuiKey_Y, ImGuiKey_None, ImGuiKey_None};
+      for (size_t i = 0; i < std::size(kDyn); ++i) {
+        const auto& [label, code] = kDyn[i];
         if (!label) ImGui::Separator();
-        else if (ImGui::MenuItem(label)) dynamic(code);
+        else if (ImGui::MenuItem(label) || key(kDynKey[i])) dynamic(code);
       }
       if (ImGui::BeginMenu(TR("All Dates in the Period"))) {
         static const char* kQ[] = {TR("Quarter 1"), TR("Quarter 2"), TR("Quarter 3"), TR("Quarter 4")};
@@ -580,38 +621,42 @@ void DrawFilterPopup(AppState& s) {
         ImGui::EndMenu();
       }
     } else if (f.col_num) {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Does Not Equal..."))) custom(1);
-      if (ImGui::MenuItem(TR("Greater Than..."))) custom(2);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Does Not Equal...")) || key(ImGuiKey_N)) custom(1);
+      if (ImGui::MenuItem(TR("Greater Than...")) || key(ImGuiKey_G)) custom(2);
       if (ImGui::MenuItem(TR("Greater Than Or Equal To..."))) custom(3);
-      if (ImGui::MenuItem(TR("Less Than..."))) custom(4);
-      if (ImGui::MenuItem(TR("Less Than Or Equal To..."))) custom(5);
-      if (ImGui::MenuItem(TR("Between..."))) custom(3, 5, true);
-      if (ImGui::MenuItem(TR("Top 10..."))) {
+      if (ImGui::MenuItem(TR("Less Than...")) || key(ImGuiKey_L)) custom(4);
+      if (ImGui::MenuItem(TR("Less Than Or Equal To...")) || key(ImGuiKey_Q)) custom(5);
+      if (ImGui::MenuItem(TR("Between...")) || key(ImGuiKey_W)) custom(3, 5, true);
+      if (ImGui::MenuItem(TR("Top 10...")) || key(ImGuiKey_T)) {
         f.t_top = 0;
         f.t_count = 10;
         f.t_pct = 0;
         ImGui::CloseCurrentPopup();
         s.OpenDialog(Dialog::Top10Filter);
       }
-      if (ImGui::MenuItem(TR("Above Average"))) dynamic(33);
+      if (ImGui::MenuItem(TR("Above Average")) || key(ImGuiKey_A)) dynamic(33);
       if (ImGui::MenuItem(TR("Below Average"))) dynamic(34);
     } else {
-      if (ImGui::MenuItem(TR("Equals..."))) custom(0);
-      if (ImGui::MenuItem(TR("Does Not Equal..."))) custom(1);
+      if (ImGui::MenuItem(TR("Equals...")) || key(ImGuiKey_E)) custom(0);
+      if (ImGui::MenuItem(TR("Does Not Equal...")) || key(ImGuiKey_N)) custom(1);
       ImGui::Separator();
-      if (ImGui::MenuItem(TR("Begins With..."))) custom(6);
-      if (ImGui::MenuItem(TR("Ends With..."))) custom(8);
+      if (ImGui::MenuItem(TR("Begins With...")) || key(ImGuiKey_I)) custom(6);
+      if (ImGui::MenuItem(TR("Ends With...")) || key(ImGuiKey_T)) custom(8);
       ImGui::Separator();
-      if (ImGui::MenuItem(TR("Contains..."))) custom(10);
-      if (ImGui::MenuItem(TR("Does Not Contain..."))) custom(11);
+      if (ImGui::MenuItem(TR("Contains...")) || key(ImGuiKey_A)) custom(10);
+      if (ImGui::MenuItem(TR("Does Not Contain...")) || key(ImGuiKey_D)) custom(11);
     }
     ImGui::Separator();
-    if (ImGui::MenuItem(TR("Custom Filter..."))) custom(f.op1, f.op2, true);
+    if (ImGui::MenuItem(TR("Custom Filter...")) || key(ImGuiKey_F)) custom(f.op1, f.op2, true);
     ImGui::EndMenu();
   }
   {
     ImGui::SetNextItemWidth(-1);
+    if (f.focus_search) {
+      ImGui::SetKeyboardFocusHere();
+      f.focus_search = false;
+    }
     ImGui::InputTextWithHint("##search", TR("Search"), f.search, sizeof(f.search));
     const std::string q = Lower(f.search);
     ImGui::BeginChild("##vals", ImVec2(S(240), S(220)), ImGuiChildFlags_Borders);
@@ -620,9 +665,9 @@ void DrawFilterPopup(AppState& s) {
       f.found_checked.assign(f.values.size(), 1);
     }
     if (q.empty()) {
-      bool all = f.blanks_checked || !f.blanks_present;
-      for (char c : f.checked) all = all && c;
-      if (ImGui::Checkbox(TR("(Select All)"), &all)) {
+      bool all = f.blanks_checked || !f.blanks_present, any = f.blanks_present && f.blanks_checked;
+      for (char c : f.checked) all = all && c, any = any || c;
+      if (CheckboxMixed(TR("(Select All)"), &all, any && !all)) {
         std::fill(f.checked.begin(), f.checked.end(), static_cast<char>(all));
         f.blanks_checked = all;
       }
@@ -638,18 +683,18 @@ void DrawFilterPopup(AppState& s) {
       }
       if (f.blanks_present) ImGui::Checkbox(TR("(Blanks)"), &f.blanks_checked);
     } else {
-      bool all = true;
+      bool all = true, any = false;
       for (size_t i = 0; i < f.values.size(); ++i) {
-        if (Lower(f.values[i]).find(q) != std::string::npos) all = all && f.found_checked[i];
+        if (SearchMatches(q, f.values[i])) all = all && f.found_checked[i], any = any || f.found_checked[i];
       }
-      if (ImGui::Checkbox(TR("(Select All Search Results)"), &all)) {
+      if (CheckboxMixed(TR("(Select All Search Results)"), &all, any && !all)) {
         for (size_t i = 0; i < f.values.size(); ++i) {
-          if (Lower(f.values[i]).find(q) != std::string::npos) f.found_checked[i] = all;
+          if (SearchMatches(q, f.values[i])) f.found_checked[i] = all;
         }
       }
       ImGui::Checkbox(TR("Add current selection to filter"), &f.add_current);
       for (size_t i = 0; i < f.values.size(); ++i) {
-        if (Lower(f.values[i]).find(q) == std::string::npos) continue;
+        if (!SearchMatches(q, f.values[i])) continue;
         bool v = f.found_checked[i] != 0;
         ImGui::PushID(static_cast<int>(i));
         if (CellTextCheckbox(f.values[i], &v)) f.found_checked[i] = v;
@@ -663,7 +708,7 @@ void DrawFilterPopup(AppState& s) {
   bool any = false;
   if (!f.searched.empty()) {
     for (size_t i = 0; i < f.values.size() && !any; ++i) {
-      any = (Lower(f.values[i]).find(f.searched) != std::string::npos && f.found_checked[i]) || (f.add_current && f.checked[i]);
+      any = (SearchMatches(f.searched, f.values[i]) && f.found_checked[i]) || (f.add_current && f.checked[i]);
     }
     any = any || (f.add_current && f.blanks_present && f.blanks_checked);
   } else {
@@ -680,7 +725,7 @@ void DrawFilterPopup(AppState& s) {
       // OK while searching: the ticked results are shown (with what the filter showed before, when adding to it)
       fc.kind = 1;
       for (size_t i = 0; i < f.values.size(); ++i) {
-        const bool found = Lower(f.values[i]).find(f.searched) != std::string::npos && f.found_checked[i];
+        const bool found = SearchMatches(f.searched, f.values[i]) && f.found_checked[i];
         if (found || (f.add_current && f.checked[i])) fc.values.push_back(f.values[i]);
       }
       fc.blanks = f.add_current && f.blanks_checked;
@@ -794,6 +839,14 @@ std::string FilterTooltip(AppState& s, const model::Sheet& sh, const model::Auto
   if (sorted) tip += std::string("\n") + (sorted == 2 ? TR("Sorted Descending") : TR("Sorted Ascending"));
   return tip;
 }
+// the input message of the active cell's validation, noted by DrawRuleOverlays and drawn by DrawInputMessage
+struct InputMessage {
+  bool on = false;
+  uint32_t sheet = 0;
+  ImRect cell;
+  std::string title, message;
+};
+InputMessage g_input_msg;
 }  // namespace
 
 void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g) {
@@ -848,8 +901,13 @@ void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
   for (const auto& tb : *sh->tables) {
     if (engine::TableHasOwnFilter(*sh, tb)) buttons(tb.filter, engine::TableFilterRange(tb), tb.id);
   }
-  // menu opened on this sheet (opened and drawn in the same window)
-  if (R().filter.sheet == sheet_id) DrawFilterPopup(s);
+  // menu opened on this sheet (opened and drawn in the same window), in the UI's font as Excel's menus: the sheet's
+  // window draws in the cells' font, zoomed, and the filter menu grew with the zoom
+  if (R().filter.sheet == sheet_id) {
+    ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+    DrawFilterPopup(s);
+    ImGui::PopFont();
+  }
   if (R().list.sheet == sheet_id) DrawListPopup(s);
   // validation of the active cell: list drop-down arrow and input message
   if (s.focus_sheet != sheet_id || s.edit.active || sh->validations->empty()) return;
@@ -883,18 +941,28 @@ void DrawRuleOverlays(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
     DrawArrow(dl, b, IM_COL32(0x40, 0x40, 0x40, 255), false);
   }
   if (rule->show_input && (!rule->input_message.empty() || !rule->input_title.empty())) {
-    ImGui::PushFont(ui::F().ui, ui::F().ui_size);
-    const float w = S(200);
-    const ImVec2 p(cell.Min.x + S(12), cell.Max.y + S(6));
-    const ImVec2 ts = ImGui::CalcTextSize(rule->input_message.c_str(), nullptr, false, w - S(12));
-    const float th = rule->input_title.empty() ? 0.0f : ImGui::GetTextLineHeight() + S(2);
-    const ImRect box(p, ImVec2(p.x + w, p.y + ts.y + th + S(12)));
-    dl->AddRectFilled(box.Min, box.Max, IM_COL32(0xFF, 0xFF, 0xE1, 255));
-    dl->AddRect(box.Min, box.Max, IM_COL32(0x76, 0x76, 0x76, 255));
-    if (th > 0) dl->AddText(ui::F().ui_bold, ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5)), IM_COL32(0, 0, 0, 255), rule->input_title.c_str());
-    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5) + th), IM_COL32(0, 0, 0, 255), rule->input_message.c_str(), nullptr, w - S(12));
-    ImGui::PopFont();
+    // drawn last (DrawInputMessage): Excel's input message floats over the circles, tables and objects on the cells
+    g_input_msg = {true, sheet_id, cell, rule->input_title, rule->input_message};
   }
+}
+
+void DrawInputMessage(AppState&, uint32_t sheet_id, const render::OverlayGeom&) {
+  InputMessage m = std::move(g_input_msg);
+  g_input_msg = {};
+  if (!m.on || m.sheet != sheet_id) return;
+  ImDrawList* dl = ImGui::GetWindowDrawList();
+  ImGui::PushFont(ui::F().ui, ui::F().ui_size);
+  const float w = S(200);
+  const ImVec2 p(m.cell.Min.x + S(12), m.cell.Max.y + S(6));
+  const ImVec2 ts = ImGui::CalcTextSize(m.message.c_str(), nullptr, false, w - S(12));
+  const float th = m.title.empty() ? 0.0f : ImGui::GetTextLineHeight() + S(2);
+  const ImRect box(p, ImVec2(p.x + w, p.y + ts.y + th + S(12)));
+  dl->AddRectFilled(box.Min, box.Max, IM_COL32(0xFF, 0xFF, 0xE1, 255));
+  dl->AddRect(box.Min, box.Max, IM_COL32(0x76, 0x76, 0x76, 255));
+  if (th > 0) dl->AddText(ui::F().ui_bold, ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5)), IM_COL32(0, 0, 0, 255), m.title.c_str());
+  dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(p.x + S(6), p.y + S(5) + th), IM_COL32(0, 0, 0, 255), m.message.c_str(), nullptr, w - S(12));
+  ui::NoteUiText((m.title.empty() ? m.message : m.title + "\n" + m.message).c_str(), box);
+  ImGui::PopFont();
 }
 
 void DrawRulePopups(AppState&) {}
@@ -908,6 +976,9 @@ ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32
   if (!rule || !rule->show_error) return ValidationResult::Accept;
   std::string msg;
   if (engine::ValidateInput(s.snap->wb, sheet, r, c, text, *rule, &msg)) return ValidationResult::Accept;
+  // a rule without a message of its own says Excel's one sentence, whatever the reason (Excel 16, read through UI
+  // Automation from its alert); the reason stays the engine's for Python
+  if (rule->error_message.empty()) msg = TR("This value doesn't match the data validation restrictions defined for this cell.");
   const std::string title = rule->error_title.empty() ? std::string("YCGrid") : rule->error_title;
   switch (rule->alert) {
     case model::DvAlert::Stop: {
@@ -915,7 +986,9 @@ ValidationResult CheckValidation(AppState& s, uint32_t sheet, uint32_t r, uint32
       return a == IDRETRY ? ValidationResult::Retry : ValidationResult::Cancel;
     }
     case model::DvAlert::Warning: {
-      const int a = AppMessageBox(s, msg + TR("\n\nDo you want to continue?"), title, MB_YESNOCANCEL | MB_ICONWARNING, IDYES);
+      // No is the default button, as Excel's (Enter goes back to the entry, measured): a quick Enter doesn't take a
+      // value outside the rule; a hidden instance answers what Enter would
+      const int a = AppMessageBox(s, msg + TR("\n\nDo you want to continue?"), title, MB_YESNOCANCEL | MB_ICONWARNING | MB_DEFBUTTON2, IDNO);
       return a == IDYES ? ValidationResult::Accept : a == IDNO ? ValidationResult::Retry : ValidationResult::Cancel;
     }
     default: {
@@ -1100,6 +1173,11 @@ bool g_quick_preview_on = false;
 
 void AddRule(AppState& s, model::CfRule rule, const char* label) {
   const uint32_t sheet = s.focus_sheet;
+  // a structured reference in the rule: Excel refuses it (measured through FormatConditions.Add)
+  if (engine::HasStructuredRef(rule.formula1) || engine::HasStructuredRef(rule.formula2)) {
+    s.ShowError("YCGrid", TR("This type of reference can't be used in a conditional formatting formula. Use a cell reference, or a function such as INDIRECT."));
+    return;
+  }
   rule.ranges = SelectionAreasClipped(s);
   s.engine->PostUser(label, [sheet, rule](Document& d) {
     if (!d.RefuseProtectedSheet(sheet)) d.AddCondFormat(sheet, rule);
@@ -1273,10 +1351,23 @@ void RegisterRuleCommands(AppState& s) {
       u.cf_preset = 0;
       u.cf_dupe = 0;
       u.cf_period = 1;
-      // Excel starts the value boxes with values from the selection: the average, or the lowest and highest
+      // Text That Contains starts with the active cell's text (Excel 16, measured: MSFT with B3 active in B2:B4)
+      if (kind == 5) {
+        if (const model::Sheet* sh = s.FocusSheet()) {
+          const auto& sel = s.FocusView().sel;
+          const core::Value& v = sh->GetValue(sel.act_r, sel.act_c);
+          if (v.IsString()) {
+            const std::string_view text = core::Utf8Prefix(v.str(), sizeof(u.cf_v1) - 1);
+            std::snprintf(u.cf_v1, sizeof(u.cf_v1), "%.*s", static_cast<int>(text.size()), text.data());
+          }
+        }
+      }
+      // Excel starts the value boxes with values from the selection's numbers (Excel 16, measured): halfway
+      // between the lowest and the highest, and for Between a quarter and three quarters of the way, rounded to
+      // whole numbers (3 and 88 give 45.5, then 24 and 67)
       if (kind >= 1 && kind <= 4) {
         if (const model::Sheet* sh = s.FocusSheet()) {
-          double sum = 0, lo = 0, hi = 0;
+          double lo = 0, hi = 0;
           size_t n = 0;
           for (const Rect& a : SelectionAreasClipped(s)) {
             engine::ForEachValueRowMajor(*sh, a, [&](uint32_t, uint32_t, const core::Value& v) {
@@ -1284,7 +1375,6 @@ void RegisterRuleCommands(AppState& s) {
               const double x = v.AsDouble();
               lo = n ? std::min(lo, x) : x;
               hi = n ? std::max(hi, x) : x;
-              sum += x;
               return ++n < 100000;
             });
           }
@@ -1294,10 +1384,10 @@ void RegisterRuleCommands(AppState& s) {
               std::snprintf(buf, size, "%s", t.c_str());
             };
             if (kind == 3) {
-              put(u.cf_v1, sizeof(u.cf_v1), lo);
-              put(u.cf_v2, sizeof(u.cf_v2), hi);
+              put(u.cf_v1, sizeof(u.cf_v1), std::round(lo + (hi - lo) * 0.25));
+              put(u.cf_v2, sizeof(u.cf_v2), std::round(lo + (hi - lo) * 0.75));
             } else {
-              put(u.cf_v1, sizeof(u.cf_v1), sum / static_cast<double>(n));
+              put(u.cf_v1, sizeof(u.cf_v1), lo + (hi - lo) / 2);
             }
           }
         }
@@ -1503,7 +1593,7 @@ void DrawRuleEditor(AppState& s) {
       const char* styles[] = {TR("2-Color Scale"), TR("3-Color Scale"), TR("Data Bar"), TR("Icon Sets")};
       int st = r.type == T::DataBar ? 2 : r.type == T::IconSet ? 3 : (r.points == 2 ? 0 : 1);
       ImGui::SetNextItemWidth(S(200));
-      if (ImGui::Combo(TR("Format Style"), &st, styles, 4)) {
+      if (ui::Combo(TR("Format Style"), &st, styles, 4)) {
         r.type = st == 2 ? T::DataBar : st == 3 ? T::IconSet : T::ColorScale;
         r.points = st == 0 ? 2 : 3;
         if (r.type == T::IconSet && r.icon_thresholds.size() + 1 != static_cast<size_t>(model::IconSetCount(r.icon_style))) r.icon_thresholds = model::DefaultIconThresholds(r.icon_style);
@@ -1534,7 +1624,7 @@ void DrawRuleEditor(AppState& s) {
             int t = r.point_type[i] < 0 ? def : r.point_type[i];
             ImGui::PushID(i);
             ImGui::SetNextItemWidth(S(130));
-            if (ImGui::BeginCombo("##type", names[std::clamp(t, 0, 5)])) {
+            if (ui::BeginCombo("##type", names[std::clamp(t, 0, 5)])) {
               for (int v : {i == 0 ? 1 : i == 2 ? 2 : -1, 0, 3, 4, 5}) {
                 if (v < 0) continue;
                 if (ImGui::Selectable(names[v], v == t)) {
@@ -1616,7 +1706,7 @@ void DrawRuleEditor(AppState& s) {
             ImGui::SetNextItemWidth(S(140));
             const ImVec2 at = ImGui::GetCursorScreenPos();
             ui::NoteUiItem(i ? "##bar_max_type" : "##bar_min_type", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
-            if (ImGui::BeginCombo("##type", names[shown])) {
+            if (ui::BeginCombo("##type", names[shown])) {
               for (int v : {6, i == 0 ? 1 : 2, 0, 3, 4, 5}) {
                 if (ImGui::Selectable(names[v], v == shown)) {
                   type = v == 6 ? -1 : v;
@@ -1658,7 +1748,7 @@ void DrawRuleEditor(AppState& s) {
           const ImVec2 at = ImGui::GetCursorScreenPos();
           ui::NoteUiItem("##bar_fill", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
         }
-        if (ImGui::Combo(TR("Fill"), &fill, fills, 2)) r.bar_gradient = fill == 1;
+        if (ui::Combo(TR("Fill"), &fill, fills, 2)) r.bar_gradient = fill == 1;
         ImGui::SameLine();
         PaletteColor(TR("Color"), &r.bar_color, false, "");
         const char* borders[] = {TR("No Border"), TR("Solid Border")};
@@ -1668,14 +1758,14 @@ void DrawRuleEditor(AppState& s) {
           const ImVec2 at = ImGui::GetCursorScreenPos();
           ui::NoteUiItem("##bar_border", ImRect(at, at + ImVec2(S(140), ImGui::GetFrameHeight())));
         }
-        if (ImGui::Combo(TR("Border"), &border, borders, 2)) r.bar_border = border ? r.bar_color : 0;
+        if (ui::Combo(TR("Border"), &border, borders, 2)) r.bar_border = border ? r.bar_color : 0;
         if (r.bar_border) {
           ImGui::SameLine();
           PaletteColor(TR("Border Color"), &r.bar_border, false, "");
         }
         const char* dirs[] = {TR("Context"), TR("Left-to-Right"), TR("Right-to-Left")};
         ImGui::SetNextItemWidth(S(140));
-        ImGui::Combo(TR("Bar Direction"), &r.bar_direction, dirs, 3);
+        ui::Combo(TR("Bar Direction"), &r.bar_direction, dirs, 3);
         ImGui::TextUnformatted(TR("Preview:"));
         ImGui::SameLine();
         const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1688,7 +1778,7 @@ void DrawRuleEditor(AppState& s) {
           if (k.style == r.icon_style) cur = k.label;
         }
         ImGui::SetNextItemWidth(S(260));
-        if (ImGui::BeginCombo(TR("Icon Style"), cur)) {
+        if (ui::BeginCombo(TR("Icon Style"), cur)) {
           for (const auto& k : IconPresets()) {
             ImGui::PushID(k.style);
             const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1727,7 +1817,7 @@ void DrawRuleEditor(AppState& s) {
             int g = t.gte ? 0 : 1;
             const char* cmp[] = {">=", ">"};
             ImGui::SetNextItemWidth(S(50));
-            if (ImGui::Combo("##gte", &g, cmp, 2)) t.gte = g == 0;
+            if (ui::Combo("##gte", &g, cmp, 2)) t.gte = g == 0;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(S(110));
             if (t.type == 3) {
@@ -1740,7 +1830,7 @@ void DrawRuleEditor(AppState& s) {
             ImGui::SameLine();
             int ty = std::clamp(t.type, 0, 3);
             ImGui::SetNextItemWidth(S(110));
-            if (ImGui::Combo("##type", &ty, types, 4)) t.type = ty;
+            if (ui::Combo("##type", &ty, types, 4)) t.type = ty;
           }
           ImGui::PopID();
         }
@@ -1753,14 +1843,14 @@ void DrawRuleEditor(AppState& s) {
       int w = r.type == T::TextContains ? 1 : r.type == T::TimePeriod ? 2 : r.type == T::Blanks ? 3 : r.type == T::NoBlanks ? 4 : r.type == T::Errors ? 5 : r.type == T::NoErrors ? 6 : 0;
       ImGui::TextUnformatted(TR("Format only cells with:"));
       ImGui::SetNextItemWidth(S(140));
-      ImGui::Combo("##what", &w, what, 7);
+      ui::Combo("##what", &w, what, 7);
       r.type = w == 1 ? T::TextContains : w == 2 ? T::TimePeriod : w == 3 ? T::Blanks : w == 4 ? T::NoBlanks : w == 5 ? T::Errors : w == 6 ? T::NoErrors : T::CellValue;
       if (w == 0) {
         static const char* kOps[] = {TR("between"), TR("not between"), TR("equal to"), TR("not equal to"), TR("greater than"), TR("less than"), TR("greater than or equal to"), TR("less than or equal to")};
         int op = std::clamp(static_cast<int>(r.op), 1, 8) - 1;
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(170));
-        if (ImGui::Combo("##op", &op, kOps, 8)) r.op = static_cast<model::CmpOp>(op + 1);
+        if (ui::Combo("##op", &op, kOps, 8)) r.op = static_cast<model::CmpOp>(op + 1);
         const bool two = r.op == model::CmpOp::Between || r.op == model::CmpOp::NotBetween;
         RangeBox(s, "cfe.f1", &u.cfe_f1, two ? S(240) : S(500), RangeBox_Formula | RangeBox_Equals, TR("Value"));
         if (two) {
@@ -1774,7 +1864,7 @@ void DrawRuleEditor(AppState& s) {
         const char* ops[] = {TR("containing"), TR("not containing"), TR("beginning with"), TR("ending with")};
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(140));
-        ImGui::Combo("##textop", &r.text_op, ops, 4);
+        ui::Combo("##textop", &r.text_op, ops, 4);
         ImGui::SameLine();
         char buf[256];
         std::snprintf(buf, sizeof buf, "%s", r.text.c_str());
@@ -1784,7 +1874,7 @@ void DrawRuleEditor(AppState& s) {
         ImGui::SameLine();
         ImGui::SetNextItemWidth(S(180));
         ui::NoteUiItem("##period", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        if (ImGui::BeginCombo("##period", PeriodName(r.time_period))) {
+        if (ui::BeginCombo("##period", PeriodName(r.time_period))) {
           for (int k : kPeriodOrder) {
             if (ImGui::Selectable(PeriodName(k), r.time_period == k)) r.time_period = k;
           }
@@ -1798,7 +1888,7 @@ void DrawRuleEditor(AppState& s) {
       const char* tb[] = {TR("Top"), TR("Bottom")};
       int b = r.bottom ? 1 : 0;
       ImGui::SetNextItemWidth(S(100));
-      if (ImGui::Combo("##tb", &b, tb, 2)) r.bottom = b == 1;
+      if (ui::Combo("##tb", &b, tb, 2)) r.bottom = b == 1;
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(120));
       ImGui::InputInt("##rank", &r.rank, 1, 10);
@@ -1817,7 +1907,7 @@ void DrawRuleEditor(AppState& s) {
       ImGui::TextUnformatted(TR("Format values that are:"));
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(160));
-      if (ImGui::Combo("##ab", &b, ab, 10)) {
+      if (ui::Combo("##ab", &b, ab, 10)) {
         r.below = b % 2 == 1;
         r.equal_average = b == 2 || b == 3;
         r.std_dev = b >= 4 ? (b - 2) / 2 : 0;
@@ -1833,7 +1923,7 @@ void DrawRuleEditor(AppState& s) {
       ImGui::TextUnformatted(TR("Format all:"));
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(140));
-      if (ImGui::Combo("##du", &d, du, 2)) r.duplicate = d == 0;
+      if (ui::Combo("##du", &d, du, 2)) r.duplicate = d == 0;
       ImGui::SameLine();
       ImGui::TextUnformatted(TR("values in the selected range"));
       break;
@@ -2094,14 +2184,14 @@ void DrawRuleDialogs(AppState& s) {
     auto row = [&](const char* id, int* op, char* v) {
       ImGui::PushID(id);
       ImGui::SetNextItemWidth(S(180));
-      ImGui::Combo("##op", op, kOps, 12);
+      ui::Combo("##op", op, kOps, 12);
       ImGui::SameLine();
       ImGui::SetNextItemWidth(S(200));
       // the keyboard starts in the first value box, as in Excel (Begins With..., then type A and Enter)
       if (v == f.v1 && ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
       ImGui::InputText("##v", v, 128);
       ImGui::SameLine(0, 0);
-      if (ImGui::BeginCombo("##pick", "", ImGuiComboFlags_NoPreview | ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft)) {
+      if (ui::BeginCombo("##pick", "", ImGuiComboFlags_NoPreview | ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft)) {
         for (size_t k = 0; k < f.values.size(); ++k) {
           const auto& val = f.values[k];
           ImGui::PushID(static_cast<int>(k));
@@ -2114,9 +2204,9 @@ void DrawRuleDialogs(AppState& s) {
       ImGui::PopID();
     };
     row("a", &f.op1, f.v1);
-    if (ImGui::RadioButton(TR("And"), !f.or_op)) f.or_op = false;
+    if (ui::RadioButton(TR("And"), !f.or_op)) f.or_op = false;
     ImGui::SameLine();
-    if (ImGui::RadioButton(TR("Or"), f.or_op)) f.or_op = true;
+    if (ui::RadioButton(TR("Or"), f.or_op)) f.or_op = true;
     row("b", &f.op2, f.v2);
     ImGui::TextDisabled("%s", TR("Use ? to represent any single character. Use * to represent any series of characters."));
     bool close = false;
@@ -2160,14 +2250,14 @@ void DrawRuleDialogs(AppState& s) {
     static const char* kTop[] = {TR("Top"), TR("Bottom")};
     static const char* kKind[] = {TR("Items"), TR("Percent")};
     ImGui::SetNextItemWidth(S(90));
-    ImGui::Combo("##top", &f.t_top, kTop, 2);
+    ui::Combo("##top", &f.t_top, kTop, 2);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(90));
     ImGui::InputInt("##n", &f.t_count);
     f.t_count = std::clamp(f.t_count, 1, 500);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(S(90));
-    ImGui::Combo("##kind", &f.t_pct, kKind, 2);
+    ui::Combo("##kind", &f.t_pct, kKind, 2);
     bool close = false;
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       model::FilterColumn fc;
@@ -2217,14 +2307,14 @@ void DrawRuleDialogs(AppState& s) {
         const char* du[] = {TR("Duplicate"), TR("Unique")};
         ImGui::SetNextItemWidth(S(140));
         ui::NoteUiItem("##dupe", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        ImGui::Combo("##dupe", &u.cf_dupe, du, 2);
+        ui::Combo("##dupe", &u.cf_dupe, du, 2);
         ImGui::SameLine();
         ImGui::TextUnformatted(TR("values with"));
       }
       if (k == 13) {
         ImGui::SetNextItemWidth(S(200));
         ui::NoteUiItem("##period", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::CalcItemWidth(), ImGui::GetFrameHeight())));  // combos aren't recorded
-        if (ImGui::BeginCombo("##period", PeriodName(u.cf_period))) {
+        if (ui::BeginCombo("##period", PeriodName(u.cf_period))) {
           for (int p : kPeriodOrder) {
             if (ImGui::Selectable(PeriodName(p), u.cf_period == p)) u.cf_period = p;
           }
@@ -2236,7 +2326,7 @@ void DrawRuleDialogs(AppState& s) {
       u.cf_preset = std::clamp(u.cf_preset, 0, static_cast<int>(std::size(kPresets)) - 1);
       bool custom = false;
       ui::NoteUiItem("##preset", ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())));
-      if (ImGui::BeginCombo("##preset", kPresets[u.cf_preset].name)) {
+      if (ui::BeginCombo("##preset", kPresets[u.cf_preset].name)) {
         for (int i = 0; i < static_cast<int>(std::size(kPresets)); ++i) {
           if (ImGui::Selectable(kPresets[i].name, u.cf_preset == i)) u.cf_preset = i;
         }
@@ -2349,7 +2439,7 @@ void DrawRuleDialogs(AppState& s) {
         if (const model::Sheet* x = s.snap ? s.snap->Sheet(id) : nullptr) u.cfm_rules = *x->cond_formats;
         std::stable_sort(u.cfm_rules.begin(), u.cfm_rules.end(), [](const model::CfRule& a, const model::CfRule& b) { return a.priority < b.priority; });
       };
-      if (ImGui::BeginCombo("##scope", shown.c_str())) {
+      if (ui::BeginCombo("##scope", shown.c_str())) {
         if (ImGui::Selectable(TR("Current Selection"), u.cfm_sheet == s.focus_sheet && u.cfm_scope == 0)) {
           if (u.cfm_sheet != s.focus_sheet) load(s.focus_sheet);
           u.cfm_scope = 0;
@@ -2521,13 +2611,13 @@ void DrawRuleDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::DataValidation, TR("Data Validation###yc_dlg_dv"), 460)) {
     model::DvRule& d = u.dv;
     const float tabs_top = ImGui::GetCursorPosY();
-    if (ImGui::BeginTabBar("##dvtabs")) {
+    if (BeginDlgTabBar("##dvtabs")) {
       if (ImGui::BeginTabItem(TR("Settings"))) {
         static const char* kTypes[] = {TR("Any value"), TR("Whole number"), TR("Decimal"), TR("List"), TR("Date"), TR("Time"), TR("Text length"), TR("Custom")};
         int t = static_cast<int>(d.type);
         ImGui::TextUnformatted(TR("Allow"));
         ImGui::SetNextItemWidth(S(200));
-        if (ImGui::Combo("##type", &t, kTypes, 8)) d.type = static_cast<model::DvType>(t);
+        if (ui::Combo("##type", &t, kTypes, 8)) d.type = static_cast<model::DvType>(t);
         ImGui::SameLine();
         ImGui::BeginDisabled(d.type == model::DvType::Any);
         ImGui::Checkbox(TR("Ignore blank"), &d.ignore_blank);
@@ -2538,7 +2628,7 @@ void DrawRuleDialogs(AppState& s) {
           int op = static_cast<int>(d.op) - 1;
           ImGui::TextUnformatted(TR("Data"));
           ImGui::SetNextItemWidth(S(200));
-          if (ImGui::Combo("##op", &op, kOps, 8)) d.op = static_cast<model::CmpOp>(op + 1);
+          if (ui::Combo("##op", &op, kOps, 8)) d.op = static_cast<model::CmpOp>(op + 1);
           const bool two = d.op == model::CmpOp::Between || d.op == model::CmpOp::NotBetween;
           // Excel's labels follow the type and the operator: Minimum / Maximum, Start date / End date, Length...
           const bool date = d.type == model::DvType::Date, time = d.type == model::DvType::Time, len = d.type == model::DvType::TextLength;
@@ -2589,7 +2679,7 @@ void DrawRuleDialogs(AppState& s) {
         int a = static_cast<int>(d.alert) - 1;
         ImGui::TextUnformatted(TR("Style"));
         ImGui::SetNextItemWidth(S(160));
-        if (ImGui::Combo("##al", &a, kAlerts, 3)) d.alert = static_cast<model::DvAlert>(a + 1);
+        if (ui::Combo("##al", &a, kAlerts, 3)) d.alert = static_cast<model::DvAlert>(a + 1);
         ImGui::TextUnformatted(TR("Title:"));
         ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##et", u.dv_et, sizeof(u.dv_et));
@@ -2617,7 +2707,11 @@ void DrawRuleDialogs(AppState& s) {
       u.dv_f1[0] = u.dv_f2[0] = u.dv_it[0] = u.dv_im[0] = u.dv_et[0] = u.dv_em[0] = 0;
     }
     ImGui::SameLine(S(270));
-    if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
+    const bool dv_ok = DlgOkButton(TR("OK"), ImVec2(S(80), 0));
+    if (dv_ok && (engine::HasStructuredRef(u.dv_f1) || engine::HasStructuredRef(u.dv_f2))) {
+      // a structured reference: Excel refuses it (measured through Validation.Add)
+      s.ShowError("YCGrid", TR("This type of reference can't be used in a data validation formula. Use a cell reference, or a function such as INDIRECT."));
+    } else if (dv_ok) {
       model::DvRule rule = d;
       rule.formula1 = u.dv_f1;
       rule.formula2 = u.dv_f2;

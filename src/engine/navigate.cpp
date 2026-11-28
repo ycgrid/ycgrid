@@ -2,8 +2,11 @@
 #include "engine/navigate.h"
 
 #include "engine/tile_iter.h"
+#include "formula/parser.h"
 
 #include <algorithm>
+#include <cctype>
+#include <functional>
 #include <limits>
 #include <map>
 #include <set>
@@ -141,6 +144,58 @@ core::Rect CurrentRegion(const model::Sheet& sh, uint32_t r, uint32_t c) {
     if (!grew) break;
   }
   return a;
+}
+
+bool HasStructuredRef(std::string_view v) {
+  if (v.find('[') == std::string_view::npos) return false;
+  if (!v.empty() && v.front() == '=') v.remove_prefix(1);
+  const formula::ParseResult pr = formula::Parse(v, core::CellPos{0, 0}, nullptr);
+  if (!pr.ok) return false;
+  bool found = false;
+  std::function<void(const formula::Node&)> walk = [&](const formula::Node& n) {
+    if (n.kind == formula::NK::StructRef) found = true;
+    for (const auto& k : n.kids) walk(k);
+  };
+  walk(pr.root);
+  return found;
+}
+
+std::string AutoLinkAddress(std::string_view t) {
+  if (t.empty() || t.size() > 2000 || t.find_first_of(" \t\r\n") != std::string_view::npos) return {};
+  std::string low(t);
+  for (char& ch : low) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  auto starts = [&](std::string_view p) { return low.size() > p.size() && low.compare(0, p.size(), p) == 0; };
+  for (std::string_view scheme : {"http://", "https://", "ftp://"}) {
+    if (!starts(scheme)) continue;
+    const std::string_view rest = t.substr(scheme.size());
+    return std::string(t) + (rest.find('/') == std::string_view::npos ? "/" : "");
+  }
+  if (starts("www.")) return "http://" + std::string(t) + (t.find('/') == std::string_view::npos ? "/" : "");
+  if (starts("mailto:")) return std::string(t);
+  const size_t at = t.find('@');
+  if (at != std::string_view::npos && at > 0 && at + 1 < t.size() && t.find('@', at + 1) == std::string_view::npos) return "mailto:" + std::string(t);
+  return {};
+}
+
+bool GuessHeaderRow(const model::StyleTable& styles, const model::Sheet& s, const core::Rect& r) {
+  if (r.r1 <= r.r0) return false;
+  const uint32_t c1 = std::min<uint32_t>(r.c1, r.c0 + 16383), last = std::min<uint32_t>(r.r1, r.r0 + 1000);
+  auto filled = [&](uint32_t rr, uint32_t cc) { return s.GetFormula(rr, cc) != 0 || !s.GetValue(rr, cc).IsEmpty(); };
+  // text (a string) or not: a formula counts by its value, a date is a number
+  auto text = [&](uint32_t rr, uint32_t cc) { return s.GetValue(rr, cc).IsString(); };
+  for (uint32_t c = r.c0; c <= c1; ++c) {
+    if (!filled(r.r0, c) || !filled(r.r0 + 1, c)) return false;
+  }
+  for (uint32_t c = r.c0; c <= c1; ++c) {
+    const bool head = text(r.r0, c);
+    for (uint32_t rr = r.r0 + 1; rr <= last; ++rr) {
+      if (filled(rr, c) && text(rr, c) != head) return true;
+    }
+    const model::Style& a = styles.Get(s.GetStyle(r.r0, c));
+    const model::Style& b = styles.Get(s.GetStyle(r.r0 + 1, c));
+    if (a.bold != b.bold || a.italic != b.italic || a.underline != b.underline || a.fill_color != b.fill_color || a.font_color != b.font_color) return true;
+  }
+  return false;
 }
 
 core::CellPos LastCell(const model::Sheet& s) {

@@ -899,7 +899,10 @@ double Score(const FfProgram& p) {
   for (const auto& part : p) {
     s += 1;  // fewer parts
     if (part.kind == 0) s += 2.0 * static_cast<double>(part.text.size());
-    if (part.kind == 1 && part.index < 0) s += 0.1;  // prefer counting from the start
+    // a token at either end beats one counted to the middle, and counting from the start beats counting from the end
+    // (Excel 16, measured: "2330" from "Taiwan Semi (2330)" gives "2454" for "MediaTek (2454)", "Smith" from "John
+    // Smith" gives "Lee" for "Mary Ann Lee", "John" gives "Mary")
+    if (part.kind == 1 && part.index != 0 && part.index != -1) s += part.index < 0 ? 0.11 : 0.1;
     if (part.xf) s += 0.05;
   }
   return s;

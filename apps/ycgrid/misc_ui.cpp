@@ -51,8 +51,10 @@ struct MiscUi {
   uint32_t note_sheet = 0, note_r = 0, note_c = 0;
   char note_text[2048] = {};
   bool note_inplace = false, note_focus = false;  // the note's yellow box beside its cell, being typed in
+  bool note_caret_end = false;  // the box, once it has the keyboard, puts its caret after the note's text
   bool note_active = false;                        // the box had the keyboard last frame
   std::string note_before;                         // its text when the editing started
+  bool note_new = false;                           // the cell had no note: leaving the box makes one, empty or not
   // the note box being sized (a handle: 1..8 from the top-left clockwise) or moved (9) with the mouse
   int note_drag = 0;
   ImVec2 note_m0;
@@ -90,6 +92,11 @@ struct MiscUi {
   bool sort_header = true;
   Rect sort_rect{};
   uint32_t sort_table = 0;  // a table's data body: its header row (above) names the columns
+  // the selection before the dialog showed the cells it sorts: Cancel, Escape and the close box put it back (Excel 16,
+  // measured); OK keeps the sorted cells selected
+  bool sort_restore = false;
+  uint32_t sort_restore_sheet = 0;
+  render::Selection sort_saved_sel;
   // series
   int fs_dir = 1;   // 0 rows, 1 columns
   int fs_type = 0;  // 0 linear, 1 growth, 2 date, 3 AutoFill
@@ -201,6 +208,9 @@ void OpenCustomSort(AppState& s, const DataRange& t) {
   m.sort_sel = 0;
   m.sort_case = false;
   m.sort_ltr = false;
+  m.sort_restore = true;
+  m.sort_restore_sheet = s.focus_sheet;
+  m.sort_saved_sel = s.FocusView().sel;
   s.OpenDialog(Dialog::CustomSort);
 }
 
@@ -647,7 +657,18 @@ void DrawNoteEditor(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g
   // Escape ends the editing but keeps what was typed (Excel); ImGui's box would put the old text back
   const bool esc = ImGui::GetActiveID() == ImGui::GetID("##note_inplace") && ImGui::IsKeyPressed(ImGuiKey_Escape, false);
   const std::string typed = esc ? std::string(m.note_text) : std::string();
-  ImGui::InputTextMultiline("##note_inplace", m.note_text, sizeof(m.note_text), ImVec2(sz.x - S(2), sz.y - ImGui::GetTextLineHeight() - S(6)));
+  // Excel: Shift+F2 on a note goes on typing after its text; ImGui's box takes the keyboard with its caret at 0, and
+  // what was typed went before the note
+  auto to_end = [](ImGuiInputTextCallbackData* data) {
+    bool* flag = static_cast<bool*>(data->UserData);
+    if (*flag) {
+      data->CursorPos = data->SelectionStart = data->SelectionEnd = data->BufTextLen;
+      *flag = false;
+    }
+    return 0;
+  };
+  ImGui::InputTextMultiline("##note_inplace", m.note_text, sizeof(m.note_text), ImVec2(sz.x - S(2), sz.y - ImGui::GetTextLineHeight() - S(6)),
+                            ImGuiInputTextFlags_CallbackAlways, to_end, &m.note_caret_end);
   if (esc) std::snprintf(m.note_text, sizeof(m.note_text), "%s", typed.c_str());
   ImGui::PopStyleColor(2);
   const bool active = ImGui::IsItemActive();
@@ -660,9 +681,12 @@ void DrawNoteEditor(AppState& s, uint32_t sheet_id, const render::OverlayGeom& g
   if (left) {
     const uint32_t sheet = m.note_sheet, r = m.note_r, c = m.note_c;
     const std::string text = m.note_text;
-    if (text != m.note_before) {
-      s.engine->PostUser(text.empty() ? TR("Delete Note") : TR("Notes"), [sheet, r, c, text, author](Document& d) { d.SetNote(sheet, r, c, text.empty() ? "" : author, text); });
+    // the note stays when its box is left empty, a new one too (Excel 16: Shift+F2, Escape leaves a note, and one
+    // emptied by Backspace stays; Delete Note takes it away)
+    if (text != m.note_before || m.note_new) {
+      s.engine->PostUser(TR("Notes"), [sheet, r, c, text, author](Document& d) { d.SetNote(sheet, r, c, author, text, true); });
     }
+    m.note_new = false;
     m.note_inplace = false;
   }
 }
@@ -768,6 +792,77 @@ void DrawStaleOverlay(AppState& s, uint32_t sheet_id, const render::OverlayGeom&
     }
     dl->PopClipRect();
   }
+}
+
+std::string TableRefFor(AppState& s, uint32_t sheet, const Rect& rr, int64_t formula_row) {
+  if (!Config().generate_table_refs || !s.snap) return {};
+  if (formula_row < 0 && (!s.edit.active || s.edit.sheet != sheet)) return {};  // (another sheet's: not measured)
+  const int64_t own_row = formula_row >= 0 ? formula_row : int64_t{s.edit.r};
+  const model::Sheet* sh = s.snap->Sheet(sheet);
+  if (!sh || sh->tables->empty()) return {};
+  const model::Table* t = nullptr;
+  for (const model::Table& x : *sh->tables) {
+    if (x.range.Contains(rr.r0, rr.c0) && x.range.Contains(rr.r1, rr.c1)) t = &x;
+  }
+  if (!t) return {};
+  const Rect d = t->Data();
+  const uint32_t hr = t->range.r0, tr = t->range.r1;
+  // the rows: the table's header, data and totals rows, or the formula's own row of its data ([@...])
+  bool at = false;
+  std::vector<const char*> parts;
+  if (rr.r0 == t->range.r0 && rr.r1 == t->range.r1 && (t->header || t->totals)) {
+    parts.push_back("#All");
+  } else if (d.r0 <= d.r1 && rr.r0 == d.r0 && rr.r1 == d.r1) {
+    // the data rows: no item
+  } else if (t->header && rr.r0 == hr && rr.r1 == hr) {
+    parts.push_back("#Headers");
+  } else if (t->totals && rr.r0 == tr && rr.r1 == tr) {
+    parts.push_back("#Totals");
+  } else if (t->header && t->totals && d.r0 <= d.r1 && rr.r0 == hr && rr.r1 == d.r1) {
+    parts = {"#Headers", "#Data"};
+  } else if (t->header && t->totals && d.r0 <= d.r1 && rr.r0 == d.r0 && rr.r1 == tr) {
+    parts = {"#Data", "#Totals"};
+  } else if (rr.r0 == rr.r1 && rr.r0 >= d.r0 && rr.r0 <= d.r1 && own_row == int64_t{rr.r0}) {
+    at = true;  // the formula's own row
+  } else {
+    return {};  // part of a column, another row: the cells (Excel 16, measured)
+  }
+  auto name_of = [&](uint32_t c) {
+    const uint32_t j = c - t->range.c0;
+    if (j < t->columns.size() && !t->columns[j].name.empty()) return t->columns[j].name;
+    return std::string();
+  };
+  auto esc = [](const std::string& n) {
+    std::string o;
+    for (char ch : n) {
+      if (ch == '[' || ch == ']' || ch == '#' || ch == '\'') o += '\'';
+      o += ch;
+    }
+    return "[" + o + "]";
+  };
+  const bool all_cols = rr.c0 == t->range.c0 && rr.c1 == t->range.c1;
+  std::string cols;
+  if (!all_cols) {
+    const std::string a = name_of(rr.c0), b = name_of(rr.c1);
+    if (a.empty() || b.empty()) return {};
+    cols = rr.c0 == rr.c1 ? esc(a) : esc(a) + ":" + esc(b);
+  }
+  // Excel's forms: Table1[Px], Table1[[Qty]:[Px]], Table1, Table1[[#All],[Px]], Table1[#All], Table1[[#Headers],[Qty]],
+  // Table1[@Px], Table1[@[Qty]:[Px]], Table1[@] (measured by keys posted to its sheet window; inside the table the
+  // formula reads back as [@Px], [Px])
+  std::string body;
+  if (at) {
+    body = cols.empty() ? "@" : "@" + cols;
+  } else if (parts.empty()) {
+    if (cols.empty()) return t->name;
+    body = cols;
+  } else if (cols.empty() && parts.size() == 1) {
+    body = parts[0];
+  } else {
+    for (size_t i = 0; i < parts.size(); ++i) body += std::string(i ? "," : "") + "[" + parts[i] + "]";
+    if (!cols.empty()) body += "," + cols;
+  }
+  return t->name + "[" + body + "]";
 }
 
 std::string GetPivotDataFor(AppState& s, uint32_t sheet, uint32_t r, uint32_t c) {
@@ -928,17 +1023,27 @@ void DrawMiscWindows(AppState& s) {
   }
   ImGui::SetNextWindowSize(ImVec2(S(280), S(420)), ImGuiCond_FirstUseEver);
   PlaceNewWindow(WindowPlace::Left);
+  DockAsTaskPane(TR("Clipboard###yc_clipboard"), true, S(280));  // Excel's pane is on the left of the sheets
   if (ImGui::Begin(TR("Clipboard###yc_clipboard"), &m.show_clipboard)) {
     if (ImGui::Button(TR("Clear All"))) s.clip_history.clear();
     ImGui::Separator();
     if (s.clip_history.empty()) ImGui::TextWrapped(TR("Items appear here after you copy cells (up to 24). Click an item to paste it into the active cell."));
     for (size_t i = s.clip_history.size(); i > 0; --i) {
       const std::string& t = s.clip_history[i - 1];
+      // the copied text on a line: a copied cell's text ends in a line break (CR LF), which showed as nothing but
+      // was in the label, and a ## in it (#,##0) cut the rest off as an ImGui id
       std::string preview(core::Utf8Prefix(t, 120));
-      std::replace(preview.begin(), preview.end(), '\t', ' ');
-      std::replace(preview.begin(), preview.end(), '\n', ' ');
+      for (char& ch : preview) {
+        if (ch == '\t' || ch == '\n' || ch == '\r') ch = ' ';
+      }
+      while (!preview.empty() && preview.back() == ' ') preview.pop_back();
       ImGui::PushID(static_cast<int>(i));
-      if (ImGui::Selectable(preview.c_str(), false, 0, ImVec2(0, ImGui::GetTextLineHeight() * 2))) {
+      const ImVec2 at = ImGui::GetCursorScreenPos();
+      const bool picked = ImGui::Selectable("##clipitem", false, 0, ImVec2(0, ImGui::GetTextLineHeight() * 2));
+      const ImRect item(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+      ImGui::GetWindowDrawList()->AddText(at, ImGui::GetColorU32(ImGuiCol_Text), preview.c_str());
+      ui::NoteUiText(preview.c_str(), item);
+      if (picked) {
         // put it back on the system clipboard, then paste (like the Office clipboard in Excel)
         SetClipboardTextUtf8(s.hwnd, t);
         s.has_clip = false;
@@ -977,8 +1082,10 @@ void RegisterMiscCommands(AppState& s) {
     std::snprintf(m.note_text, sizeof(m.note_text), "%s", it != sh->notes->end() ? it->second.text.c_str() : "");
     // Excel: the note opens beside its cell for typing (no dialog); a click elsewhere keeps it
     m.note_before = m.note_text;
+    m.note_new = it == sh->notes->end();
     m.note_inplace = true;
     m.note_focus = true;
+    m.note_caret_end = true;
   };
   // Format Comment: the note's font, alignment, colors and lines, size (right-click its border, as in Excel)
   R.Add(make("FormatComment", TR("Format Comment..."), ui::icon::Comment, "", TR("Format the note: its font, alignment, fill and line, and size."))).execute = [&s](ui::Command&) {
@@ -1205,6 +1312,11 @@ void RegisterMiscCommands(AppState& s) {
 
 void DrawMiscDialogs(AppState& s) {
   MiscUi& m = M();
+  // the Sort dialog closed without OK (its Options page is part of it)
+  if (m.sort_restore && s.dialog != Dialog::CustomSort && s.dialog != Dialog::SortOptions) {
+    m.sort_restore = false;
+    if (s.focus_sheet == m.sort_restore_sheet) s.FocusView().sel = m.sort_saved_sel;
+  }
   // notes
   if (BeginDlg(s, Dialog::NoteEdit, TR("Notes###yc_dlg_note"), 380)) {
     ImGui::Text(TR("Note for %s"), core::CellA1(m.note_r, m.note_c).c_str());
@@ -1230,11 +1342,11 @@ void DrawMiscDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::HyperlinkEdit, m.link_existing ? TR("Edit Hyperlink###yc_dlg_link") : TR("Insert Hyperlink###yc_dlg_link"), 520)) {
     // Link to: as Excel's buttons on the left
     ImGui::TextUnformatted(TR("Link to:"));
-    ImGui::RadioButton(TR("Existing File or Web Page"), &m.link_kind, 0);
+    ui::RadioButton(TR("Existing File or Web Page"), &m.link_kind, 0);
     ImGui::SameLine();
-    ImGui::RadioButton(TR("Place in This Document"), &m.link_kind, 1);
+    ui::RadioButton(TR("Place in This Document"), &m.link_kind, 1);
     ImGui::SameLine();
-    ImGui::RadioButton(TR("E-mail Address"), &m.link_kind, 2);
+    ui::RadioButton(TR("E-mail Address"), &m.link_kind, 2);
     ImGui::Separator();
     ImGui::TextUnformatted(TR("Text to display:"));
     ImGui::SetNextItemWidth(-1);
@@ -1268,9 +1380,9 @@ void DrawMiscDialogs(AppState& s) {
       }
       // Excel's Look in lists: the workbook's own folder (Current Folder) and Recent Files; a click puts the file in Address
       static int look_in = 0;
-      ImGui::RadioButton(TR("Current Folder"), &look_in, 0);
+      ui::RadioButton(TR("Current Folder"), &look_in, 0);
       ImGui::SameLine();
-      ImGui::RadioButton(TR("Recent Files"), &look_in, 1);
+      ui::RadioButton(TR("Recent Files"), &look_in, 1);
       ImGui::BeginChild("##recent_links", ImVec2(-1, S(110)), ImGuiChildFlags_Borders);
       std::vector<std::wstring> files;
       if (look_in == 1) {
@@ -1392,11 +1504,11 @@ void DrawMiscDialogs(AppState& s) {
       }
       ImGui::PopID();
     };
-    if (ImGui::BeginTabBar("##fctabs")) {
+    if (BeginDlgTabBar("##fctabs")) {
       if (ImGui::BeginTabItem(TR("Font"))) {
         ImGui::TextUnformatted(TR("Font:"));
         ImGui::SetNextItemWidth(S(240));
-        if (ImGui::BeginCombo("##font", lk.font_name.empty() ? "Tahoma" : lk.font_name.c_str())) {
+        if (ui::BeginCombo("##font", lk.font_name.empty() ? "Tahoma" : lk.font_name.c_str())) {
           for (const std::string& f : ui::SystemFontFamilies()) {
             if (ImGui::Selectable(f.c_str(), f == lk.font_name)) lk.font_name = f;
           }
@@ -1406,7 +1518,7 @@ void DrawMiscDialogs(AppState& s) {
         int st = (lk.bold ? 2 : 0) + (lk.italic ? 1 : 0);
         ImGui::TextUnformatted(TR("Font style:"));
         ImGui::SetNextItemWidth(S(240));
-        if (ImGui::Combo("##style", &st, kStyles, 4)) lk.bold = st >= 2, lk.italic = st == 1 || st == 3;
+        if (ui::Combo("##style", &st, kStyles, 4)) lk.bold = st >= 2, lk.italic = st == 1 || st == 3;
         float size = lk.font_size > 0 ? lk.font_size : 9;
         ImGui::TextUnformatted(TR("Size:"));
         ImGui::SetNextItemWidth(S(240));
@@ -1419,10 +1531,10 @@ void DrawMiscDialogs(AppState& s) {
         const char* kV[] = {TR("Top"), TR("Center"), TR("Bottom")};
         ImGui::TextUnformatted(TR("Horizontal:"));
         ImGui::SetNextItemWidth(S(200));
-        ImGui::Combo("##h", &lk.halign, kH, 3);
+        ui::Combo("##h", &lk.halign, kH, 3);
         ImGui::TextUnformatted(TR("Vertical:"));
         ImGui::SetNextItemWidth(S(200));
-        ImGui::Combo("##v", &lk.valign, kV, 3);
+        ui::Combo("##v", &lk.valign, kV, 3);
         ImGui::EndTabItem();
       }
       if (ImGui::BeginTabItem(TR("Colors and Lines"))) {
@@ -1457,6 +1569,22 @@ void DrawMiscDialogs(AppState& s) {
     static const char* kKinds[] = {TR("Notes"), TR("Constants"), TR("Formulas"), TR("Blanks"), TR("Current region"), TR("Last cell"), TR("Visible cells only"), TR("Conditional formats"), TR("Data validation"), TR("Precedents"), TR("Dependents"), TR("Current array"), TR("Row differences"), TR("Column differences"), TR("Objects")};
     // in Excel's order, two columns
     static const int kOrder[] = {0, 1, 2, 3, 4, 11, 14, -1, 12, 13, 9, 10, 5, 6, 7, 8};
+    // Excel's letters, by kKinds: (N)otes, C(o)nstants, (F)ormulas, Blan(k)s, Current (r)egion, La(s)t cell, Visible
+    // cells onl(y), Condi(t)ional formats, Data (v)alidation, (P)recedents, (D)ependents, Current (a)rray, Ro(w)
+    // differences, Colu(m)n differences, O(b)jects (F5, Alt+S, K, Enter selects the blanks, as people type it)
+    static const ImGuiKey kKeys[] = {ImGuiKey_N, ImGuiKey_O, ImGuiKey_F, ImGuiKey_K, ImGuiKey_R, ImGuiKey_S, ImGuiKey_Y, ImGuiKey_T,
+                                     ImGuiKey_V, ImGuiKey_P, ImGuiKey_D, ImGuiKey_A, ImGuiKey_W, ImGuiKey_M, ImGuiKey_B};
+    for (int i = 0; i < static_cast<int>(std::size(kKeys)); ++i) {
+      if (DlgKey(kKeys[i])) m.gs_kind = i;
+    }
+    if ((m.gs_kind == 9 || m.gs_kind == 10) && DlgKey(ImGuiKey_I)) m.gs_all_levels = false;  // D(i)rect only
+    if ((m.gs_kind == 9 || m.gs_kind == 10) && DlgKey(ImGuiKey_L)) m.gs_all_levels = true;   // All (l)evels
+    if (m.gs_kind == 1 || m.gs_kind == 2) {  // N(u)mbers, Te(x)t, Lo(g)icals, (E)rrors
+      if (DlgKey(ImGuiKey_U)) m.gs_num = !m.gs_num;
+      if (DlgKey(ImGuiKey_X)) m.gs_text = !m.gs_text;
+      if (DlgKey(ImGuiKey_G)) m.gs_logical = !m.gs_logical;
+      if (DlgKey(ImGuiKey_E)) m.gs_err = !m.gs_err;
+    }
     ImGui::BeginGroup();
     for (const int i : kOrder) {
       if (i < 0) {
@@ -1465,22 +1593,22 @@ void DrawMiscDialogs(AppState& s) {
         ImGui::BeginGroup();
         continue;
       }
-      ImGui::RadioButton(kKinds[i], &m.gs_kind, i);
+      ui::RadioButton(kKinds[i], &m.gs_kind, i);
       if ((i == 9 || i == 10) && m.gs_kind == i) {
         ImGui::Indent();
         int lv = m.gs_all_levels ? 1 : 0;
-        ImGui::RadioButton(TR("Direct only"), &lv, 0);
+        ui::RadioButton(TR("Direct only"), &lv, 0);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("All levels"), &lv, 1);
+        ui::RadioButton(TR("All levels"), &lv, 1);
         m.gs_all_levels = lv == 1;
         ImGui::Unindent();
       }
       if ((i == 7 || i == 8) && m.gs_kind == i) {
         ImGui::Indent();
         int same = m.gs_same ? 1 : 0;
-        ImGui::RadioButton(TR("All##gs_rules"), &same, 0);
+        ui::RadioButton(TR("All##gs_rules"), &same, 0);
         ImGui::SameLine();
-        ImGui::RadioButton(TR("Same##gs_rules"), &same, 1);
+        ui::RadioButton(TR("Same##gs_rules"), &same, 1);
         m.gs_same = same == 1;
         ImGui::Unindent();
       }
@@ -1534,15 +1662,16 @@ void DrawMiscDialogs(AppState& s) {
       } else if (m.gs_kind == 4) areas.push_back(engine::CurrentRegion(sh, view.sel.act_r, view.sel.act_c));
       else if (m.gs_kind == 12 || m.gs_kind == 13) {
         // Row / Column differences: each row (column) against its cell in the active cell's column (row); one cell
-        // selected: its current region, as Excel
+        // selected finds none (Excel 16, measured by Ctrl+\)
         const Rect sel = SelRect(s);
-        const Rect w = sel.IsCell() ? engine::CurrentRegion(sh, view.sel.act_r, view.sel.act_c) : sel;
-        areas = engine::DifferenceCells(sh, w, view.sel.act_r, view.sel.act_c, m.gs_kind == 12);
+        if (!sel.IsCell()) areas = engine::DifferenceCells(sh, sel, view.sel.act_r, view.sel.act_c, m.gs_kind == 12);
       }
       else if (m.gs_kind == 11) {
-        // Current array: the array formula (or spill) the active cell belongs to
+        // Current array: the array formula entered with Ctrl+Shift+Enter the active cell belongs to; a dynamic array's
+        // spill isn't one (Excel 16 finds no cells there, measured by Ctrl+/)
         uint32_t ar = 0, ac = 0;
-        if (const model::SpillRange* sp = sh.spills->empty() ? nullptr : sh.SpillAt(view.sel.act_r, view.sel.act_c, &ar, &ac)) areas.push_back(sp->rect);
+        const model::SpillRange* sp = sh.spills->empty() ? nullptr : sh.SpillAt(view.sel.act_r, view.sel.act_c, &ar, &ac);
+        if (sp && sp->cse) areas.push_back(sp->rect);
       } else if ((m.gs_kind == 7 || m.gs_kind == 8) && m.gs_same) {
         // Same: the cells that share a rule with the active cell
         const uint32_t ar = view.sel.act_r, ac = view.sel.act_c;
@@ -1570,7 +1699,6 @@ void DrawMiscDialogs(AppState& s) {
         view.sel.anc_c = view.sel.act_c = areas.back().c0;
         view.sel.mode = render::SelectMode::Cells;
         render::EnsureVisible(sh, view, view.sel.act_r, view.sel.act_c);
-        s.SetStatus(TR("Selected ") + std::to_string(areas.size()) + TR(" areas"));
       }
       close = true;
     }
@@ -1584,18 +1712,19 @@ void DrawMiscDialogs(AppState& s) {
     const Rect r = m.sort_rect;
     const auto& tbl = *s.snap->wb.styles;
     m.sort_sel = std::clamp(m.sort_sel, 0, std::max(0, static_cast<int>(m.levels.size()) - 1));
-    // the tool bar
-    if (ImGui::Button(TR("Add Level")) && m.levels.size() < 64) {
+    // the tool bar, with Excel 16's letters (its dialog's AccessKey through UI Automation): Add Level A, Delete Level D,
+    // Copy Level C, Options O, My data has headers H
+    if ((ImGui::Button(TR("Add Level")) || DlgKey(ImGuiKey_A)) && m.levels.size() < 64) {
       m.levels.insert(m.levels.begin() + m.sort_sel + 1, MiscUi::Level{});
       ++m.sort_sel;
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(m.levels.size() <= 1);
-    if (ImGui::Button(TR("Delete Level"))) m.levels.erase(m.levels.begin() + m.sort_sel);
+    if ((ImGui::Button(TR("Delete Level")) || (m.levels.size() > 1 && DlgKey(ImGuiKey_D)))) m.levels.erase(m.levels.begin() + m.sort_sel);
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(m.levels.empty() || m.levels.size() >= 64);
-    if (ImGui::Button(TR("Copy Level"))) {
+    if (ImGui::Button(TR("Copy Level")) || (!m.levels.empty() && m.levels.size() < 64 && DlgKey(ImGuiKey_C))) {
       const MiscUi::Level copy = m.levels[static_cast<size_t>(m.sort_sel)];
       m.levels.insert(m.levels.begin() + m.sort_sel + 1, copy);
       ++m.sort_sel;
@@ -1619,7 +1748,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::EndDisabled();
     ImGui::SameLine();
     bool open_options = false;
-    if (ImGui::Button(TR("Options..."))) {
+    if (ImGui::Button(TR("Options...")) || DlgKey(ImGuiKey_O)) {
       m.sort_case_edit = m.sort_case;
       m.sort_ltr_edit = m.sort_ltr;
       open_options = true;  // the Sort Options dialog; the Sort dialog comes back with its levels
@@ -1627,6 +1756,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::SameLine(S(470));
     bool header_box = (m.sort_header || m.sort_table) && !m.sort_ltr;
     ImGui::BeginDisabled(m.sort_table != 0 || m.sort_ltr);  // a table's header row never moves; left to right has none
+    if (!m.sort_table && !m.sort_ltr && DlgKey(ImGuiKey_H)) m.sort_header = !m.sort_header;
     if (ImGui::Checkbox(TR("My data has headers"), &header_box) && !m.sort_table) m.sort_header = header_box;
     ImGui::EndDisabled();
     ImGui::TextDisabled(TR("Range: %s:%s"), core::CellA1(r.r0, r.c0).c_str(), core::CellA1(r.r1, r.c1).c_str());
@@ -1634,6 +1764,18 @@ void DrawMiscDialogs(AppState& s) {
     const bool has_header = (m.sort_header || m.sort_table) && sh && !m.sort_ltr;
     const uint32_t hr = m.sort_table && r.r0 > 0 ? r.r0 - 1 : r.r0;
     const uint32_t data_r0 = m.sort_header && !m.sort_table && !m.sort_ltr ? r.r0 + 1 : r.r0;
+    // Excel selects the cells it will sort behind the dialog (without the header row while My data has headers is on),
+    // the active cell where it was: from one cell the sheet kept showing that cell alone
+    if (s.FocusSheet() && data_r0 <= r.r1) {
+      auto& sel = s.FocusView().sel;
+      const Rect want{data_r0, r.c0, r.r1, r.c1};
+      if (sel.areas.size() != 1 || !(sel.areas[0] == want)) {
+        sel.areas = {want};
+        if (!want.Contains(sel.act_r, sel.act_c)) sel.act_r = want.r0, sel.act_c = want.c0;
+        sel.anc_r = want.r0, sel.anc_c = want.c0;
+        sel.mode = render::SelectMode::Cells;
+      }
+    }
     std::vector<std::string> names;
     if (m.sort_ltr) {
       for (uint32_t row = r.r0; row <= r.r1 && row - r.r0 < 1000; ++row) names.push_back(TR("Row ") + std::to_string(row + 1));
@@ -1723,7 +1865,7 @@ void DrawMiscDialogs(AppState& s) {
         const uint32_t c = m.sort_ltr ? r.c0 : r.c0 + static_cast<uint32_t>(l.col);
         ImGui::SetNextItemWidth(c_col);
         ui::NoteUiItem((std::string("##col") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_col, ImGui::GetFrameHeight())));
-        if (ImGui::BeginCombo("##col", names.empty() ? "" : names[static_cast<size_t>(l.col)].c_str())) {
+        if (ui::BeginCombo("##col", names.empty() ? "" : names[static_cast<size_t>(l.col)].c_str())) {
           for (size_t k = 0; k < names.size(); ++k) {
             ImGui::PushID(static_cast<int>(k));
             // the header's text as it is ("C##1" too): an id-only item and the text beside it
@@ -1732,6 +1874,7 @@ void DrawMiscDialogs(AppState& s) {
               l.color = 0;
               m.sort_sel = static_cast<int>(i);
             }
+            ui::NoteUiText(names[k].c_str(), ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));  // ui.items finds it by its text
             ImGui::SameLine(0, 0);
             ImGui::TextUnformatted(names[k].c_str());
             ImGui::PopID();
@@ -1742,7 +1885,7 @@ void DrawMiscDialogs(AppState& s) {
         static const char* kOn[] = {TR("Cell Values"), TR("Cell Color"), TR("Font Color"), TR("Conditional Formatting Icon")};
         ImGui::SetNextItemWidth(c_on);
         ui::NoteUiItem((std::string("##on") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_on, ImGui::GetFrameHeight())));
-        if (ImGui::Combo("##on", &l.sort_on, kOn, m.sort_ltr ? 3 : 4)) {
+        if (ui::Combo("##on", &l.sort_on, kOn, m.sort_ltr ? 3 : 4)) {
           l.desc = false;
           l.list = -1;
           const auto cols = l.sort_on == 3 ? std::vector<uint32_t>{} : column_colors(c, l.sort_on);
@@ -1768,7 +1911,7 @@ void DrawMiscDialogs(AppState& s) {
           const std::string shown = l.list >= 0 ? list_text(l.list) + (l.desc ? TR(" (reversed)") : "") : (l.desc ? kDesc[kind] : kAsc[kind]);
           ImGui::SetNextItemWidth(c_ord);
           ui::NoteUiItem((std::string("##ord") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord, ImGui::GetFrameHeight())));
-          if (ImGui::BeginCombo("##ord", shown.c_str())) {
+          if (ui::BeginCombo("##ord", shown.c_str())) {
             if (ImGui::Selectable(kAsc[kind], l.list < 0 && !l.desc)) l.list = -1, l.desc = false;
             if (ImGui::Selectable(kDesc[kind], l.list < 0 && l.desc)) l.list = -1, l.desc = true;
             ImGui::SeparatorText(TR("Custom List"));
@@ -1787,7 +1930,7 @@ void DrawMiscDialogs(AppState& s) {
           ui::NoteUiItem((std::string("##icon") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(cw, ImGui::GetFrameHeight())));
           const ImVec2 at = ImGui::GetCursorScreenPos();
           const float ih = ImGui::GetTextLineHeight();
-          if (ImGui::BeginCombo("##icon", " ", ImGuiComboFlags_HeightLarge)) {
+          if (ui::BeginCombo("##icon", " ", ImGuiComboFlags_HeightLarge)) {
             for (size_t k = 0; k < icons.size(); ++k) {
               ImGui::PushID(static_cast<int>(k));
               const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1810,7 +1953,7 @@ void DrawMiscDialogs(AppState& s) {
           static const char* kPos[] = {TR("On Top"), TR("On Bottom")};
           ImGui::SetNextItemWidth(c_ord - cw - ImGui::GetStyle().ItemSpacing.x);
           ui::NoteUiItem((std::string("##ipos") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord - cw, ImGui::GetFrameHeight())));
-          if (ImGui::Combo("##ipos", &pos, kPos, 2)) l.desc = pos == 1;
+          if (ui::Combo("##ipos", &pos, kPos, 2)) l.desc = pos == 1;
         } else {
           // Sort by color: the colors in the column (as swatches), then On Top / On Bottom
           const auto cols = column_colors(c, l.sort_on);
@@ -1818,7 +1961,7 @@ void DrawMiscDialogs(AppState& s) {
           ImGui::SetNextItemWidth(cw);
           ui::NoteUiItem((std::string("##color") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(cw, ImGui::GetFrameHeight())));
           const ImVec2 at = ImGui::GetCursorScreenPos();
-          if (ImGui::BeginCombo("##color", " ", ImGuiComboFlags_HeightLarge)) {
+          if (ui::BeginCombo("##color", " ", ImGuiComboFlags_HeightLarge)) {
             for (size_t k = 0; k < cols.size(); ++k) {
               ImGui::PushID(static_cast<int>(k));
               const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -1840,7 +1983,7 @@ void DrawMiscDialogs(AppState& s) {
           static const char* kPos[] = {TR("On Top"), TR("On Bottom")};
           ImGui::SetNextItemWidth(c_ord - cw - ImGui::GetStyle().ItemSpacing.x);
           ui::NoteUiItem((std::string("##pos") + std::to_string(i)).c_str(), ImRect(ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2(c_ord - cw, ImGui::GetFrameHeight())));
-          if (ImGui::Combo("##pos", &pos, kPos, 2)) l.desc = pos == 1;
+          if (ui::Combo("##pos", &pos, kPos, 2)) l.desc = pos == 1;
         }
         ImGui::PopID();
       }
@@ -1877,6 +2020,7 @@ void DrawMiscDialogs(AppState& s) {
         d.Sort(sheet, r, keys, header, true, match_case, ltr);
         if (in_filter) d.SetFilterSort(sheet, levels);
       });
+      m.sort_restore = false;
       close = true;
     }
     ImGui::SameLine();
@@ -1890,7 +2034,7 @@ void DrawMiscDialogs(AppState& s) {
     ImGui::Checkbox(TR("Case sensitive"), &m.sort_case_edit);
     ImGui::SeparatorText(TR("Orientation"));
     int o = m.sort_ltr_edit ? 1 : 0;
-    if (ImGui::RadioButton(TR("Sort top to bottom"), &o, 0) || ImGui::RadioButton(TR("Sort left to right"), &o, 1)) m.sort_ltr_edit = o == 1;
+    if (ui::RadioButton(TR("Sort top to bottom"), &o, 0) || ui::RadioButton(TR("Sort left to right"), &o, 1)) m.sort_ltr_edit = o == 1;
     ImGui::Separator();
     if (DlgOkButton(TR("OK"), ImVec2(S(80), 0))) {
       if (m.sort_ltr_edit != m.sort_ltr) {
@@ -1911,25 +2055,25 @@ void DrawMiscDialogs(AppState& s) {
   if (BeginDlg(s, Dialog::FillSeries, TR("Series###yc_dlg_series"), 420)) {
     ImGui::BeginGroup();
     ImGui::TextUnformatted(TR("Series in"));
-    ImGui::RadioButton(TR("Rows"), &m.fs_dir, 0);
-    ImGui::RadioButton(TR("Columns"), &m.fs_dir, 1);
+    ui::RadioButton(TR("Rows"), &m.fs_dir, 0);
+    ui::RadioButton(TR("Columns"), &m.fs_dir, 1);
     ImGui::EndGroup();
     ImGui::SameLine(S(130));
     ImGui::BeginGroup();
     ImGui::TextUnformatted(TR("Type"));
-    ImGui::RadioButton(TR("Linear"), &m.fs_type, 0);
-    ImGui::RadioButton(TR("Growth"), &m.fs_type, 1);
-    ImGui::RadioButton(TR("Date"), &m.fs_type, 2);
-    ImGui::RadioButton(TR("AutoFill"), &m.fs_type, 3);
+    ui::RadioButton(TR("Linear"), &m.fs_type, 0);
+    ui::RadioButton(TR("Growth"), &m.fs_type, 1);
+    ui::RadioButton(TR("Date"), &m.fs_type, 2);
+    ui::RadioButton(TR("AutoFill"), &m.fs_type, 3);
     ImGui::EndGroup();
     ImGui::SameLine(S(260));
     ImGui::BeginGroup();
     ImGui::BeginDisabled(m.fs_type != 2);  // the units only mean something for dates, as in Excel
     ImGui::TextUnformatted(TR("Date unit"));
-    ImGui::RadioButton(TR("Day"), &m.fs_unit, 0);
-    ImGui::RadioButton(TR("Weekday"), &m.fs_unit, 1);
-    ImGui::RadioButton(TR("Month"), &m.fs_unit, 2);
-    ImGui::RadioButton(TR("Year"), &m.fs_unit, 3);
+    ui::RadioButton(TR("Day"), &m.fs_unit, 0);
+    ui::RadioButton(TR("Weekday"), &m.fs_unit, 1);
+    ui::RadioButton(TR("Month"), &m.fs_unit, 2);
+    ui::RadioButton(TR("Year"), &m.fs_unit, 3);
     ImGui::EndDisabled();
     ImGui::EndGroup();
     ImGui::BeginDisabled(m.fs_type >= 2);

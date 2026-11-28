@@ -110,23 +110,25 @@ std::string CellText(const AppState& s, const model::Sheet& sh, uint32_t r, uint
   return engine::DisplayTextOf(v, tbl.NumberFormat(tbl.Get(sh.GetStyle(r, c))));
 }
 
-// Ctrl+\ / Ctrl+Shift+| : Go To Special's Row / Column differences in the selection (one cell: its region), as Excel
+// Ctrl+\ / Ctrl+Shift+| : Go To Special's Row / Column differences in the selection. One cell selected finds none
+// (Excel 16 says "No cells were found." even where the cell's region differs, measured by keys)
 void SelectDifferences(AppState& s, bool rows) {
   const model::Sheet* sh = s.FocusSheet();
   if (!sh) return;
   auto& view = s.FocusView();
-  const Rect sel = SelRect(s);
-  Rect w = sel.IsCell() ? engine::CurrentRegion(*sh, view.sel.act_r, view.sel.act_c) : sel;
+  Rect w = SelRect(s);
   if (sh->has_used) {
     w.r1 = std::min(w.r1, std::max(sh->used.r1, w.r0));
     w.c1 = std::min(w.c1, std::max(sh->used.c1, w.c0));
   }
-  std::vector<Rect> areas = engine::DifferenceCells(*sh, w, view.sel.act_r, view.sel.act_c, rows);
+  std::vector<Rect> areas = w.IsCell() ? std::vector<Rect>{} : engine::DifferenceCells(*sh, w, view.sel.act_r, view.sel.act_c, rows);
   if (areas.empty()) {
     s.ShowMessage("YCGrid", TR("No cells were found."));
     return;
   }
   if (areas.size() > 10000) areas.resize(10000);
+  // the active cell is the first cell found, top to bottom (Excel 16, measured); the active area is the last one
+  std::rotate(areas.begin(), areas.begin() + 1, areas.end());
   view.sel.areas = areas;
   view.sel.anc_r = view.sel.act_r = areas.back().r0;
   view.sel.anc_c = view.sel.act_c = areas.back().c0;
@@ -313,7 +315,7 @@ void OpenPickList(AppState& s) {
   u.pick_r = sel.act_r;
   u.pick_c = sel.act_c;
   u.pick_items = ColumnWords(s, *sh, sel.act_r, sel.act_c);
-  u.pick_sel = 0;
+  u.pick_sel = -1;  // nothing chosen yet: the first Down takes the first entry (Excel 16, measured by keys)
   u.pick_open = true;
 }
 
@@ -447,9 +449,9 @@ void DrawFillAcrossDialog(AppState& s) {
   }
   bool close = !open || ImGui::IsKeyPressed(ImGuiKey_Escape);
   ImGui::SeparatorText(TR("Fill"));
-  ImGui::RadioButton(TR("All"), &u.across, 0);
-  ImGui::RadioButton(TR("Contents"), &u.across, 1);
-  ImGui::RadioButton(TR("Formats"), &u.across, 2);
+  ui::RadioButton(TR("All"), &u.across, 0);
+  ui::RadioButton(TR("Contents"), &u.across, 1);
+  ui::RadioButton(TR("Formats"), &u.across, 2);
   if (DlgOkButton(TR("OK"), ImVec2(S(90), 0))) {
     FillAcross(s, GroupTargets(s, s.focus_sheet), s.focus_sheet, SelAreas(s), u.across);
     close = true;
@@ -586,12 +588,17 @@ void DrawPickList(AppState& s) {
     ImGui::OpenPopup(id);
   }
   if (!ImGui::BeginPopup(id)) return;
-  // the arrows and Enter choose, as in Excel's list
+  // the arrows and Enter choose, as in Excel's list: Alt+Down, Down, Enter takes the first entry (the Down of the
+  // Alt+Down that opened it was counted too, and the list began on the first entry: one Down took the third)
   const int n = static_cast<int>(u.pick_items.size());
-  if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) u.pick_sel = std::min(n - 1, u.pick_sel + 1);
-  if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) u.pick_sel = std::max(0, u.pick_sel - 1);
+  const bool alt = ImGui::GetIO().KeyAlt;
+  if (!alt && ImGui::IsKeyPressed(ImGuiKey_DownArrow)) u.pick_sel = std::min(n - 1, u.pick_sel + 1);
+  if (!alt && ImGui::IsKeyPressed(ImGuiKey_UpArrow)) u.pick_sel = std::max(0, u.pick_sel - 1);
   int chosen = -1;
-  if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) chosen = u.pick_sel;
+  if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter)) {
+    if (u.pick_sel >= 0) chosen = u.pick_sel;
+    else ImGui::CloseCurrentPopup();  // nothing chosen: the list goes, the cell stays as it was
+  }
   for (int i = 0; i < n; ++i) {
     ImGui::PushID(i);
     if (ImGui::Selectable(u.pick_items[static_cast<size_t>(i)].c_str(), i == u.pick_sel)) chosen = i;
