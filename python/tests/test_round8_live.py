@@ -700,6 +700,60 @@ class UiOpsRound8Test(unittest.TestCase):
         self.assertTrue(texts[0].startswith("Cannot change part of a data table."), texts)
         self.assertEqual(self.ws.Range("B6").Formula, "=TABLE(,A1)")
 
+    def test_a_cell_emptied_loses_its_hyperlink_and_a_copy_brings_one(self):
+        # Excel 16, measured 2026-11-28: Delete, Backspace and Enter and ClearContents take the link and keep the
+        # formats; typing over keeps it; Copy, FillDown and a cut bring it, a plain cell copied over removes it;
+        # Hyperlinks.Add gives the Hyperlink style and Hyperlinks.Delete takes the formats too
+        ws = self.ws
+
+        def link(a):
+            return ws.Range(a).Hyperlinks.Count
+
+        def setup():
+            ws.Cells.Clear()
+            ws.Range("B4").Value = "lnk"
+            ws.Hyperlinks.Add(ws.Range("B4"), "http://example.com")
+            ws.Range("B4").Font.Bold = True
+
+        for keys in ("k:Delete", "k:Backspace|w:2|k:Enter"):
+            setup()
+            self.keys(f"m:2,2|g:B4|w:3|{keys}|w:5")
+            self.assertEqual(link("B4"), 0, keys)
+            self.assertTrue(ws.Range("B4").Font.Bold, keys)
+        setup()
+        self.keys("g:B4|w:3|t:a|k:Enter|w:5")
+        self.assertEqual(link("B4"), 1)
+        setup()
+        ws.Range("B4").ClearContents()
+        self.assertEqual(link("B4"), 0)
+        setup()
+        ws.Range("B4").Value = ""
+        self.assertEqual(link("B4"), 0)
+        setup()
+        ws.Range("B4").Copy(ws.Range("D4"))
+        ws.Range("C4").Value = 5
+        ws.Range("C4").Copy(ws.Range("B4"))
+        self.assertEqual((link("D4"), link("B4")), (1, 0))
+        setup()
+        ws.Range("B4:B6").FillDown()
+        self.assertEqual((link("B5"), link("B6")), (1, 1))
+        setup()
+        ws.Range("B4").Cut(ws.Range("D7"))
+        self.assertEqual((link("B4"), link("D7")), (0, 1))
+        setup()
+        self.keys("g:B4|w:2|k:c-C|w:3|g:F2|w:2|k:c-V|w:5|k:Escape|w:2")
+        self.assertEqual(link("F2"), 1)
+        ws.Cells.Clear()
+        ws.Range("B8").Value = "z"
+        ws.Range("B8").NumberFormat = "0.00"
+        ws.Range("B8").Font.Bold = True
+        ws.Hyperlinks.Add(ws.Range("B8"), "http://a.com")
+        self.assertEqual(ws.Range("B8").Style.Name, "Hyperlink")
+        self.assertFalse(ws.Range("B8").Font.Bold)
+        self.assertEqual(ws.Range("B8").NumberFormat, "0.00")
+        ws.Range("B8").Hyperlinks.Delete()
+        self.assertEqual((link("B8"), ws.Range("B8").NumberFormat, ws.Range("B8").Value), (0, "General", "z"))
+
     def test_ctrl_page_down_points_at_the_next_sheet_while_typing_a_formula(self):
         from yc import excel
 

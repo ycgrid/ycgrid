@@ -322,6 +322,31 @@ void Document::ClearHyperlinks(uint32_t sheet, const Rect& area) {
   if (EraseInRect(s->links.mut(), area)) wb_.dirty = true;
 }
 
+// a cell emptied loses its hyperlink and keeps its formats (Excel 16, measured 2026-11-28: Delete, Backspace and Enter,
+// Range.ClearContents, Value = "" or Empty, Formula = ""); a value written over it keeps the link. A paste or a fill
+// takes the links under it away too, the copied cells' own put in their place (PutLinks)
+void Document::EraseLinksIn(uint32_t sheet, const Rect& rect) {
+  const Sheet* s = S(sheet);
+  if (!s || s->links->empty()) return;
+  const bool hit = std::any_of(s->links->begin(), s->links->end(), [&](const auto& kv) {
+    return rect.Contains(static_cast<uint32_t>(kv.first >> 16), static_cast<uint32_t>(kv.first & 0xFFFF));
+  });
+  if (!hit) return;
+  NoteTouched();
+  if (EraseInRect(M(sheet)->links.mut(), rect)) wb_.dirty = true;
+}
+
+void Document::PutLinks(uint32_t sheet, const std::vector<std::pair<uint64_t, model::Hyperlink>>& links) {
+  if (links.empty() || !S(sheet)) return;
+  NoteTouched();
+  auto& m = M(sheet)->links.mut();
+  for (const auto& [k, l] : links) {
+    if (m.size() >= kMaxSheetLinks && !m.count(k)) break;  // Excel's limit a worksheet
+    m[k] = l;
+  }
+  wb_.dirty = true;
+}
+
 // ---- Conditional formatting ----
 
 uint32_t Document::AddCondFormat(uint32_t sheet, model::CfRule rule) {

@@ -1363,12 +1363,16 @@ void CopySelection(AppState& s, bool cut, bool wait) {
             cells.insert(cells.end(), part.cells.begin() + static_cast<ptrdiff_t>(i) * part.cols, part.cells.begin() + static_cast<ptrdiff_t>(i + 1) * part.cols);
           }
           out.cells = std::move(cells);
+          const uint32_t wide = out.cols + part.cols;  // the hyperlinks keep their cells
+          for (auto& [idx, l] : out.links) idx = idx / out.cols * wide + idx % out.cols;
+          for (auto& [idx, l] : part.links) out.links.emplace_back(idx / part.cols * wide + out.cols + idx % part.cols, std::move(l));
           out.cols += part.cols;
           out.col_widths.insert(out.col_widths.end(), part.col_widths.begin(), part.col_widths.end());
           out.merges.clear();
           out.rich.clear();
         } else if (same_cols && part.cols == out.cols) {  // rows one under the other
           out.cells.insert(out.cells.end(), part.cells.begin(), part.cells.end());
+          for (auto& [idx, l] : part.links) out.links.emplace_back(static_cast<size_t>(out.rows) * out.cols + idx, std::move(l));
           out.rows += part.rows;
           out.merges.clear();
           out.rich.clear();

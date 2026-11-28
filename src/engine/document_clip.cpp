@@ -177,6 +177,10 @@ ClipData Document::Copy(uint32_t sheet, const Rect& rect_in) const {
     if (!rect.Contains(rr, cc)) continue;
     if (const model::RichText* live = RichTextAt(sheet, rr, cc)) clip.rich.emplace_back(static_cast<size_t>(rr - rect.r0) * clip.cols + (cc - rect.c0), *live);
   }
+  for (auto it = s->links->lower_bound(uint64_t{rect.r0} << 16); it != s->links->end() && (it->first >> 16) <= rect.r1; ++it) {
+    const uint32_t rr = static_cast<uint32_t>(it->first >> 16), cc = static_cast<uint32_t>(it->first & 0xFFFF);
+    if (rect.Contains(rr, cc)) clip.links.emplace_back(static_cast<size_t>(rr - rect.r0) * clip.cols + (cc - rect.c0), it->second);
+  }
   for (const model::CfRule& rule : *s->cond_formats) {
     if (rule.ranges.empty()) continue;
     ClipData::Rule cr{rule, core::CellPos{rule.ranges.front().r0, rule.ranges.front().c0}};
@@ -546,6 +550,17 @@ Rect Document::Paste(uint32_t sheet, uint32_t r, uint32_t c, const ClipData& cli
     }
     s = M(sheet);
   }
+  if (all_like) {  // the copied cells' hyperlinks, in place of those under the paste (Excel); Skip Blanks keeps them
+    if (!skip_blanks) EraseLinksIn(sheet, dest);
+    std::vector<std::pair<uint64_t, model::Hyperlink>> put;
+    for (const auto& [idx, l] : clip.links) {
+      const uint32_t i = static_cast<uint32_t>(idx / clip.cols), j = static_cast<uint32_t>(idx % clip.cols);
+      const uint32_t dr = r + (transpose ? j : i), dc = c + (transpose ? i : j);
+      if (dest.Contains(dr, dc)) put.emplace_back((uint64_t{dr} << 16) | dc, l);
+    }
+    PutLinks(sheet, put);
+    s = M(sheet);
+  }
   if (all_like && !clip.cut && clip.carry_notes) {
     paste_notes();
     paste_validation();
@@ -660,6 +675,7 @@ ClipData Document::CopyShown(uint32_t sheet, const Rect& rect) const {
     const size_t base = static_cast<size_t>(out.rows) * out.cols;
     for (const Rect& m : part.merges) out.merges.push_back(Rect{m.r0 + out.rows, m.c0, m.r1 + out.rows, m.c1});
     for (auto& [idx, rt] : part.rich) out.rich.emplace_back(base + idx, std::move(rt));
+    for (auto& [idx, l] : part.links) out.links.emplace_back(base + idx, std::move(l));
     for (auto& [k, n] : part.notes) out.notes.emplace_back(k + (uint64_t{out.rows} << 16), std::move(n));
     out.cells.insert(out.cells.end(), std::make_move_iterator(part.cells.begin()), std::make_move_iterator(part.cells.end()));
     out.rows += part.rows;
@@ -886,6 +902,19 @@ void Document::FillLinesInBulk(uint32_t sheet, const Rect& edge, const Rect& des
         for (uint32_t c = a.c0; c <= a.c1; ++c) rich[(uint64_t{r} << 16) | c] = rt;
       }
     }
+  }
+  // hyperlinks go with the cells too, as a paste takes them (Excel 16, measured: FillDown)
+  EraseLinksIn(sheet, dest);
+  if (!line.links.empty()) {
+    std::vector<std::pair<uint64_t, model::Hyperlink>> put;
+    for (const auto& [idx, l] : line.links) {
+      const Rect a = lane(static_cast<uint32_t>(idx));
+      for (uint32_t r = a.r0; r <= a.r1 && put.size() < kMaxSheetLinks; ++r) {
+        for (uint32_t c = a.c0; c <= a.c1 && put.size() < kMaxSheetLinks; ++c) put.emplace_back((uint64_t{r} << 16) | c, l);
+      }
+    }
+    std::sort(put.begin(), put.end(), [](const auto& x, const auto& y) { return x.first < y.first; });
+    PutLinks(sheet, put);
   }
   // the copied cells' conditional formats cover their lanes: a rule that looks the same as one already on the sheet
   // grows that one, as a paste per line grows it a line at a time (a million times over a whole column)
@@ -1881,6 +1910,12 @@ void Document::AutoFill(uint32_t sheet, const Rect& src, const Rect& dest, int t
       const uint32_t i = vertical ? k : lane, j = vertical ? lane : k;
       seq[k] = &clip.cells[static_cast<size_t>(i) * clip.cols + j];
     }
+    // the source cells' hyperlinks repeat with them (Excel 16, measured: AutoFill of a linked cell)
+    std::vector<const model::Hyperlink*> seq_link(n, nullptr);
+    for (const auto& [idx, l] : clip.links) {
+      const uint32_t i = static_cast<uint32_t>(idx / clip.cols), j = static_cast<uint32_t>(idx % clip.cols);
+      if ((vertical ? j : i) == lane) seq_link[vertical ? i : j] = &l;
+    }
     // detect the kind of sequence
     bool all_num = true, any_formula = false, mixed_kinds = false;
     std::vector<FillKind> kinds(n, FillKind::General);
@@ -2049,6 +2084,7 @@ void Document::AutoFill(uint32_t sheet, const Rect& src, const Rect& dest, int t
       ClipData one;
       one.rows = one.cols = 1;
       one.cells.push_back(base);
+      if (seq_link[k]) one.links.emplace_back(0, *seq_link[k]);
       const int64_t sign = (dir == 0 || dir == 1) ? 1 : -1;
       // Copy Cells / Fill Formatting Only: the source repeats
       if (type == 1 || type == 3) {
@@ -2451,6 +2487,18 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
   // a sort that leaves every line where it was is still a step, as Excel's (measured 2026-11-16: Undo is enabled after
   // sorting 1, 2, 3): a Ctrl+Z after it took back the edit before it
   if (std::equal(order.begin(), order.end(), slots.begin(), slots.end())) NoteRegion(sheet, rect);
+  // the fonts inside a line's texts and its hyperlinks move with it (Excel 16, measured 2026-11-28 for the links): the
+  // paste of the line takes those of the cells under it away. at(i, j): the cell's index in the line, -1 off it
+  auto carry = [&](ClipData& line, const auto& at) {
+    for (const auto& [idx, rt] : data.rich) {
+      const int64_t x = at(static_cast<uint32_t>(idx / data.cols), static_cast<uint32_t>(idx % data.cols));
+      if (x >= 0) line.rich.emplace_back(static_cast<size_t>(x), rt);
+    }
+    for (const auto& [idx, l] : data.links) {
+      const int64_t x = at(static_cast<uint32_t>(idx / data.cols), static_cast<uint32_t>(idx % data.cols));
+      if (x >= 0) line.links.emplace_back(static_cast<size_t>(x), l);
+    }
+  };
   for (size_t k = 0; k < slots.size(); ++k) {
     if (order[k] == slots[k]) continue;
     ClipData line;
@@ -2467,6 +2515,7 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
         fit_line(tmp, delta, int64_t{rect.c0} + static_cast<int64_t>(slots[k]));
         line.arrays.push_back(ClipData::ArrayPart{Rect{part.rect.r0, 0, part.rect.r0, 0}, tmp.formula});
       }
+      carry(line, [&](uint32_t i, uint32_t j) { return j == order[k] ? static_cast<int64_t>(i) : -1; });
       Paste(sheet, rect.r0, rect.c0 + slots[k], line);
     } else {
       line.rows = 1;
@@ -2482,6 +2531,7 @@ void Document::Sort(uint32_t sheet, const Rect& rect_in, const std::vector<SortK
         fit_line(tmp, delta, int64_t{rect.r0} + static_cast<int64_t>(slots[k]));
         line.arrays.push_back(ClipData::ArrayPart{Rect{0, part.rect.c0, 0, part.rect.c0}, tmp.formula});
       }
+      carry(line, [&](uint32_t i, uint32_t j) { return i == order[k] ? static_cast<int64_t>(j) : -1; });
       Paste(sheet, rect.r0 + slots[k], rect.c0, line);
     }
   }

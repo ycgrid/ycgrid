@@ -14,6 +14,7 @@
 #include <cstring>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace yc::engine {
@@ -21,6 +22,17 @@ namespace yc::engine {
 using model::Sheet;
 
 namespace {
+
+// the hyperlinks of the rows Remove Duplicates keeps go up with them (the rows of `out`, in the order of `keep`)
+void CarryKeptLinks(const ClipData& all, const std::vector<uint32_t>& keep, ClipData* out) {
+  if (all.links.empty() || all.cols == 0) return;
+  std::unordered_map<uint32_t, uint32_t> at;  // source row -> its row in out
+  for (uint32_t p = 0; p < keep.size() && p < out->rows; ++p) at.emplace(keep[p], p);
+  for (const auto& [idx, l] : all.links) {
+    const auto it = at.find(static_cast<uint32_t>(idx / all.cols));
+    if (it != at.end()) out->links.emplace_back(static_cast<size_t>(it->second) * all.cols + idx % all.cols, l);
+  }
+}
 
 // a cell as a comparable key: Excel judges duplicates by the value shown (1.001 and 1.002 shown as "1.00" are the
 // same; one date shown two ways is not), text case-insensitively; TRUE and the text "true" are one, while 1 and the
@@ -135,6 +147,7 @@ uint32_t Document::RemoveDuplicates(uint32_t sheet, const Rect& rect_in, const s
     for (uint32_t i : keep) {
       for (uint32_t j = 0; j < all.cols; ++j) out.cells.push_back(all.cells[static_cast<size_t>(i) * all.cols + j]);
     }
+    CarryKeptLinks(all, keep, &out);
     Paste(sheet, first, body.c0, out, PasteMode::All);
     DeleteCells(sheet, Rect{first + out.rows, body.c0, rect.r1, body.c1}, true);
     return removed;
@@ -162,6 +175,7 @@ uint32_t Document::RemoveDuplicates(uint32_t sheet, const Rect& rect_in, const s
       for (uint32_t j = 0; j < all.cols; ++j) out.cells.push_back(all.cells[static_cast<size_t>(i) * all.cols + j]);
       ++out.rows;
     }
+    CarryKeptLinks(all, keep, &out);
     ClearAll(sheet, body, kSrcUser, false, /*to_lines=*/true);
     if (out.rows) Paste(sheet, first, c0, out, PasteMode::All);
   }

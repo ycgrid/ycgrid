@@ -1469,10 +1469,7 @@ void DrawMiscDialogs(AppState& s) {
       s.engine->PostUser(m.link_existing ? TR("Edit Hyperlink") : TR("Insert Hyperlink"), [sheet, r, c, l, text, write_text, area, many](Document& d) {
         if (write_text && !text.empty()) d.SetValue(sheet, r, c, core::Value::String(text));
         const Rect cells = many ? area : Rect::Cell(r, c);
-        d.ModifyStyle(sheet, cells, [](Style& x) {
-          x.font_color = model::Rgb(0x05, 0x63, 0xC1);
-          x.underline = model::Underline::Single;
-        });
+        d.ApplyCellStyle(sheet, cells, "Hyperlink");  // as Hyperlinks.Add does (Excel 16, measured)
         for (uint32_t rr = cells.r0; rr <= cells.r1; ++rr) {
           for (uint32_t cc = cells.c0; cc <= cells.c1; ++cc) d.SetHyperlink(sheet, rr, cc, l);
         }

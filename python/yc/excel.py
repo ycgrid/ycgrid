@@ -13158,7 +13158,8 @@ class Hyperlink:
         self.Range.Value = str(v)
 
     def Delete(self):  # noqa: N802
-        _rq("link.clear", sheet=self._sheet, rect=[self._r, self._c, self._r, self._c])
+        # Remove Hyperlinks: the cell's formats go too (Excel 16, measured); Range.ClearHyperlinks keeps them
+        _rq("link.clear", sheet=self._sheet, rect=[self._r, self._c, self._r, self._c], formats=True)
 
     def Follow(self, NewWindow=False):  # noqa: N802,N803
         import os as _os
@@ -13217,7 +13218,7 @@ class _Hyperlinks:
 
     def Delete(self):  # noqa: N802
         for x in self._list():
-            _rq("link.clear", sheet=self._sheet, rect=[x["row"], x["col"], x["row"], x["col"]])
+            _rq("link.clear", sheet=self._sheet, rect=[x["row"], x["col"], x["row"], x["col"]], formats=True)
 
 # ---------------------------------------------------------------------------
 # MsgBox, InputBox

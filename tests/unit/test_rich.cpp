@@ -194,3 +194,20 @@ TEST_CASE("rich text: a font set on the cell is set for every character, as in E
   REQUIRE(t.d.RichTextAt(sh, 0, 2));
   CHECK(model::RunAt(*t.d.RichTextAt(sh, 0, 2), 1)->bold == 1);
 }
+
+TEST_CASE("rich text: a sort moves the fonts inside a text with its row") {
+  // each sorted line is pasted, and the paste erased the fonts under it: H2O sorted from A3 to A1 lost its subscript
+  yctest::Doc t;
+  const uint32_t sh = t.sheet();
+  t.Set("A1", "z");
+  t.Set("A2", "y");
+  t.Set("A3", "H2O");
+  model::RichText rt = Plain("H2O");
+  model::ApplyToChars(&rt, 1, 1, [](model::RichRun& r) { r.script = 2; });
+  t.d.SetRichText(sh, 2, 0, rt);
+  t.d.Sort(sh, yc::core::Rect{0, 0, 2, 0}, {yc::engine::SortKey{0}}, false);
+  REQUIRE(t.V("A1").str() == "H2O");
+  REQUIRE(t.d.RichTextAt(sh, 0, 0));
+  CHECK(model::RunAt(*t.d.RichTextAt(sh, 0, 0), 1)->script == 2);
+  CHECK_FALSE(t.d.RichTextAt(sh, 2, 0));
+}

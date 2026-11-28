@@ -39,6 +39,11 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Hyperlinks follow their cells as in Excel: Delete, an empty entry and Clear Contents take a cell's link away (its
+  formats stay); a copy, Fill Down, the fill handle, a sort and Remove Duplicates bring the links with the cells, and
+  a plain cell pasted over a link removes it. `Hyperlinks.Add` and Insert Hyperlink give the cell the Hyperlink
+  style, and `Hyperlink.Delete` takes the cell's formats too, as Remove Hyperlinks does.
+- A sort kept the fonts inside a cell's text (part of it bold or red) where the cell was, not with its row.
 - `market_watch` example: rows clicked quickly while the quotes streamed drew the intraday chart twice at once, and
   each click could add another copy of every line (every price tag shown twice or more).
 - `trading_desk` example: a round trip's realized profit stayed 0 (a fill that closed the position read the average
