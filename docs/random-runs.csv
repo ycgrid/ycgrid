@@ -13824,3 +13824,10 @@ date,tool,seed,seconds,result,note
 2026-11-28,chaos,8078,361,ok,
 2026-11-28,gaps_fuzz,700490,93,ok,
 2026-11-28,basics,5117,163,ok,
+2026-11-28,doc_fuzz,2400499,89,ok,
+2026-11-28,calc_fuzz,4830,16,ok,
+2026-11-28,formula_fuzz,5811,1,ok,
+2026-11-28,basics,5118,162,ok,
+2026-11-28,gaps_fuzz,700491,98,ok,
+2026-11-28,chaos,8079,361,ok,
+2026-11-28,screen_walk,r192,500,found,"Flash Fill of first and last names, initials, an upper-case name, two columns combined, digits, an e-mail domain, two examples and a code suffix, measured in Excel through Range.FlashFill"

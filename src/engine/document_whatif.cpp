@@ -766,7 +766,9 @@ bool Document::AdvancedFilter(uint32_t sheet, const Rect& list0, uint32_t crit_s
 namespace {
 
 struct FfPart {
-  int kind = 0;  // 0 constant, 1 token, 2 whole cell
+  // 0 constant, 1 token, 2 whole cell, 3 what follows a separator (text: it; index 0 its first, -1 its last one), 4 what
+  // comes before one
+  int kind = 0;
   std::string text;
   int col = 0, index = 0;  // token index (negative = from the end)
   int xf = 0;              // 0 as is, 1 upper, 2 lower, 3 proper, 4 first character
@@ -837,6 +839,15 @@ bool RunProgram(const FfProgram& p, const std::vector<std::string>& src, std::st
       *out += Xf(src[static_cast<size_t>(part.col)], part.xf);
       continue;
     }
+    if (part.kind == 3 || part.kind == 4) {
+      const std::string& whole = src[static_cast<size_t>(part.col)];
+      const size_t at = part.index == 0 ? whole.find(part.text) : whole.rfind(part.text);
+      if (at == std::string::npos) return false;
+      const std::string piece = part.kind == 3 ? whole.substr(at + part.text.size()) : whole.substr(0, at);
+      if (piece.empty()) return false;
+      *out += Xf(piece, part.xf);
+      continue;
+    }
     const auto toks = Tokens(src[static_cast<size_t>(part.col)]);
     const int n = static_cast<int>(toks.size());
     const int k = part.index >= 0 ? part.index : n + part.index;
@@ -860,6 +871,21 @@ void Synthesize(const std::string& out, const std::vector<std::string>& src, siz
       for (int xf = 0; xf <= 4; ++xf) {
         const std::string whole = Xf(src[static_cast<size_t>(col)], xf);
         if (xf != 4 && !whole.empty() && out.compare(i, whole.size(), whole) == 0) at[i].push_back(Cand{FfPart{2, {}, col, 0, xf}, whole.size()});
+        // what follows (comes before) a separator's first or last occurrence: the domain after "@" (Excel 16, measured
+        // 2026-11-28: x.com from a@x.com gives mail.tw for c.d@mail.tw, where tokens gave d.tw)
+        const std::string& raw_src = src[static_cast<size_t>(col)];
+        for (size_t q = 0; xf != 4 && q < raw_src.size(); ++q) {
+          const auto ch = static_cast<unsigned char>(raw_src[q]);
+          if (ch >= 0x80 || std::isalnum(ch) || raw_src.find(raw_src[q]) != q) continue;  // each separator once
+          const std::string sep(1, raw_src[q]);
+          for (const int which : {0, -1}) {
+            const size_t pos = which == 0 ? raw_src.find(sep) : raw_src.rfind(sep);
+            for (const int kind : {3, 4}) {
+              const std::string piece = Xf(kind == 3 ? raw_src.substr(pos + 1) : raw_src.substr(0, pos), xf);
+              if (!piece.empty() && out.compare(i, piece.size(), piece) == 0) at[i].push_back(Cand{FfPart{kind, sep, col, which, xf}, piece.size()});
+            }
+          }
+        }
         for (int k = 0; k < n; ++k) {
           const std::string t = Xf(toks[static_cast<size_t>(k)], xf);
           if (t.empty() || out.compare(i, t.size(), t) != 0) continue;
@@ -898,7 +924,12 @@ double Score(const FfProgram& p) {
   double s = 0;
   for (const auto& part : p) {
     s += 1;  // fewer parts
-    if (part.kind == 0) s += 2.0 * static_cast<double>(part.text.size());
+    // a constant costs by its characters, a letter or digit more than punctuation: J.S. from John Smith is the two
+    // initials, not J and ".S." (Excel 16, measured 2026-11-28: M.J. for Mary Jones)
+    if (part.kind == 0) {
+      for (const char ch : part.text) s += std::isalnum(static_cast<unsigned char>(ch)) ? 3.0 : 2.0;
+    }
+    if (part.kind == 3 || part.kind == 4) s += 0.2;  // a token first when both read the example
     // a token at either end beats one counted to the middle, and counting from the start beats counting from the end
     // (Excel 16, measured: "2330" from "Taiwan Semi (2330)" gives "2454" for "MediaTek (2454)", "Smith" from "John
     // Smith" gives "Lee" for "Mary Ann Lee", "John" gives "Mary")
@@ -966,7 +997,7 @@ uint32_t Document::FlashFill(uint32_t sheet, uint32_t r, uint32_t c, std::string
   for (size_t first = 0; first < std::min<size_t>(2, examples.size()); ++first) {
     std::vector<FfProgram> programs;
     Synthesize(examples[first].out, examples[first].src, 4000, &programs);
-    std::sort(programs.begin(), programs.end(), [](const FfProgram& a, const FfProgram& b) { return Score(a) < Score(b); });
+    std::stable_sort(programs.begin(), programs.end(), [](const FfProgram& a, const FfProgram& b) { return Score(a) < Score(b); });
     for (const FfProgram& p : programs) {
       bool ok = true;
       std::string o;

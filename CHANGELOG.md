@@ -39,6 +39,7 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Flash Fill reads initials as the words' first letters (J.S. gives M.J. for Mary Jones, not M.S.) and takes what follows a separator (the domain after @), as Excel does.
 - A multi-area `Range.Select` (and `SpecialCells(...).Select`) makes the first area's first cell active, and
   `Selection.Address` after it, after Go To Special or Ctrl+Shift+O lists the areas in Excel's order: the last
   area's cell was active and the areas came round.

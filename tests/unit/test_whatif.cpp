@@ -230,6 +230,11 @@ TEST_CASE("Flash Fill takes a token at either end over one counted to the middle
       {{"John Smith", "Mary Ann Lee", "Bob Jones", "Al B Cee Dee"}, "Smith", {"Lee", "Jones", "Dee"}},
       {{"John Smith", "Mary Ann Lee", "Bob Jones", "Al B Cee Dee"}, "John", {"Mary", "Bob", "Al"}},
       {{"a-b-c", "d-e", "f-g-h-i", "j"}, "c", {"e", "i", "j"}},
+      // measured 2026-11-28: initials are the words' first letters, not J and a constant ".S."; a domain is what
+      // follows "@", where the tokens read d.tw from c.d@mail.tw
+      {{"John Smith", "Mary Jones", "Alan Turing", "Ada Lovelace"}, "J.S.", {"M.J.", "A.T.", "A.L."}},
+      {{"a@x.com", "bob@yc.org", "c.d@mail.tw", "e@f.net"}, "x.com", {"yc.org", "mail.tw", "f.net"}},
+      {{"2330.TW", "AAPL.US", "0700.HK", "7203.T"}, "TW", {"US", "HK", "T"}},
   };
   for (const Case& k : cases) {
     yctest::Doc t;
