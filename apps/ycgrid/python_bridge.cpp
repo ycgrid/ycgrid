@@ -2337,6 +2337,25 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
     }));
   }
   // dynamic array / array formula covering a cell: {anchor: [r, c], rect: [r0, c0, r1, c1], cse} or nil
+  if (m == "range.has_array") {
+    // Range.HasArray over several cells: True when an array entered with Ctrl+Shift+Enter covers every one, False
+    // when none, Null (nil) when some (Excel 16, measured 2026-11-28: Range("2:3").HasArray through G2:G4 is Null)
+    const Rect req = RectOf(*p.Get("rect"));
+    return eng.Call([&](Document& d) {
+      const model::Sheet* sh = d.S(sheet);
+      if (!sh) return MV::Bool(false);
+      const Rect r = Clamp(*sh, req);
+      uint64_t in = 0;
+      for (const auto& [k, sp] : *sh->spills) {
+        if (!sp.cse || !sp.rect.Intersects(r)) continue;
+        const Rect x{std::max(sp.rect.r0, r.r0), std::max(sp.rect.c0, r.c0), std::min(sp.rect.r1, r.r1), std::min(sp.rect.c1, r.c1)};
+        in += x.Count();
+      }
+      if (in == 0) return MV::Bool(false);
+      if (in >= r.Count()) return MV::Bool(true);
+      return MV();
+    });
+  }
   if (m == "range.spill") {
     return eng.Call([&](Document& d) {
       if (d.auto_calc) d.Recalc();  // manual calculation: read what the cells show (Excel), new formulas computed
@@ -2855,9 +2874,15 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
       for (const Rect& mg : *s->merges) {
         if (mg.Intersects(r)) merges_in.push_back(mg);
       }
+      // and whole rows or columns that take only part of a merged cell leave it alone, its first cell too (Excel 16,
+      // measured 2026-11-28: Range("B:B").Value = 5 and Range("2:3").Value = 5 over the merged B3:C4 keep B3's value,
+      // where Range("B2:C3").Value = 5 and Range("B3").Value = 5 write it)
+      const bool whole_lines = (r.r0 == 0 && r.r1 >= s->row_limit - 1) || (r.c0 == 0 && r.c1 >= core::kMaxCols - 1);
       auto covered = [&](uint32_t rr, uint32_t cc) {
         for (const Rect& mg : merges_in) {
-          if (mg.Contains(rr, cc) && (rr != mg.r0 || cc != mg.c0)) return true;
+          if (!mg.Contains(rr, cc)) continue;
+          if (rr != mg.r0 || cc != mg.c0) return true;
+          if (whole_lines && !r.Contains(mg)) return true;
         }
         return false;
       };
@@ -2885,6 +2910,11 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         }
         if (scalar) break;
       }
+      // a merged cell the range cuts keeps its first cell's value (above); one holding a formula is left by the
+      // cell-by-cell path below, as a block write would replace it
+      for (const Rect& mg : merges_in) {
+        if (fast && whole_lines && !r.Contains(mg) && r.Contains(mg.r0, mg.c0) && s->GetFormula(mg.r0, mg.c0)) fast = false;
+      }
       if (fast) {
         std::vector<core::Value> buf;
         buf.reserve(static_cast<size_t>(r.Count()));
@@ -2892,7 +2922,8 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           for (uint32_t j = 0; j < r.Cols(); ++j) {
             const MV* v = cell(i, j);
             int dk;
-            if (!merges_in.empty() && covered(r.r0 + i, r.c0 + j)) buf.emplace_back();
+            const uint32_t rr = r.r0 + i, cc = r.c0 + j;
+            if (!merges_in.empty() && covered(rr, cc)) buf.push_back(s->GetValue(rr, cc));  // (empty under a merge)
             else buf.push_back(v ? MVToValue(*v, &dk) : MVToValue(kNA, &dk));
           }
         }
@@ -5071,6 +5102,16 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
           given.push_back(r);
         }
         if (given.empty()) given.push_back(Rect{});
+        // an area takes in the merged cells it cuts, as Excel's Select does (Excel 16, measured 2026-11-28:
+        // Range("B:B").Select over the merged B3:C4 selects $B:$C, Range("2:3") $2:$4)
+        for (Rect& g : given) {
+          for (bool grew = true; grew;) {
+            grew = false;
+            for (const Rect& mg : *sh->merges) {
+              if (mg.Intersects(g) && !g.Contains(mg)) g = g.Union(mg), grew = true;
+            }
+          }
+        }
         render::SetAreasActiveFirst(v.sel, given);
         render::NormalizeWholeSelection(v, *sh);  // Range("C:C").Select(): whole columns, as in Excel
         if (v.sel.areas.size() > 1) {  // Excel's order again, over the areas as normalized

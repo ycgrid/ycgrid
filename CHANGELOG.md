@@ -39,6 +39,9 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- Python against Excel's object model (`scripts/excel_diff.py`): a value written to whole rows or columns leaves a
+  merged cell they cut alone, `Select` takes in the merged cells it cuts, a fill over several areas on a protected
+  sheet changes nothing when one target is locked, and `HasArray` over a range an array covers in part is None.
 - A script can name a sheet History, as Excel's object model allows (the name stays reserved when a person renames a tab).
 - Color scales give Excel's colors to the unit: each channel's step toward the end color is cut toward zero (they were rounded, one unit off in most cells).
 - Conditional formats: Text that Does Not Contain highlights error cells, and a standard deviation rule over a range holding an error highlights nothing, as in Excel.

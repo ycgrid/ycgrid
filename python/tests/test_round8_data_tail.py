@@ -268,6 +268,42 @@ class ExcelArgumentsTailTest(_Live):
 
 
 @unittest.skipUnless(LIVE, "no built ycgrid.exe")
+class ExcelDiffTailTest(_Live):
+    def test_merges_protection_and_arrays_as_excel(self):
+        # scripts/excel_diff.py against Excel 16 (2026-11-28): a write over part of a merged cell leaves it alone, a
+        # fill over several areas on a protected sheet changes nothing when one target is locked, and HasArray over
+        # a range an array covers in part is Null
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.Range("B3:C4").Merge()
+        ws.Range("B:B").Value2 = 5
+        self.assertEqual((ws.Range("B2").Value2, ws.Range("B3").Value2), (5, 20))
+        ws.Range("B3").Value2 = 7  # the merged cell's own cell alone is written
+        self.assertEqual(ws.Range("B3").Value2, 7)
+        ws.Range("B2:C3").Value2 = 8  # and by a range that isn't whole rows or columns
+        self.assertEqual(ws.Range("B3").Value2, 8)
+        ws.Range("B:B").Select()  # Select takes in the merged cells it cuts
+        from yc import excel
+
+        self.assertEqual(excel.Selection.Address(), "$B:$C")
+        ws.Range("B3:C4").UnMerge()
+        ws.Range("G2:G4").FormulaArray = "=B2:B4*2"
+        self.assertIsNone(ws.Range("2:3").HasArray)
+        self.assertTrue(ws.Range("G2:G3").HasArray)
+        self.assertFalse(ws.Range("A2:B3").HasArray)
+        ws.Range("B:D").Locked = False
+        ws.Protect()
+        try:
+            with self.assertRaises(yc.YcError):
+                ws.Range("A1:B2,D4:E5").FillRight()
+            self.assertEqual(ws.Range("B1").Value2, 5)  # nothing filled, the first area neither
+        finally:
+            ws.Unprotect()
+
+
+@unittest.skipUnless(LIVE, "no built ycgrid.exe")
 class FreshReadsTailTest(_Live):
     def test_reads_right_after_a_formula_is_written_see_its_value(self):
         # Excel's object model calculates after each write: DisplayFormat and a DataFrame read right after a formula is

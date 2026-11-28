@@ -8015,9 +8015,13 @@ class Range:
 
     @property
     def HasArray(self):  # noqa: N802
-        """True when the (first) cell is part of an array formula (Ctrl+Shift+Enter)."""
-        s = self._spill()
-        return bool(s) and bool(s["cse"])
+        """True when the cell is part of an array formula (Ctrl+Shift+Enter); over several cells True when arrays cover
+        every one, False when none, None when some (Excel's Null, measured)."""
+        if self.Count == 1:
+            s = self._spill()
+            return bool(s) and bool(s["cse"])
+        states = {_rq("range.has_array", sheet=self._sheet, rect=list(a)) for a in self._areas}
+        return states.pop() if len(states) == 1 else None
 
     @property
     def CurrentArray(self):  # noqa: N802
@@ -9091,6 +9095,19 @@ class Range:
         vertical = d in (0, 2)
         lo_end = d in (0, 1)  # the source is at the low end (top, left)
         ar = [tuple(a) for a in self._areas]
+        # a protected sheet: one locked cell among the cells any area fills and nothing is filled (Excel 16, measured
+        # 2026-11-28: A1:B2,D4:E5 with B:D unlocked raises and leaves B1:B2 as they were); the first area was filled
+        if self.Worksheet.ProtectContents:
+            for a in ar:
+                last = a[2] if a[2] != ROW_END else 1048575
+                if vertical:
+                    tgt = (a[0] + 1, a[1], last, a[3]) if lo_end else (a[0], a[1], last - 1, a[3])
+                else:
+                    tgt = (a[0], a[1] + 1, last, a[3]) if lo_end else (a[0], a[1], last, a[3] - 1)
+                if tgt[0] > tgt[2] or tgt[1] > tgt[3]:
+                    continue
+                if Range._from(self._sheet, [tgt]).Locked is not False:
+                    raise ProtectedError()
         # the source line (row for a vertical fill, column otherwise) of each column (row) the areas cover
         src = {}
         for a in ar:
