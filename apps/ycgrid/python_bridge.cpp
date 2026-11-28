@@ -3558,6 +3558,14 @@ MV PythonBridge::Dispatch(Conn& c, const std::string& m, const MV& p, std::strin
         const std::vector<Rect> runs = s ? engine::FilterShownRuns(*s, {r}) : std::vector<Rect>{r};
         mode = runs.size() == 1 && runs[0] == r ? "left" : "up";
       }
+      if (p.GetBool("check", false)) {
+        // only whether it is refused (an area of several, asked before any is done: Excel refuses them all at once)
+        if (mode == "rows") d.RefuseRowsCols(sheet, true, ins, r.r0, static_cast<uint32_t>(r.Rows()));
+        else if (mode == "cols") d.RefuseRowsCols(sheet, false, ins, r.c0, static_cast<uint32_t>(r.Cols()));
+        else if (ins) d.RefuseInsertCells(sheet, r, mode == "down");
+        else d.RefuseDeleteCells(sheet, r, mode == "up");
+        return;
+      }
       if (mode == "rows") {
         // whole rows of a filtered list deleted: the rows it shows, bottom up (Excel 16's object model, measured)
         std::vector<Rect> runs{r};

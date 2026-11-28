@@ -373,6 +373,51 @@ class ExcelDiffTailTest(_Live):
         finally:
             ws.Unprotect()
 
+    def test_insert_and_delete_over_areas_refuse_all_at_once(self):
+        # Excel 16 (2026-11-28): an area that cuts an array refuses the whole call, the other areas left as they were;
+        # YCGrid did the last area first and then raised
+        ws = self.ws
+        ws.Range("A1:E6").Value = [["Name", "Qty", "Price", "Total", "When"], ["AAPL", 10, 1.5, None, 45000],
+                                   ["MSFT", 20, 2.25, None, 45001], ["TSMC", 30, 3, None, 45002],
+                                   ["NVDA", 40, 4.75, None, 45003], ["AMZN", 50, 5, None, 45004]]
+        ws.Range("G2:G4").FormulaArray = "=B2:B4*2"
+        with self.assertRaises(yc.YcError):
+            ws.Range("B2:C3,E5").EntireRow.Delete()
+        self.assertEqual(ws.Range("A5").Value2, "NVDA")
+        with self.assertRaises(yc.YcError):
+            ws.Range("B2:C3,E5").Insert(-4161)  # xlShiftToRight
+        self.assertEqual(ws.Range("E5").Value2, 45003)
+        self.assertEqual(ws.Range("G2").FormulaArray, "=B2:B4*2")
+
+    def test_lines_over_areas_and_merges_through_a_table(self):
+        # Excel 16 (2026-11-28), a table in A1:E6: whole rows or columns in several areas through it are refused, the
+        # areas outside its cells too; merging any of its cells is refused; cells deleted in it take its rows / columns
+        ws = self.ws
+        measured = [("B2,B4", "rowdel", False, "A1:E6"), ("H2,H4", "rowdel", False, "A1:E6"), ("2:2,4:4", "rowdel", False, "A1:E6"),
+                    ("B2:C3,E5", "rowdel", False, "A1:E6"), ("H8,H10", "rowdel", True, "A1:E6"), ("B2,B4", "rowins", False, "A1:E6"),
+                    ("B2,D4", "colins", False, "A1:E6"), ("B8,D8", "colins", False, "A1:E6"), ("B2,D4", "coldel", False, "A1:E6"),
+                    ("B2,B4", "cellsup", True, "A1:E4"), ("A1", "merge", False, "A1:E6"), ("B3", "merge", False, "A1:E6"),
+                    ("B3", "delleft", True, "A1:D6"), ("B3", "delup", True, "A1:E5"), ("B3", "insright", False, "A1:E6")]
+        got = []
+        for rg, op, _, _ in measured:
+            for lo in list(ws.ListObjects):
+                lo.Unlist()
+            ws.Cells.Clear()
+            ws.Range("A1:E6").Value = [[f"r{r}c{c}" for c in range(1, 6)] for r in range(1, 7)]
+            ws.Range("H1:H10").Value2 = "x"
+            ws.ListObjects.Add(1, ws.Range("A1:E6"), None, 1)
+            r = ws.Range(rg)
+            act = {"rowdel": lambda: r.EntireRow.Delete(), "rowins": lambda: r.EntireRow.Insert(), "colins": lambda: r.EntireColumn.Insert(),
+                   "coldel": lambda: r.EntireColumn.Delete(), "cellsup": lambda: r.Delete(-4162), "merge": lambda: r.Merge(),
+                   "delleft": lambda: r.Delete(-4159), "delup": lambda: r.Delete(-4162), "insright": lambda: r.Insert(-4161)}[op]
+            try:
+                act()
+                ok = True
+            except yc.YcError:
+                ok = False
+            got.append((rg, op, ok, ws.ListObjects(1).Range.Address(False, False)))
+        self.assertEqual(got, measured)
+
     def test_validation_refuses_a_formula_that_gives_an_error(self):
         # Excel 16 (2026-11-28): Validation.Add and Modify refuse a formula that gives an error at the range's first
         # cell, of any type; a list takes a reference whatever its cell holds, but not through a name

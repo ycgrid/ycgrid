@@ -39,6 +39,10 @@ while the version starts with 0, a minor version (0.x) may change the Python API
   Advanced turns it off (`Application.ExtendList`).
 
 ### Fixed
+- A fill over rows that hold a whole array entered with Ctrl+Shift+Enter writes over it, as Excel's; each row was
+  refused on its own and the rows past the array were filled. From Python, Insert and Delete over several areas
+  refuse all of them when one is refused (the last area was done first), whole rows or columns in several areas
+  through a table are refused, and `Merge` refuses a table's cells, as Excel's object model does.
 - Python: `Range.Next` and `Previous` on a protected sheet go to the unlocked cells, as Tab does; formats read over
   several areas are None where the areas differ (the first area was read), and a mixed fill's `Interior.Color`
   reads 0, as Excel's. A defined name can't be `_xlfn` or hold an ideographic space.

@@ -8846,6 +8846,19 @@ class Range:
     def Clear(self):  # noqa: N802
         _rq("range.clear", **self._p(what=2, events=Application.EnableEvents))
 
+    def _no_lines_through_table(self, areas, Shift, insert):  # noqa: N803
+        # whole rows or columns in several areas that run through a table: Excel 16 refuses them all, inserted or
+        # deleted, the areas outside the table's cells too (measured 2026-11-28: EntireRow.Delete of B2,B4 or H2,H4
+        # beside a table in A1:E6, EntireColumn.Insert of B8,D8); one area goes ahead
+        if len(areas) < 2:
+            return
+        tables = [lo.Range._a for lo in self.Worksheet.ListObjects]
+        for a in areas:
+            mode = self._shift_mode(a, Shift, insert)
+            for t in tables:
+                if (mode == "rows" and a[0] <= t[2] and t[0] <= a[2]) or (mode == "cols" and a[1] <= t[3] and t[1] <= a[3]):
+                    raise ApplicationDefinedError("This operation is not allowed. The operation is attempting to shift cells in a table on your worksheet.")
+
     def _shift_mode(self, a, Shift, insert):  # noqa: N803
         """How Delete / Insert moves the cells of area a: whole columns or rows, else Shift; without Shift, Excel's
         rule: an area with more rows than columns shifts sideways (Range("A1:A2").Delete shifts left), others up / down."""
@@ -8886,7 +8899,14 @@ class Range:
         return sorted(areas, key=lambda a: (a[0], a[1]), reverse=True)
 
     def Delete(self, Shift=None):  # noqa: N802,N803
-        for a in self._areas_last_first():
+        areas = self._areas_last_first()
+        self._no_lines_through_table(areas, Shift, False)
+        # several areas: each is asked before any is deleted, as Excel 16 refuses them all at once (measured 2026-11-28:
+        # EntireRow.Delete of B2:C3,E5 through an array in G2:G4 deletes nothing; row 5 was deleted first)
+        if len(areas) > 1:
+            for a in areas:
+                _rq("range.delete", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, False), check=True)
+        for a in areas:
             _rq("range.delete", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, False))
 
     def Insert(self, Shift=None, CopyOrigin=None):  # noqa: N802,N803
@@ -8897,6 +8917,10 @@ class Range:
             if _rq("app.cut_copy_mode") and _rq("cells.insert_copied", sheet=self._sheet, rect=list(a),
                                                   mode=self._shift_mode(a, Shift, True).replace("_auto", "")):
                 return
+        self._no_lines_through_table(areas, Shift, True)
+        if len(areas) > 1:  # each asked first, as Delete
+            for a in areas:
+                _rq("range.insert", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, True), check=True)
         for a in areas:
             # CopyOrigin: xlFormatFromLeftOrAbove (default) or xlFormatFromRightOrBelow, the formats the new cells take
             _rq("range.insert", sheet=self._sheet, rect=list(a), mode=self._shift_mode(a, Shift, True), origin=1 if CopyOrigin == 1 else 0)
@@ -9071,6 +9095,12 @@ class Range:
 
     def Merge(self, Across=False):  # noqa: N802,N803
         _no_overlap(self)
+        # a table holds no merged cells: Excel 16 raises for one of its cells too (measured 2026-11-28: A1 or B3 of a
+        # table), where the merge of one cell changed nothing and passed
+        for lo in self.Worksheet.ListObjects:
+            t = lo.Range._a
+            if any(a[0] <= t[2] and t[0] <= a[2] and a[1] <= t[3] and t[1] <= a[3] for a in self._areas):
+                raise ApplicationDefinedError("Merged cells aren't allowed in a table.")
         for a in self._areas:
             _rq("range.merge", sheet=self._sheet, rect=list(a), across=bool(Across))
 

@@ -814,6 +814,18 @@ void Document::FillEdge(uint32_t sheet, const Rect& rect_in, int dir, bool whole
   // 2026-11-20: FillRight over A1:E1 with B:D unlocked raises and writes nothing); the cells were refused one by one
   // and the unlocked ones filled
   if (Refuse(sheet, &dest)) return;
+  // an array entered with Ctrl+Shift+Enter that the target holds whole goes, the line written over it (Excel 16,
+  // measured 2026-11-28: FillUp over rows 2:6 through {=B2:B4*2} in G2:G4 writes row 6 there). A line at a time, each
+  // line met part of the array and was refused, and the lines past it were filled before the call raised
+  {
+    std::vector<Rect> whole;
+    for (const auto& [k, sp] : *s0->spills) {
+      if (sp.cse && dest.Contains(sp.rect)) whole.push_back(sp.rect);
+    }
+    for (const Rect& a : whole) ClearContents(sheet, a);
+    s0 = S(sheet);
+    if (!s0) return;
+  }
   // a fill down (right) past a table's last row (column) grows the table, as a write there does (Excel 16, measured
   // 2026-11-20: FillDown over B6:B10 grows A1:D6 to A1:D10, its calculated column with it); it stayed
   if ((dir == 0 || dir == 1) && !s0->tables->empty()) {
